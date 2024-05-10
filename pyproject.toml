@@ -1,0 +1,93 @@
+[tool.poetry]
+name = "cryoet-data-portal-neuroglancer"
+version = "0.1.0"
+description = "Utility package for working with Neuroglancer data in the CZI Cryo-ET Data Portal"
+authors = [
+    "CZI Imaging Team <cryoetdataportal@chanzuckerberg.com>"
+]
+license = "MIT"
+readme = "README.md"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Programming Language :: Python :: 3.11",
+]
+packages = [
+    { include = "cryoet_data_portal_neuroglancer", from = "." },
+]
+
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[project.urls]
+repository = "https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+zarr = "^2.18.0"
+ome-zarr = "^0.8.3"
+neuroglancer = "^2.39.2"
+cloud-files = "^4.24.1"
+tqdm = "^4.66.4"
+ndjson = "^0.3.1"
+
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.0"
+ruff = "^0.4.4"
+pre-commit = "^3.7.0"
+pytest-cov = "^5.0.0"
+mypy = "^1.10.0"
+
+[tool.black]
+line-length = 120
+target_version = ['py311']
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle
+    "F",  # pyflakes
+    "B",  # bugbear
+    "I",  # isort
+    "N",  # pep8-naming
+    "ASYNC",  # async
+    "COM",  # commas
+    "C4",  # comprehensions
+    "DTZ",  # datetimez
+    "ISC",  # implicit-str-concat
+    "G",  # logging-format
+    "T20",  # print
+    "SIM",  # simplify
+]
+ignore = [
+    "E501",  # line too long
+    "C408",  # rewrite empty built-ins as literals
+    "T201",  # print statements.
+]
+
+[tool.ruff.lint.isort]
+known-first-party =["common"]
+
+[tool.ruff.lint.flake8-quotes]
+docstring-quotes = "double"
+
+[tool.mypy]
+show_error_codes = true
+ignore_missing_imports = true
+warn_unreachable = true
+strict = true
+
