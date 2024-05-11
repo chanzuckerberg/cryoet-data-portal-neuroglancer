@@ -2,25 +2,9 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
-from typing import Optional, Any
+from typing import Optional
 
-
-def get_resolution(
-    resolution: Optional[tuple[float, float, float] | list[float] | float]
-) -> tuple[float, float, float]:
-    if resolution is None:
-        resolution = [
-            1.348,
-        ]
-    if not isinstance(resolution, (tuple, list)):
-        resolution = [resolution]
-    if len(resolution) == 1:
-        resolution = (resolution[0],) * 3  # type: ignore
-    if len(resolution) != 3:
-        raise ValueError("Resolution tuple must have 3 values")
-    if any(x <= 0 for x in resolution):
-        raise ValueError("Resolution component has to be > 0")
-    return resolution  # type: ignore
+from utils import get_resolution
 
 
 def setup_creation(
@@ -41,7 +25,7 @@ def setup_creation(
 
 def process_color(color: Optional[str]) -> tuple[str, str]:
     if color is None:
-        return "#ffffff", ""
+        return "vec4(255,255,255,1)", ""
 
     color_parts = color.split(" ")
     if len(color_parts) == 1:
@@ -97,37 +81,7 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
 
     def generate_json(self) -> dict:
         color_part = f" ({self.color[1]})" if self.color[1] else ""
-        checkbox = "#uicontrol bool hideOrientation checkbox\n" if self.oriented else ""
-        # Other shader options:
-        #   vec3 rotated = normalize(rotation * zVector);
-        #   vec3 color = (rotated + 1.0) / 2.0;
-        #   return vec4(color, 1.0);
-        if self.oriented:
-            color_calc = (
-                "vec4 calculateColor() {\n"
-                + "  vec3 zVector = vec3(0, 0, 1);\n"
-                + "  mat3 rotation = mat3(\n"
-                + "    prop_rot_mat_0_0(), prop_rot_mat_0_1(), prop_rot_mat_0_2(),\n"
-                + "    prop_rot_mat_1_0(), prop_rot_mat_1_1(), prop_rot_mat_1_2(),\n"
-                + "    prop_rot_mat_2_0(), prop_rot_mat_2_1(), prop_rot_mat_2_2());\n"
-                + "  vec3 zRotated = vec3(rotation * zVector);\n"
-                + "  vec3 zAbs = abs(zRotated);\n"
-                + "  return vec4(zAbs[2], zAbs[1], zAbs[0], 1.0);\n"
-                + "}\n"
-            )
-            color_set = (
-                "vec4 color;\n"
-                + "  if (hideOrientation) {\n"
-                + "    color = prop_point_color();\n"
-                + "  }\n"
-                + "  else {\n"
-                + "    color = calculateColor();\n"
-                + "  }\n"
-                + "  setColor(color);\n"
-            )
-        else:
-            color_calc = ""
-            color_set = f"setColor({self.color[1]});\n"
+        color_set = f"setColor({self.color[0]});\n"
 
         return {
             "type": self.layer_type,
@@ -135,8 +89,6 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
             "source": f"precomputed://{self.source}",
             "tab": "rendering",
             "shader": f"#uicontrol float pointScale slider(min=0.01, max=2.0, default={self.point_size_multiplier}, step=0.01)\n"
-            + checkbox
-            + color_calc
             + "void main() {\n  "
             + color_set
             + "  setPointMarkerSize(pointScale * prop_diameter());\n"

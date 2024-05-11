@@ -1,12 +1,12 @@
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Callable
 
 from neuroglancer import CoordinateSpace, AnnotationPropertySpec
 from neuroglancer.write_annotations import AnnotationWriter
 
 from cryoet_data_portal_neuroglancer.sharding import ShardingSpecification, jsonify
-from cryoet_data_portal_neuroglancer.state.state_generator import setup_creation, process_color, AnnotationJSONGenerator
+from cryoet_data_portal_neuroglancer.state_generator import setup_creation, process_color, AnnotationJSONGenerator
 
 
 def build_rotation_matrix_properties() -> list[AnnotationPropertySpec]:
@@ -23,6 +23,8 @@ def write_annotations(
     metadata: dict[str, Any],
     coordinate_space: CoordinateSpace,
     is_oriented: bool,
+    labels: dict[str, int],
+    label_key: Callable[[dict[str, Any]], int],
 ) -> Path:
     """
     Create a neuroglancer annotation folder with the given annotations.
@@ -30,6 +32,13 @@ def write_annotations(
     See https://github.com/google/neuroglancer/blob/master/src/neuroglancer/datasource/precomputed/annotations.md
     """
     name = metadata["annotation_object"]["name"]
+    if labels:
+        enum_values = list(labels.values())
+        enum_labels = list(labels.keys())
+    else:
+        enum_values = [0]
+        enum_labels = [name]
+
     writer = AnnotationWriter(
         coordinate_space=coordinate_space,
         annotation_type="point",
@@ -37,8 +46,8 @@ def write_annotations(
             AnnotationPropertySpec(
                 id="name",
                 type="uint8",
-                enum_values=[0],
-                enum_labels=[name],
+                enum_values=enum_values,
+                enum_labels=enum_labels,
             ),
             AnnotationPropertySpec(id="diameter", type="float32"),
             AnnotationPropertySpec(id="point_index", type="float32"),
@@ -63,9 +72,10 @@ def write_annotations(
             location,
             diameter=diameter,
             point_index=float(index),
-            name=0,
+            name=label_key(p),
             **rot_mat,
         )
+    writer.properties.sort(key=lambda prop: prop.id != "name")
     writer.write(output_dir)
     return output_dir
 
@@ -96,12 +106,14 @@ def _shard_by_id_index(directory: Path, shard_bits: int, minishard_bits: int):
     info_path.write_text(jsonify(info, indent=2))
 
 
-def precompute_point_data(
+def encode_annotation(
     data: list[dict[str, Any]],
     metadata: dict[str, Any],
-    output: Path,
+    output_path: Path,
     resolution: float,
     is_oriented: bool = False,
+    labels: dict[str, int] = None,
+    label_key: Callable[[dict[str, Any]], int] = lambda x: 0,
     shard_by_id: tuple[int, int] = (0, 10),
 ) -> None:
     if shard_by_id and len(shard_by_id) < 2:
@@ -112,12 +124,12 @@ def precompute_point_data(
         units=["nm", "nm", "nm"],
         scales=[resolution, resolution, resolution],
     )
-    write_annotations(output, data, metadata, coordinate_space, is_oriented)
-    print("Wrote annotations to", output)
+    write_annotations(output_path, data, metadata, coordinate_space, is_oriented, labels, label_key)
+    print("Wrote annotations to", output_path)
 
     if shard_by_id and len(shard_by_id) == 2:
         shard_bits, minishard_bits = shard_by_id
-        _shard_by_id_index(output, shard_bits, minishard_bits)
+        _shard_by_id_index(output_path, shard_bits, minishard_bits)
 
 
 def generate_state(
