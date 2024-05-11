@@ -1,15 +1,15 @@
 import json
 from pathlib import Path
-from typing import Any, Optional, Callable
+from typing import Any, Callable
 
 from neuroglancer import CoordinateSpace, AnnotationPropertySpec
 from neuroglancer.write_annotations import AnnotationWriter
 
 from cryoet_data_portal_neuroglancer.sharding import ShardingSpecification, jsonify
-from cryoet_data_portal_neuroglancer.state_generator import setup_creation, process_color, AnnotationJSONGenerator
+from cryoet_data_portal_neuroglancer.state_generator import setup_creation, AnnotationJSONGenerator
 
 
-def build_rotation_matrix_properties() -> list[AnnotationPropertySpec]:
+def _build_rotation_matrix_properties() -> list[AnnotationPropertySpec]:
     return [
         AnnotationPropertySpec(id=f"rot_mat_{i}_{j}", type="float32")
         for i in range(3)
@@ -17,7 +17,7 @@ def build_rotation_matrix_properties() -> list[AnnotationPropertySpec]:
     ]
 
 
-def write_annotations(
+def _write_annotations(
     output_dir: Path,
     data: list[dict[str, Any]],
     metadata: dict[str, Any],
@@ -28,16 +28,11 @@ def write_annotations(
 ) -> Path:
     """
     Create a neuroglancer annotation folder with the given annotations.
-
     See https://github.com/google/neuroglancer/blob/master/src/neuroglancer/datasource/precomputed/annotations.md
     """
-    name = metadata["annotation_object"]["name"]
-    if labels:
-        enum_values = list(labels.values())
-        enum_labels = list(labels.keys())
-    else:
-        enum_values = [0]
-        enum_labels = [name]
+    # name = metadata["annotation_object"]["name"]
+    enum_values = list(labels.values())
+    enum_labels = list(labels.keys())
 
     writer = AnnotationWriter(
         coordinate_space=coordinate_space,
@@ -52,7 +47,7 @@ def write_annotations(
             AnnotationPropertySpec(id="diameter", type="float32"),
             AnnotationPropertySpec(id="point_index", type="float32"),
             # Spec must be added at the object construction time, not after
-            *(build_rotation_matrix_properties() if is_oriented else []),
+            *(_build_rotation_matrix_properties() if is_oriented else []),
         ],
     )
     # Convert angstrom to nanometer
@@ -60,21 +55,14 @@ def write_annotations(
     diameter = metadata["annotation_object"].get("diameter", 100) / 10
     for index, p in enumerate(data):
         location = [p["location"][k] for k in ("x", "y", "z")]
+        rot_mat = {}
         if is_oriented:
             rot_mat = {
                 f"rot_mat_{i}_{j}": col
                 for i, line in enumerate(p["xyz_rotation_matrix"])
                 for j, col in enumerate(line)
             }
-        else:
-            rot_mat = {}
-        writer.add_point(
-            location,
-            diameter=diameter,
-            point_index=float(index),
-            name=label_key(p),
-            **rot_mat,
-        )
+        writer.add_point(location, diameter=diameter, point_index=float(index), name=label_key(p), **rot_mat)
     writer.properties.sort(key=lambda prop: prop.id != "name")
     writer.write(output_dir)
     return output_dir
@@ -124,7 +112,7 @@ def encode_annotation(
         units=["nm", "nm", "nm"],
         scales=[resolution, resolution, resolution],
     )
-    write_annotations(output_path, data, metadata, coordinate_space, is_oriented, labels, label_key)
+    _write_annotations(output_path, data, metadata, coordinate_space, is_oriented, labels, label_key)
     print("Wrote annotations to", output_path)
 
     if shard_by_id and len(shard_by_id) == 2:
@@ -132,19 +120,35 @@ def encode_annotation(
         _shard_by_id_index(output_path, shard_bits, minishard_bits)
 
 
+def parse_to_vec4_color(input_color: list[str]) -> str:
+    """
+    Parse the color from a list of strings to a webgl vec4 of rgba color
+    """
+    if input_color is None:
+        output_color = [255, 255, 255]
+    elif len(input_color) == 1:
+        color = input_color[0]
+        output_color = [int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)]
+    elif len(input_color) == 3:
+        output_color = [int(x) for x in input_color]  # type: ignore
+    else:
+        raise ValueError(f"Color must be a list of 3 values, provided: {input_color}")
+    output_color.append(255)
+    return f"vec4({output_color[0]}, {output_color[1]}, {output_color[2]}, {output_color[3]})"
+
+
 def generate_state(
-    source: str,
-    name: Optional[str],
-    color: str = None,
-    point_size_multiplier: float = 1.0,
-    oriented: bool = False,
+        source: str,
+        name: str = None,
+        url: str = None,
+        color: list[str] = None,
+        point_size_multiplier: float = 1.0,
 ) -> dict[str, Any]:
-    source, name, url, _, _ = setup_creation(source, name, None, None, None)
-    new_color = process_color(color)
+    source, name, url, _, _ = setup_creation(source, name, url)
+    new_color = parse_to_vec4_color(color)
     return AnnotationJSONGenerator(
         source=source,
         name=name,
         color=new_color,
         point_size_multiplier=point_size_multiplier,
-        oriented=oriented,
     ).to_json()

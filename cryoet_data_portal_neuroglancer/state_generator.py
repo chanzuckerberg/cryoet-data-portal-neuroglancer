@@ -2,14 +2,13 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
-from typing import Optional
 
-from utils import get_resolution
+from .utils import get_resolution
 
 
 def setup_creation(
     source: str,
-    name: Optional[str] = None,
+    name: str = None,
     url: str = None,
     zarr_path: str = None,
     resolution: float | tuple[float, float, float] = None,
@@ -21,16 +20,6 @@ def setup_creation(
     sep = "/" if url else ""
     source = f"{url}{sep}{source}"
     return source, name, url, zarr_path, resolution
-
-
-def process_color(color: Optional[str]) -> tuple[str, str]:
-    if color is None:
-        return "vec4(255,255,255,1)", ""
-
-    color_parts = color.split(" ")
-    if len(color_parts) == 1:
-        raise ValueError("Color must be a hex string followed by a name e.g. #FF0000 red")
-    return color_parts[0], " ".join(color_parts[1:])
 
 
 class RenderingTypes(Enum):
@@ -72,20 +61,18 @@ class RenderingJSONGenerator:
 class AnnotationJSONGenerator(RenderingJSONGenerator):
     """Generates a JSON file for Neuroglancer to read."""
 
-    color: tuple[str, str]
+    color: str
     point_size_multiplier: float = 1.0
-    oriented: bool = False
 
     def __post_init__(self):
         self._type = RenderingTypes.ANNOTATION
 
     def generate_json(self) -> dict:
-        color_part = f" ({self.color[1]})" if self.color[1] else ""
-        color_set = f"setColor({self.color[0]});\n"
+        color_set = f"setColor({self.color});\n"
 
         return {
             "type": self.layer_type,
-            "name": f"{self.name}{color_part}",
+            "name": f"{self.name}",
             "source": f"precomputed://{self.source}",
             "tab": "rendering",
             "shader": f"#uicontrol float pointScale slider(min=0.01, max=2.0, default={self.point_size_multiplier}, step=0.01)\n"
@@ -97,4 +84,26 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
         }
 
 
+@dataclass
+class SegmentationJSONGenerator(RenderingJSONGenerator):
+    """Generates a JSON file for Neuroglancer to read."""
 
+    color: tuple[str, str]
+
+    def __post_init__(self):
+        self._type = RenderingTypes.SEGMENTATION
+
+    def generate_json(self) -> dict:
+        color_part = f" ({self.color[1]})" if self.color[1] else ""
+        return {
+            "type": self.layer_type,
+            "name": f"{self.name}{color_part}",
+            "source": f"precomputed://{self.source}",
+            "tab": "rendering",
+            "selectedAlpha": 1,
+            "hoverHighlight": False,
+            "segments": [
+                1,
+            ],
+            "segmentDefaultColor": self.color[0],
+        }

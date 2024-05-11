@@ -7,8 +7,15 @@ from typing import Optional, Iterator, Any
 
 from cryoet_data_portal_neuroglancer.chunk import Chunk
 from cryoet_data_portal_neuroglancer.io import load_omezarr_data
+from cryoet_data_portal_neuroglancer.state_generator import (
+    setup_creation,
+    SegmentationJSONGenerator
+)
 from cryoet_data_portal_neuroglancer.utils import (
-    iterate_chunks, pad_block, number_of_encoding_bits, get_grid_size_from_block_shape
+    iterate_chunks,
+    pad_block,
+    number_of_encoding_bits,
+    get_grid_size_from_block_shape,
 )
 
 import dask.array as da
@@ -295,7 +302,7 @@ def write_metadata(metadata: dict[str, Any], output_directory: Path) -> None:
 
 
 def encode_segmentation(
-    filename: str | Path,
+    filename: str,
     output_path: Path,
     resolution: tuple[float, float, float],
     block_size: tuple[int, int, int] = (64, 64, 64),
@@ -323,7 +330,7 @@ def encode_segmentation(
         return
     output_path.mkdir(parents=True, exist_ok=True)
     for c in create_segmentation(
-            dask_data, block_size, convert_non_zero_to=convert_non_zero_to
+        dask_data, block_size, convert_non_zero_to=convert_non_zero_to
     ):
         c.write_to_directory(output_path / data_directory)
 
@@ -338,3 +345,23 @@ def encode_segmentation(
     )
     write_metadata(metadata, output_path)
     print(f"Wrote segmentation to {output_path}")
+
+
+def process_color(color: Optional[str]) -> tuple[str, str]:
+    if color is None:
+        return "#FFFFFF", ""
+    color_parts = color.split(" ")
+    if len(color_parts) == 1:
+        raise ValueError("Color must be a hex string followed by a name e.g. #FF0000 red")
+    return color_parts[0], " ".join(color_parts[1:])
+
+
+def generate_state(
+    source: str,
+    name: str = None,
+    url: str = None,
+    color: str = None,
+) -> dict[str, Any]:
+    source, name, url, _, _ = setup_creation(source, name, url)
+    color_tuple = process_color(color)
+    return SegmentationJSONGenerator(source=source, name=name, color=color_tuple).to_json()
