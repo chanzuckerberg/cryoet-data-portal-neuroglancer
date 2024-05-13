@@ -4,6 +4,8 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 from .utils import get_resolution
 
 
@@ -67,14 +69,16 @@ class ImageJSONGenerator(RenderingJSONGenerator):
     """Generates a JSON file for Neuroglancer to read."""
 
     resolution: tuple[float, float, float]
+    size: dict[str, float]
     contrast_limits: tuple[float, float] = (-64, 64)
+    start: dict[str, float] = None
     mean: float = None
     rms: float = None
 
     def __post_init__(self):
         self._type = RenderingTypes.IMAGE
 
-    def create_shader_and_controls(self) -> dict[str, Any]:
+    def _create_shader_and_controls(self) -> dict[str, Any]:
         if self.mean is None or self.rms is None:
             distance = self.contrast_limits[1] - self.contrast_limits[0]
             window_start = self.contrast_limits[0] - (distance / 10)
@@ -99,6 +103,15 @@ class ImageJSONGenerator(RenderingJSONGenerator):
             },
         }
 
+    def _get_computed_values(self) -> dict[str, Any]:
+        nstart = self.start or {k: 0 for k in "xyz"}
+        avg_cross_section_render_height = 400
+        largest_dimension = max([self.size.get(d, 0) - nstart.get(d, 0) for d in "xyz"])
+        return {
+            "_position": [np.round(np.mean([self.size.get(d, 0), nstart.get(d, 0)])) for d in "xyz"],
+            "_crossSectionScale": max(largest_dimension / avg_cross_section_render_height, 1),
+        }
+
     def generate_json(self) -> dict:
         transform: dict = {}
         for dim, resolution in zip("zyx", self.resolution[::-1]):
@@ -121,7 +134,7 @@ class ImageJSONGenerator(RenderingJSONGenerator):
             "opacity": 0.51,
             "tab": "rendering",
         }
-        return {**config, **self.create_shader_and_controls()}
+        return {**config, **self._create_shader_and_controls(), **self._get_computed_values()}
 
 
 @dataclass
