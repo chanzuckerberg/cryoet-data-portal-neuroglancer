@@ -3,7 +3,9 @@ name = "cryoet-data-portal-neuroglancer"
 version = "0.1.0"
 description = "Utility package for working with Neuroglancer data in the CZI Cryo-ET Data Portal"
 authors = [
-    "CZI Imaging Team <cryoetdataportal@chanzuckerberg.com>"
+    "CZI Imaging Team <cryoetdataportal@chanzuckerberg.com>",
+    "Sean Martin",
+    "Vincent Aranega",
 ]
 license = "MIT"
 readme = "README.md"

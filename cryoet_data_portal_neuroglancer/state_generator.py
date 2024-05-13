@@ -1,12 +1,9 @@
-from abc import abstractmethod
-from dataclasses import dataclass
-from enum import Enum, auto
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
-import numpy as np
-
-from .utils import get_resolution
+from cryoet_data_portal_neuroglancer.models.json_generator import AnnotationJSONGenerator, SegmentationJSONGenerator, \
+    ImageJSONGenerator
+from cryoet_data_portal_neuroglancer.utils import get_resolution
 
 
 def setup_creation(
@@ -25,165 +22,106 @@ def setup_creation(
     return source, name, url, zarr_path, resolution
 
 
-def make_transform(input_dict: dict, dim: str, resolution: float):
-    input_dict[dim] = [resolution * 10e-10, "m"]
+def _parse_to_vec4_color(input_color: list[str]) -> str:
+    """
+    Parse the color from a list of strings to a webgl vec4 of rgba color
+    """
+    if input_color is None:
+        output_color = [255, 255, 255]
+    elif len(input_color) == 1:
+        color = input_color[0]
+        output_color = [int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)]
+    elif len(input_color) == 3:
+        output_color = [int(x) for x in input_color]  # type: ignore
+    else:
+        raise ValueError(f"Color must be a list of 3 values, provided: {input_color}")
+    output_color.append(255)
+    return f"vec4({output_color[0]}, {output_color[1]}, {output_color[2]}, {output_color[3]})"
 
 
-class RenderingTypes(Enum):
-    """Types of rendering for Neuroglancer."""
-
-    SEGMENTATION = auto()
-    IMAGE = auto()
-    ANNOTATION = auto()
-
-    def __str__(self):
-        return self.name.lower()
+def _parse_to_hex_color(color: Optional[str]) -> tuple[str, str]:
+    if color is None:
+        return "#FFFFFF", ""
+    color_parts = color.split(" ")
+    if len(color_parts) == 1:
+        raise ValueError("Color must be a hex string followed by a name e.g. #FF0000 red")
+    return color_parts[0], " ".join(color_parts[1:])
 
 
-@dataclass
-class RenderingJSONGenerator:
-    """Generates a JSON file for Neuroglancer to read."""
-
-    source: str
-    name: str
-
-    @property
-    def layer_type(self) -> str:
-        """Returns the layer type for Neuroglancer."""
-        try:
-            return str(self._type)  # type: ignore
-        except AttributeError:
-            raise ValueError(f"Unknown rendering type {self._type}")  # type: ignore
-
-    def to_json(self) -> dict:
-        return self.generate_json()
-
-    @abstractmethod
-    def generate_json(self) -> dict:
-        """Generates the JSON for Neuroglancer."""
-        raise NotImplementedError
+def generate_point_layer(
+        source: str,
+        name: str = None,
+        url: str = None,
+        color: list[str] = None,
+        point_size_multiplier: float = 1.0,
+) -> dict[str, Any]:
+    source, name, url, _, _ = setup_creation(source, name, url)
+    new_color = _parse_to_vec4_color(color)
+    return AnnotationJSONGenerator(
+        source=source,
+        name=name,
+        color=new_color,
+        point_size_multiplier=point_size_multiplier,
+    ).to_json()
 
 
-@dataclass
-class ImageJSONGenerator(RenderingJSONGenerator):
-    """Generates a JSON file for Neuroglancer to read."""
-
-    resolution: tuple[float, float, float]
-    size: dict[str, float]
-    contrast_limits: tuple[float, float] = (-64, 64)
-    start: dict[str, float] = None
-    mean: float = None
-    rms: float = None
-
-    def __post_init__(self):
-        self._type = RenderingTypes.IMAGE
-
-    def _create_shader_and_controls(self) -> dict[str, Any]:
-        if self.mean is None or self.rms is None:
-            distance = self.contrast_limits[1] - self.contrast_limits[0]
-            window_start = self.contrast_limits[0] - (distance / 10)
-            window_end = self.contrast_limits[1] + (distance / 10)
-            shader = f"#uicontrol invlerp contrast(range=[{self.contrast_limits[0]}, {self.contrast_limits[1]}], " \
-                     f"window=[{window_start}, {window_end}])\nvoid main() {{\n  emitGrayscale(contrast());\n}}"
-            return {"shader": shader}
-
-        width = 3 * self.rms
-        start = self.mean - width
-        end = self.mean + width
-        window_width_factor = width * 0.1
-        window_start = start - window_width_factor
-        window_end = end + window_width_factor
-        return {
-            "shader": "#uicontrol invlerp normalized\n\nvoid main() {\n  emitGrayscale(normalized());\n}\n",
-            "shaderControls": {
-                "normalized": {
-                    "range": [start, end],
-                    "window": [window_start, window_end],
-                },
-            },
-        }
-
-    def _get_computed_values(self) -> dict[str, Any]:
-        nstart = self.start or {k: 0 for k in "xyz"}
-        avg_cross_section_render_height = 400
-        largest_dimension = max([self.size.get(d, 0) - nstart.get(d, 0) for d in "xyz"])
-        return {
-            "_position": [np.round(np.mean([self.size.get(d, 0), nstart.get(d, 0)])) for d in "xyz"],
-            "_crossSectionScale": max(largest_dimension / avg_cross_section_render_height, 1),
-        }
-
-    def generate_json(self) -> dict:
-        transform: dict = {}
-        for dim, resolution in zip("zyx", self.resolution[::-1]):
-            make_transform(transform, dim, resolution)
-
-        original: dict = {}
-        for dim, resolution in zip("zyx", self.resolution[::-1]):
-            make_transform(original, dim, resolution)
-
-        config = {
-            "type": self.layer_type,
-            "name": self.name,
-            "source": {
-                "url": f"zarr://{self.source}",
-                "transform": {
-                    "outputDimensions": transform,
-                    "inputDimensions": original,
-                },
-            },
-            "opacity": 0.51,
-            "tab": "rendering",
-        }
-        return {**config, **self._create_shader_and_controls(), **self._get_computed_values()}
+def generate_segmentation_mask_layer(
+    source: str,
+    name: str = None,
+    url: str = None,
+    color: str = None,
+) -> dict[str, Any]:
+    source, name, url, _, _ = setup_creation(source, name, url)
+    color_tuple = _parse_to_hex_color(color)
+    return SegmentationJSONGenerator(source=source, name=name, color=color_tuple).to_json()
 
 
-@dataclass
-class AnnotationJSONGenerator(RenderingJSONGenerator):
-    """Generates a JSON file for Neuroglancer to read."""
-
-    color: str
-    point_size_multiplier: float = 1.0
-
-    def __post_init__(self):
-        self._type = RenderingTypes.ANNOTATION
-
-    def generate_json(self) -> dict:
-        color_set = f"setColor({self.color});\n"
-
-        return {
-            "type": self.layer_type,
-            "name": f"{self.name}",
-            "source": f"precomputed://{self.source}",
-            "tab": "rendering",
-            "shader": f"#uicontrol float pointScale slider(min=0.01, max=2.0, default={self.point_size_multiplier}, step=0.01)\n"
-                      + "void main() {\n  "
-                      + color_set
-                      + "  setPointMarkerSize(pointScale * prop_diameter());\n"
-                      + "  setPointMarkerBorderWidth(0.1);\n"
-                      + "}",
-        }
+def generate_image_layer(
+    source: str,
+    resolution: Optional[tuple[float, float, float] | list[float] | float],
+    size: dict[str, float],
+    name: str = None,
+    url: str = None,
+    start: dict[str, float] = None,
+    mean: float = None,
+    rms: float = None,
+) -> dict[str, Any]:
+    source, name, url, _, _ = setup_creation(source, name, url)
+    validated_resolution = get_resolution(resolution)
+    return ImageJSONGenerator(
+        source=source, name=name, resolution=validated_resolution, size=size, start=start, mean=mean, rms=rms
+    ).to_json()
 
 
-@dataclass
-class SegmentationJSONGenerator(RenderingJSONGenerator):
-    """Generates a JSON file for Neuroglancer to read."""
+def combine_json_layers(
+    layers: list[dict[str, Any]],
+    resolution: Optional[tuple[float, float, float] | list[float]] = None,
+    units: str = "m",
+) -> dict[str, Any]:
+    image_layers = [layer for layer in layers if layer["type"] == "image"]
+    resolution = get_resolution(resolution)
+    dimensions = {dim: [res, units] for dim, res in zip("xyz", resolution)}
 
-    color: tuple[str, str]
+    combined_json = {
+        "dimensions": dimensions,
+        "crossSectionScale": 1.8,
+        "projectionOrientation": [
+            0.0,
+            0.655,
+            0.0,
+            -0.756,
+        ],
+        "layers": layers,
+        "selectedLayer": {
+            "visible": True,
+            "layer": layers[0]["name"],
+        },
+        "crossSectionBackgroundColor": "#000000",
+        "layout": "4panel",
 
-    def __post_init__(self):
-        self._type = RenderingTypes.SEGMENTATION
+    }
+    if image_layers is not None:
+        combined_json["position"] = image_layers[0]["_position"]
+        combined_json["crossSectionScale"] = image_layers[0]["_crossSectionScale"]
 
-    def generate_json(self) -> dict:
-        color_part = f" ({self.color[1]})" if self.color[1] else ""
-        return {
-            "type": self.layer_type,
-            "name": f"{self.name}{color_part}",
-            "source": f"precomputed://{self.source}",
-            "tab": "rendering",
-            "selectedAlpha": 1,
-            "hoverHighlight": False,
-            "segments": [
-                1,
-            ],
-            "segmentDefaultColor": self.color[0],
-        }
+    return combined_json

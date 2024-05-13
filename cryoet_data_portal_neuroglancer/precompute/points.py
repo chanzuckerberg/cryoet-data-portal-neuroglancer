@@ -6,7 +6,6 @@ from neuroglancer import CoordinateSpace, AnnotationPropertySpec
 from neuroglancer.write_annotations import AnnotationWriter
 
 from cryoet_data_portal_neuroglancer.sharding import ShardingSpecification, jsonify
-from cryoet_data_portal_neuroglancer.state_generator import setup_creation, AnnotationJSONGenerator
 
 
 def _build_rotation_matrix_properties() -> list[AnnotationPropertySpec]:
@@ -120,35 +119,3 @@ def encode_annotation(
         _shard_by_id_index(output_path, shard_bits, minishard_bits)
 
 
-def parse_to_vec4_color(input_color: list[str]) -> str:
-    """
-    Parse the color from a list of strings to a webgl vec4 of rgba color
-    """
-    if input_color is None:
-        output_color = [255, 255, 255]
-    elif len(input_color) == 1:
-        color = input_color[0]
-        output_color = [int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)]
-    elif len(input_color) == 3:
-        output_color = [int(x) for x in input_color]  # type: ignore
-    else:
-        raise ValueError(f"Color must be a list of 3 values, provided: {input_color}")
-    output_color.append(255)
-    return f"vec4({output_color[0]}, {output_color[1]}, {output_color[2]}, {output_color[3]})"
-
-
-def generate_state(
-        source: str,
-        name: str = None,
-        url: str = None,
-        color: list[str] = None,
-        point_size_multiplier: float = 1.0,
-) -> dict[str, Any]:
-    source, name, url, _, _ = setup_creation(source, name, url)
-    new_color = parse_to_vec4_color(color)
-    return AnnotationJSONGenerator(
-        source=source,
-        name=name,
-        color=new_color,
-        point_size_multiplier=point_size_multiplier,
-    ).to_json()

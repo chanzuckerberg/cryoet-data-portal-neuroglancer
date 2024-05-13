@@ -5,12 +5,8 @@ import struct
 from pathlib import Path
 from typing import Optional, Iterator, Any
 
-from cryoet_data_portal_neuroglancer.chunk import Chunk
+from cryoet_data_portal_neuroglancer.models.chunk import Chunk
 from cryoet_data_portal_neuroglancer.io import load_omezarr_data
-from cryoet_data_portal_neuroglancer.state_generator import (
-    setup_creation,
-    SegmentationJSONGenerator
-)
 from cryoet_data_portal_neuroglancer.utils import (
     iterate_chunks,
     pad_block,
@@ -347,21 +343,3 @@ def encode_segmentation(
     print(f"Wrote segmentation to {output_path}")
 
 
-def process_color(color: Optional[str]) -> tuple[str, str]:
-    if color is None:
-        return "#FFFFFF", ""
-    color_parts = color.split(" ")
-    if len(color_parts) == 1:
-        raise ValueError("Color must be a hex string followed by a name e.g. #FF0000 red")
-    return color_parts[0], " ".join(color_parts[1:])
-
-
-def generate_state(
-    source: str,
-    name: str = None,
-    url: str = None,
-    color: str = None,
-) -> dict[str, Any]:
-    source, name, url, _, _ = setup_creation(source, name, url)
-    color_tuple = process_color(color)
-    return SegmentationJSONGenerator(source=source, name=name, color=color_tuple).to_json()
