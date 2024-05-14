@@ -1,6 +1,6 @@
 from functools import lru_cache
 from math import ceil
-from typing import Iterator, Optional
+from typing import Iterator
 
 import dask.array as da
 import numpy as np

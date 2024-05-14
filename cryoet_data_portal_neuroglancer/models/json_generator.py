@@ -11,7 +11,7 @@ def make_transform(input_dict: dict, dim: str, resolution: float):
 
 
 def create_source(
-        url: str, input_resolution: tuple[float, float, float], output_resolution: tuple[float, float, float]
+    url: str, input_resolution: tuple[float, float, float], output_resolution: tuple[float, float, float],
 ) -> dict[str, Any]:
     return {
         "url": url,
@@ -68,6 +68,7 @@ class RenderingJSONGenerator:
 @dataclass
 class ImageJSONGenerator(RenderingJSONGenerator):
     """Generates JSON Neuroglancer config for Image volume."""
+
     resolution: tuple[float, float, float]
     size: dict[str, float]
     contrast_limits: tuple[float, float] = (-64, 64)
@@ -130,6 +131,7 @@ class ImageJSONGenerator(RenderingJSONGenerator):
 @dataclass
 class AnnotationJSONGenerator(RenderingJSONGenerator):
     """Generates JSON Neuroglancer config for point annotation."""
+
     color: str
     point_size_multiplier: float = 1.0
     resolution: tuple[float, float, float] = (1.0, 1.0, 1.0)
@@ -202,7 +204,7 @@ class ImageVolumeJSONGenerator(RenderingJSONGenerator):
 
     def _get_shader(self) -> dict[str, Any]:
         shader = (
-            f"#uicontrol vec3 color color(default=\"{self.color}\")\n"
+            f'#uicontrol vec3 color color(default="{self.color}")\n'
             f"#uicontrol invlerp toRaw(range=[0, 1], window=[-1, 2])\n"
             f"void main() {{\n"
             f"  emitRGBA(vec4(color * toRaw(getDataValue()), toRaw(getDataValue())));\n"

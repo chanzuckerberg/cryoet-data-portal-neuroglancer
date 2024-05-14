@@ -4,8 +4,8 @@ from typing import Any, Optional
 from cryoet_data_portal_neuroglancer.models.json_generator import (
     AnnotationJSONGenerator,
     ImageJSONGenerator,
-    SegmentationJSONGenerator,
     ImageVolumeJSONGenerator,
+    SegmentationJSONGenerator,
 )
 from cryoet_data_portal_neuroglancer.utils import get_resolution
 
@@ -66,7 +66,7 @@ def generate_point_layer(
         point_size_multiplier=point_size_multiplier,
         resolution=resolution,
         is_visible=is_visible,
-        is_instance_segmentation=is_instance_segmentation
+        is_instance_segmentation=is_instance_segmentation,
     ).to_json()
 
 
@@ -81,7 +81,7 @@ def generate_segmentation_mask_layer(
     source, name, url, _, resolution = setup_creation(source, name, url, resolution=resolution)
     _validate_color(color)
     return SegmentationJSONGenerator(
-        source=source, name=name, color=color, resolution=resolution, is_visible=is_visible
+        source=source, name=name, color=color, resolution=resolution, is_visible=is_visible,
     ).to_json()
 
 
@@ -120,7 +120,7 @@ def generate_image_volume_layer(
     source, name, url, _, resolution = setup_creation(source, name, url, resolution=resolution)
     _validate_color(color)
     return ImageVolumeJSONGenerator(
-        source=source, name=name, color=color, resolution=resolution, is_visible=is_visible
+        source=source, name=name, color=color, resolution=resolution, is_visible=is_visible,
     ).to_json()
 
 
