@@ -1,16 +1,14 @@
 from functools import lru_cache
 from math import ceil
-from typing import Iterator, Optional
+from typing import Iterator
 
 import dask.array as da
 import numpy as np
 
 
 def get_resolution(
-    resolution: Optional[tuple[float, float, float] | list[float] | float],
+    resolution: tuple[float, float, float] | list[float] | float,
 ) -> tuple[float, float, float]:
-    if resolution is None:
-        resolution = [1.348]
     if not isinstance(resolution, (tuple, list)):
         resolution = [resolution]
     if len(resolution) == 1:

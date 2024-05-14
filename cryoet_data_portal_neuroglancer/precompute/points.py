@@ -17,18 +17,15 @@ def _write_annotations(
     data: list[dict[str, Any]],
     metadata: dict[str, Any],
     coordinate_space: CoordinateSpace,
-    is_oriented: bool,
+    # is_oriented: bool,
     labels: dict[str, int],
     label_key: Callable[[dict[str, Any]], int],
+    color_mapper: Callable[[dict[str, Any]], tuple[int, int, int]],
 ) -> Path:
     """
     Create a neuroglancer annotation folder with the given annotations.
     See https://github.com/google/neuroglancer/blob/master/src/neuroglancer/datasource/precomputed/annotations.md
     """
-    # name = metadata["annotation_object"]["name"]
-    enum_values = list(labels.values())
-    enum_labels = list(labels.keys())
-
     writer = AnnotationWriter(
         coordinate_space=coordinate_space,
         annotation_type="point",
@@ -36,26 +33,34 @@ def _write_annotations(
             AnnotationPropertySpec(
                 id="name",
                 type="uint8",
-                enum_values=enum_values,
-                enum_labels=enum_labels,
+                enum_values=list(labels.values()),
+                enum_labels=list(labels.keys()),
             ),
             AnnotationPropertySpec(id="diameter", type="float32"),
             AnnotationPropertySpec(id="point_index", type="float32"),
+            AnnotationPropertySpec(id="color", type="rgb"),
             # Spec must be added at the object construction time, not after
-            *(_build_rotation_matrix_properties() if is_oriented else []),
+            # *(_build_rotation_matrix_properties() if is_oriented else []),
         ],
     )
-    # Convert angstrom to nanometer
+
     # Using 10nm as default size
     diameter = metadata["annotation_object"].get("diameter", 100) / 10
     for index, p in enumerate(data):
         location = [p["location"][k] for k in ("x", "y", "z")]
-        rot_mat = {}
-        if is_oriented:
-            rot_mat = {
-                f"rot_mat_{i}_{j}": col for i, line in enumerate(p["xyz_rotation_matrix"]) for j, col in enumerate(line)
-            }
-        writer.add_point(location, diameter=diameter, point_index=float(index), name=label_key(p), **rot_mat)
+        # rot_mat = {}
+        # if is_oriented:
+        #     rot_mat = {
+        #         f"rot_mat_{i}_{j}": col for i, line in enumerate(p["xyz_rotation_matrix"]) for j, col in enumerate(line)
+        #     }
+        writer.add_point(
+            location,
+            diameter=diameter,
+            point_index=float(index),
+            name=label_key(p),
+            color=color_mapper(p),
+            # **rot_mat,
+        )
     writer.properties.sort(key=lambda prop: prop.id != "name")
     writer.write(output_dir)
     return output_dir
@@ -92,20 +97,21 @@ def encode_annotation(
     metadata: dict[str, Any],
     output_path: Path,
     resolution: float,
-    is_oriented: bool = False,
     labels: dict[str, int] = None,
     label_key: Callable[[dict[str, Any]], int] = lambda x: 0,
+    color_mapper: Callable[[dict[str, Any]], tuple[int, int, int]] = lambda x: (255, 255, 255),
     shard_by_id: tuple[int, int] = (0, 10),
 ) -> None:
     if shard_by_id and len(shard_by_id) < 2:
         shard_by_id = (0, 10)
-
     coordinate_space = CoordinateSpace(
         names=["x", "y", "z"],
-        units=["nm", "nm", "nm"],
+        units=["m", "m", "m"],
         scales=[resolution, resolution, resolution],
     )
-    _write_annotations(output_path, data, metadata, coordinate_space, is_oriented, labels, label_key)
+    if labels is None:
+        labels = {metadata["annotation_object"]["name"]: 0}
+    _write_annotations(output_path, data, metadata, coordinate_space, labels, label_key, color_mapper)
     print("Wrote annotations to", output_path)
 
     if shard_by_id and len(shard_by_id) == 2:
