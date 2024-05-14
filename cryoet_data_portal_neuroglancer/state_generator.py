@@ -81,7 +81,11 @@ def generate_segmentation_mask_layer(
     source, name, url, _, resolution = setup_creation(source, name, url, resolution=resolution)
     _validate_color(color)
     return SegmentationJSONGenerator(
-        source=source, name=name, color=color, resolution=resolution, is_visible=is_visible,
+        source=source,
+        name=name,
+        color=color,
+        resolution=resolution,
+        is_visible=is_visible,
     ).to_json()
 
 
@@ -120,7 +124,11 @@ def generate_image_volume_layer(
     source, name, url, _, resolution = setup_creation(source, name, url, resolution=resolution)
     _validate_color(color)
     return ImageVolumeJSONGenerator(
-        source=source, name=name, color=color, resolution=resolution, is_visible=is_visible,
+        source=source,
+        name=name,
+        color=color,
+        resolution=resolution,
+        is_visible=is_visible,
     ).to_json()
 
 

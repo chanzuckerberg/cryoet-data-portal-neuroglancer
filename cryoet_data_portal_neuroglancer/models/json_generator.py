@@ -11,7 +11,9 @@ def make_transform(input_dict: dict, dim: str, resolution: float):
 
 
 def create_source(
-    url: str, input_resolution: tuple[float, float, float], output_resolution: tuple[float, float, float],
+    url: str,
+    input_resolution: tuple[float, float, float],
+    output_resolution: tuple[float, float, float],
 ) -> dict[str, Any]:
     return {
         "url": url,
