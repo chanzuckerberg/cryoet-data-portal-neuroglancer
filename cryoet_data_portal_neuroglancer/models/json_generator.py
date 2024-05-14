@@ -34,7 +34,7 @@ class RenderingJSONGenerator:
         try:
             return str(self._type)  # type: ignore
         except AttributeError:
-            raise ValueError(f"Unknown rendering type {self._type}")  # type: ignore
+            raise ValueError(f"Unknown rendering type {self._type}") from None  # type: ignore
 
     def to_json(self) -> dict:
         return self.generate_json()
@@ -64,8 +64,10 @@ class ImageJSONGenerator(RenderingJSONGenerator):
             distance = self.contrast_limits[1] - self.contrast_limits[0]
             window_start = self.contrast_limits[0] - (distance / 10)
             window_end = self.contrast_limits[1] + (distance / 10)
-            shader = f"#uicontrol invlerp contrast(range=[{self.contrast_limits[0]}, {self.contrast_limits[1]}], " \
-                     f"window=[{window_start}, {window_end}])\nvoid main() {{\n  emitGrayscale(contrast());\n}}"
+            shader = (
+                f"#uicontrol invlerp contrast(range=[{self.contrast_limits[0]}, {self.contrast_limits[1]}], "
+                f"window=[{window_start}, {window_end}])\nvoid main() {{\n  emitGrayscale(contrast());\n}}"
+            )
             return {"shader": shader}
 
         width = 3 * self.rms
@@ -95,11 +97,11 @@ class ImageJSONGenerator(RenderingJSONGenerator):
 
     def generate_json(self) -> dict:
         transform: dict = {}
-        for dim, resolution in zip("zyx", self.resolution[::-1]):
+        for dim, resolution in zip("zyx", self.resolution[::-1], strict=False):
             make_transform(transform, dim, resolution)
 
         original: dict = {}
-        for dim, resolution in zip("zyx", self.resolution[::-1]):
+        for dim, resolution in zip("zyx", self.resolution[::-1], strict=False):
             make_transform(original, dim, resolution)
 
         config = {
@@ -129,20 +131,23 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
         self._type = RenderingTypes.ANNOTATION
 
     def generate_json(self) -> dict:
-        color_set = f"setColor({self.color});\n"
-
         return {
             "type": self.layer_type,
             "name": f"{self.name}",
             "source": f"precomputed://{self.source}",
             "tab": "rendering",
-            "shader": f"#uicontrol float pointScale slider(min=0.01, max=2.0, default={self.point_size_multiplier}, step=0.01)\n"
-                      + "void main() {\n  "
-                      + color_set
-                      + "  setPointMarkerSize(pointScale * prop_diameter());\n"
-                      + "  setPointMarkerBorderWidth(0.1);\n"
-                      + "}",
+            "shader": self._get_shader(),
         }
+
+    def _get_shader(self):
+        return (
+            f"#uicontrol float pointScale slider(min=0.01, max=2.0, default={self.point_size_multiplier}, step=0.01)\n"
+            f"void main() {{\n"
+            f"  setColor({self.color});\n"
+            f"  setPointMarkerSize(pointScale * prop_diameter());\n"
+            f"  setPointMarkerBorderWidth(0.1);\n"
+            f"}}"
+        )
 
 
 @dataclass

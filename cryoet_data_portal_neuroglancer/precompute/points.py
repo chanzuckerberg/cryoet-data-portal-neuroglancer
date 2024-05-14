@@ -2,18 +2,14 @@ import json
 from pathlib import Path
 from typing import Any, Callable
 
-from neuroglancer import CoordinateSpace, AnnotationPropertySpec
+from neuroglancer import AnnotationPropertySpec, CoordinateSpace
 from neuroglancer.write_annotations import AnnotationWriter
 
 from cryoet_data_portal_neuroglancer.sharding import ShardingSpecification, jsonify
 
 
 def _build_rotation_matrix_properties() -> list[AnnotationPropertySpec]:
-    return [
-        AnnotationPropertySpec(id=f"rot_mat_{i}_{j}", type="float32")
-        for i in range(3)
-        for j in range(3)
-    ]
+    return [AnnotationPropertySpec(id=f"rot_mat_{i}_{j}", type="float32") for i in range(3) for j in range(3)]
 
 
 def _write_annotations(
@@ -57,9 +53,7 @@ def _write_annotations(
         rot_mat = {}
         if is_oriented:
             rot_mat = {
-                f"rot_mat_{i}_{j}": col
-                for i, line in enumerate(p["xyz_rotation_matrix"])
-                for j, col in enumerate(line)
+                f"rot_mat_{i}_{j}": col for i, line in enumerate(p["xyz_rotation_matrix"]) for j, col in enumerate(line)
             }
         writer.add_point(location, diameter=diameter, point_index=float(index), name=label_key(p), **rot_mat)
     writer.properties.sort(key=lambda prop: prop.id != "name")
@@ -117,5 +111,3 @@ def encode_annotation(
     if shard_by_id and len(shard_by_id) == 2:
         shard_bits, minishard_bits = shard_by_id
         _shard_by_id_index(output_path, shard_bits, minishard_bits)
-
-

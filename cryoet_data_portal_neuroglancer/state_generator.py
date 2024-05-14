@@ -1,17 +1,20 @@
 from pathlib import Path
 from typing import Any, Optional
 
-from cryoet_data_portal_neuroglancer.models.json_generator import AnnotationJSONGenerator, SegmentationJSONGenerator, \
-    ImageJSONGenerator
+from cryoet_data_portal_neuroglancer.models.json_generator import (
+    AnnotationJSONGenerator,
+    ImageJSONGenerator,
+    SegmentationJSONGenerator,
+)
 from cryoet_data_portal_neuroglancer.utils import get_resolution
 
 
 def setup_creation(
-        source: str,
-        name: str = None,
-        url: str = None,
-        zarr_path: str = None,
-        resolution: float | tuple[float, float, float] = None,
+    source: str,
+    name: str = None,
+    url: str = None,
+    zarr_path: str = None,
+    resolution: float | tuple[float, float, float] = None,
 ) -> tuple[str, str, str, str, tuple[float, float, float]]:
     name = Path(source).stem if name is None else name
     url = url if url is not None else ""
@@ -49,11 +52,11 @@ def _parse_to_hex_color(color: Optional[str]) -> tuple[str, str]:
 
 
 def generate_point_layer(
-        source: str,
-        name: str = None,
-        url: str = None,
-        color: list[str] = None,
-        point_size_multiplier: float = 1.0,
+    source: str,
+    name: str = None,
+    url: str = None,
+    color: list[str] = None,
+    point_size_multiplier: float = 1.0,
 ) -> dict[str, Any]:
     source, name, url, _, _ = setup_creation(source, name, url)
     new_color = _parse_to_vec4_color(color)
@@ -89,7 +92,13 @@ def generate_image_layer(
     source, name, url, _, _ = setup_creation(source, name, url)
     validated_resolution = get_resolution(resolution)
     return ImageJSONGenerator(
-        source=source, name=name, resolution=validated_resolution, size=size, start=start, mean=mean, rms=rms
+        source=source,
+        name=name,
+        resolution=validated_resolution,
+        size=size,
+        start=start,
+        mean=mean,
+        rms=rms,
     ).to_json()
 
 
@@ -100,7 +109,7 @@ def combine_json_layers(
 ) -> dict[str, Any]:
     image_layers = [layer for layer in layers if layer["type"] == "image"]
     resolution = get_resolution(resolution)
-    dimensions = {dim: [res, units] for dim, res in zip("xyz", resolution)}
+    dimensions = {dim: [res, units] for dim, res in zip("xyz", resolution, strict=False)}
 
     combined_json = {
         "dimensions": dimensions,
@@ -118,7 +127,6 @@ def combine_json_layers(
         },
         "crossSectionBackgroundColor": "#000000",
         "layout": "4panel",
-
     }
     if image_layers is not None:
         combined_json["position"] = image_layers[0]["_position"]

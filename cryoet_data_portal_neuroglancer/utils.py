@@ -1,12 +1,13 @@
 from functools import lru_cache
 from math import ceil
-from typing import Optional, Iterator
+from typing import Iterator, Optional
+
 import dask.array as da
 import numpy as np
 
 
 def get_resolution(
-    resolution: Optional[tuple[float, float, float] | list[float] | float]
+    resolution: Optional[tuple[float, float, float] | list[float] | float],
 ) -> tuple[float, float, float]:
     if resolution is None:
         resolution = [1.348]
@@ -57,7 +58,8 @@ def iterate_chunks(
 
 
 def get_grid_size_from_block_shape(
-    data_shape: tuple[int, int, int], block_shape: tuple[int, int, int]
+    data_shape: tuple[int, int, int],
+    block_shape: tuple[int, int, int],
 ) -> tuple[int, int, int]:
     """
     Calculate the grid size from the block shape and data shape

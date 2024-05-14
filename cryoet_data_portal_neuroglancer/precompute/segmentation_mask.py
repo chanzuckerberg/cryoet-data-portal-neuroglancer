@@ -3,20 +3,20 @@ import json
 import shutil
 import struct
 from pathlib import Path
-from typing import Optional, Iterator, Any
-
-from cryoet_data_portal_neuroglancer.models.chunk import Chunk
-from cryoet_data_portal_neuroglancer.io import load_omezarr_data
-from cryoet_data_portal_neuroglancer.utils import (
-    iterate_chunks,
-    pad_block,
-    number_of_encoding_bits,
-    get_grid_size_from_block_shape,
-)
+from typing import Any, Iterator, Optional
 
 import dask.array as da
 import numpy as np
 from tqdm import tqdm
+
+from cryoet_data_portal_neuroglancer.io import load_omezarr_data
+from cryoet_data_portal_neuroglancer.models.chunk import Chunk
+from cryoet_data_portal_neuroglancer.utils import (
+    get_grid_size_from_block_shape,
+    iterate_chunks,
+    number_of_encoding_bits,
+    pad_block,
+)
 
 
 def _get_buffer_position(buffer: bytearray) -> int:
@@ -151,10 +151,7 @@ def _pack_encoded_values(values: np.ndarray, bits: int) -> bytes:
     assert len(padded_values) % values_per_32bit == 0
     packed_values: np.ndarray = functools.reduce(
         np.bitwise_or,
-        (
-            padded_values[shift::values_per_32bit] << (shift * bits)
-            for shift in range(values_per_32bit)
-        ),
+        (padded_values[shift::values_per_32bit] << (shift * bits) for shift in range(values_per_32bit)),
     )
     return packed_values.tobytes()
     # packed_values: int = functools.reduce(
@@ -164,9 +161,7 @@ def _pack_encoded_values(values: np.ndarray, bits: int) -> bytes:
     # return struct.pack("<I", packed_values)
 
 
-def _create_encoded_values(
-    buffer: bytearray, positions: np.ndarray, encoded_bits: int
-) -> int:
+def _create_encoded_values(buffer: bytearray, positions: np.ndarray, encoded_bits: int) -> int:
     """Create the encoded values for the given values
 
     Parameters
@@ -216,19 +211,13 @@ def create_segmentation_chunk(
 
     # data = np.moveaxis(data, (0, 1, 2), (2, 1, 0))
     for z, y, x in np.ndindex((gz, gy, gx)):
-        block = data[
-            z * bz : (z + 1) * bz, y * by : (y + 1) * by, x * bx : (x + 1) * bx
-        ]
+        block = data[z * bz : (z + 1) * bz, y * by : (y + 1) * by, x * bx : (x + 1) * bx]
         unique_values, encoded_values = np.unique(block, return_inverse=True)
         if block.shape != block_size:
             block = pad_block(block, block_size)
 
-        lookup_table_offset, encoded_bits = _create_lookup_table(
-            buffer, stored_lookup_tables, unique_values
-        )
-        encoded_values_offset = _create_encoded_values(
-            buffer, encoded_values, encoded_bits
-        )
+        lookup_table_offset, encoded_bits = _create_lookup_table(buffer, stored_lookup_tables, unique_values)
+        encoded_values_offset = _create_encoded_values(buffer, encoded_values, encoded_bits)
         block_offset = 8 * (x + gx * (y + gy * z))
         _create_block_header(
             buffer,
@@ -260,10 +249,8 @@ def _create_metadata(
                 "compressed_segmentation_block_size": block_size,
                 "resolution": resolution,
                 "key": data_directory,
-                "size": data_size[
-                    ::-1
-                ],  # reverse the data size to pass from Z-Y-X to X-Y-Z
-            }
+                "size": data_size[::-1],  # reverse the data size to pass from Z-Y-X to X-Y-Z
+            },
         ],
         "type": "segmentation",
     }
@@ -278,9 +265,7 @@ def create_segmentation(
     """Yield the neuroglancer segmentation format chunks"""
     to_iterate = iterate_chunks(dask_data)
     num_iters = np.prod(dask_data.numblocks)
-    for chunk, dimensions in tqdm(
-        to_iterate, desc="Processing chunks", total=num_iters
-    ):
+    for chunk, dimensions in tqdm(to_iterate, desc="Processing chunks", total=num_iters):
         yield create_segmentation_chunk(
             chunk.compute(),
             dimensions,
@@ -314,20 +299,18 @@ def encode_segmentation(
         content_names = sorted([c.name for c in contents])
         if content_names and content_names != ["data", "info"]:
             raise FileExistsError(
-                f"Output directory {output_path!s} exists and contains non-conversion related files. {content_names}"
+                f"Output directory {output_path!s} exists and contains non-conversion related files. {content_names}",
             )
         else:
             print(
-                f"The output directory {output_path!s} exists from a previous run, deleting before starting conversion"
+                f"The output directory {output_path!s} exists from a previous run, deleting before starting conversion",
             )
             shutil.rmtree(output_path)
     elif not delete_existing and output_path.exists():
         print(f"The output directory {output_path!s} already exists")
         return
     output_path.mkdir(parents=True, exist_ok=True)
-    for c in create_segmentation(
-        dask_data, block_size, convert_non_zero_to=convert_non_zero_to
-    ):
+    for c in create_segmentation(dask_data, block_size, convert_non_zero_to=convert_non_zero_to):
         c.write_to_directory(output_path / data_directory)
 
     if len(dask_data.chunksize) != 3:
@@ -341,5 +324,3 @@ def encode_segmentation(
     )
     write_metadata(metadata, output_path)
     print(f"Wrote segmentation to {output_path}")
-
-

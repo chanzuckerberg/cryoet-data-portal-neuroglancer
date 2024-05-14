@@ -107,9 +107,7 @@ def test__create_encoded_values():
     buffer = bytearray(8)  # will start in 2
     offset = _create_encoded_values(buffer, np.array([1, 0, 2]), 2)
     assert offset == 2
-    assert buffer == struct.pack(
-        "<QI", 0, 0b100001
-    )  # we need to pad manually for the test
+    assert buffer == struct.pack("<QI", 0, 0b100001)  # we need to pad manually for the test
 
 
 def test__create_file_chunck_header():
@@ -201,9 +199,7 @@ def test__create_segmentation_chunk():
             [1, 1, 1, 1],
         ],
     ]
-    chunk: Chunk = create_segmentation_chunk(
-        np.array(array), dimensions=((0, 0, 0), (8, 8, 4)), block_size=(8, 8, 4)
-    )
+    chunk: Chunk = create_segmentation_chunk(np.array(array), dimensions=((0, 0, 0), (8, 8, 4)), block_size=(8, 8, 4))
 
     assert chunk.dimensions == ((0, 0, 0), (8, 8, 4))
     # TODO expand me!

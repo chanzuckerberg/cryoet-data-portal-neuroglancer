@@ -80,12 +80,10 @@ def compress(content, method="gzip", compresslevel=None):
         }
         return compress_methods[method](content, compresslevel=compresslevel)
     except KeyError:
-        raise ValueError(f"Compression method {method} is unknown")
+        raise ValueError(f"Compression method {method} is unknown") from None
 
 
-ShardLocation = namedtuple(
-    "ShardLocation", ("shard_number", "minishard_number", "remainder")
-)
+ShardLocation = namedtuple("ShardLocation", ("shard_number", "minishard_number", "remainder"))
 
 uint64 = np.uint64
 
@@ -132,9 +130,7 @@ class ShardingSpecification(object):
             #   self.hashfn = lambda x: uint64(mmh3.hash64(uint64(x).tobytes(), x64arch=False)[0])
             raise NotImplementedError("murmurhash3_x86_128 is not yet supported")
         else:
-            raise ValueError(
-                "hash {} must be either 'identity' or 'murmurhash3_x86_128'".format(val)
-            )
+            raise ValueError("hash {} must be either 'identity' or 'murmurhash3_x86_128'".format(val))
 
         self._hash = val
 
@@ -213,12 +209,8 @@ class ShardingSpecification(object):
         chunkid = uint64(key) >> uint64(self.preshift_bits)
         chunkid = self.hashfn(chunkid)
         minishard_number = uint64(chunkid & self.minishard_mask)
-        shard_number = uint64(
-            (chunkid & self.shard_mask) >> uint64(self.minishard_bits)
-        )
-        shard_number = format(shard_number, "x").zfill(
-            int(np.ceil(self.shard_bits / 4.0))
-        )
+        shard_number = uint64((chunkid & self.shard_mask) >> uint64(self.minishard_bits))
+        shard_number = format(shard_number, "x").zfill(int(np.ceil(self.shard_bits / 4.0)))
         remainder = chunkid >> uint64(self.minishard_bits + self.shard_bits)
 
         return ShardLocation(shard_number, minishard_number, remainder)
@@ -243,9 +235,7 @@ class ShardingSpecification(object):
         """
         return synthesize_shard_files(self, data, data_offset, progress)
 
-    def synthesize_shard(
-        self, labels, data_offset=None, progress=False, presorted=False
-    ):
+    def synthesize_shard(self, labels, data_offset=None, progress=False, presorted=False):
         """
         Assemble a shard file from a group of labels that all belong in the same shard.
 
@@ -265,30 +255,16 @@ class ShardingSpecification(object):
 
     def validate(self):
         if self.type not in ("neuroglancer_uint64_sharded_v1",):
-            raise ValueError(
-                "@type ({}) must be 'neuroglancer_uint64_sharded_v1'.".format(self.type)
-            )
+            raise ValueError("@type ({}) must be 'neuroglancer_uint64_sharded_v1'.".format(self.type))
 
         if not (64 > self.preshift_bits >= 0):
-            raise ValueError(
-                "preshift_bits must be a whole number less than 64: {}".format(
-                    self.preshift_bits
-                )
-            )
+            raise ValueError("preshift_bits must be a whole number less than 64: {}".format(self.preshift_bits))
 
         if not (64 >= self.minishard_bits >= 0):
-            raise ValueError(
-                "minishard_bits must be between 0 and 64 inclusive: {}".format(
-                    self.minishard_bits
-                )
-            )
+            raise ValueError("minishard_bits must be between 0 and 64 inclusive: {}".format(self.minishard_bits))
 
         if not (64 >= self.shard_bits >= 0):
-            raise ValueError(
-                "shard_bits must be between 0 and 64 inclusive: {}".format(
-                    self.shard_bits
-                )
-            )
+            raise ValueError("shard_bits must be between 0 and 64 inclusive: {}".format(self.shard_bits))
 
         if self.minishard_bits + self.shard_bits > 64:
             raise ValueError(
@@ -296,20 +272,14 @@ class ShardingSpecification(object):
                     self.minishard_bits,
                     self.shard_bits,
                     self.minishard_bits + self.shard_bits,
-                )
+                ),
             )
 
         if self.hash not in ("identity", "murmurhash3_x86_128"):
-            raise ValueError(
-                "hash {} must be either 'identity' or 'murmurhash3_x86_128'".format(
-                    self.hash
-                )
-            )
+            raise ValueError("hash {} must be either 'identity' or 'murmurhash3_x86_128'".format(self.hash))
 
         if self.minishard_index_encoding not in ("raw", "gzip"):
-            raise ValueError(
-                "minishard_index_encoding only supports values 'raw' or 'gzip'."
-            )
+            raise ValueError("minishard_index_encoding only supports values 'raw' or 'gzip'.")
 
         if self.data_encoding not in ("raw", "gzip"):
             raise ValueError("data_encoding only supports values 'raw' or 'gzip'.")
@@ -343,14 +313,16 @@ def synthesize_shard_files(spec, data, data_offset=None, progress=False):
 
     shard_files = {}
 
-    pbar = tqdm(
-        shard_groupings.items(), desc="Synthesizing Shard Files", disable=(not progress)
-    )
+    pbar = tqdm(shard_groupings.items(), desc="Synthesizing Shard Files", disable=(not progress))
 
     for shardno, shardgrp in pbar:
         filename = str(shardno) + ".shard"
         shard_files[filename] = synthesize_shard_file(
-            spec, shardgrp, data_offset, progress=(progress > 1), presorted=True
+            spec,
+            shardgrp,
+            data_offset,
+            progress=(progress > 1),
+            presorted=True,
         )
 
     return shard_files
@@ -359,9 +331,7 @@ def synthesize_shard_files(spec, data, data_offset=None, progress=False):
 # NB: This is going to be memory hungry and can be optimized
 
 
-def synthesize_shard_file(
-    spec, label_group, data_offset=None, progress=False, presorted=False
-):
+def synthesize_shard_file(spec, label_group, data_offset=None, progress=False, presorted=False):
     """
     Assemble a shard file from a group of labels that all belong in the same shard.
 
@@ -387,19 +357,15 @@ def synthesize_shard_file(
         minishard_mapping = label_group
     else:
         minishard_mapping = defaultdict(dict)
-        pbar = tqdm(
-            label_group.items(), disable=(not progress), desc="Assigning Minishards"
-        )
+        pbar = tqdm(label_group.items(), disable=(not progress), desc="Assigning Minishards")
         for label, binary in pbar:
             loc = spec.compute_shard_location(label)
             minishard_mapping[loc.minishard_number][label] = binary
 
     del label_group
 
-    for minishardno, minishardgrp in tqdm(
-        minishard_mapping.items(), desc="Minishard Indices", disable=(not progress)
-    ):
-        labels = sorted([int(label) for label in minishardgrp.keys()])
+    for minishardno, minishardgrp in tqdm(minishard_mapping.items(), desc="Minishard Indices", disable=(not progress)):
+        labels = sorted([int(label) for label in minishardgrp])
         if len(labels) == 0:
             continue
 
@@ -435,7 +401,7 @@ def synthesize_shard_file(
     del minishard_mapping
 
     cum_minishard_size = 0
-    for idx, minishard in zip(minishard_indicies, minishards):
+    for idx, minishard in zip(minishard_indicies, minishards, strict=False):
         idx[1, 0] += cum_minishard_size
         cum_minishard_size += len(minishard)
 
@@ -444,10 +410,7 @@ def synthesize_shard_file(
 
     variable_index_part = [idx.tobytes("C") for idx in minishard_indicies]
     if spec.minishard_index_encoding != "raw":
-        variable_index_part = [
-            compress(idx, method=spec.minishard_index_encoding)
-            for idx in variable_index_part
-        ]
+        variable_index_part = [compress(idx, method=spec.minishard_index_encoding) for idx in variable_index_part]
 
     data_part = b"".join(minishards)
     del minishards
@@ -459,7 +422,7 @@ def synthesize_shard_file(
 
     start = len(data_part)
     end = len(data_part)
-    for i, idx in zip(minishardnos, variable_index_part):
+    for i, idx in zip(minishardnos, variable_index_part, strict=False):
         start = end
         end += len(idx)
         fixed_index[i, 0] = start

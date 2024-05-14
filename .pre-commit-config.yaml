@@ -5,7 +5,7 @@ repos:
   - id: black
     args:
     - --config
-    - cryoet_data_portal_neuroglancer/pyproject.toml
+    - pyproject.toml
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: v0.4.1
   hooks:
@@ -13,7 +13,7 @@ repos:
     args:
     - --fix
     - --config
-    - cryoet_data_portal_neuroglancer/pyproject.toml
+    - pyproject.toml
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v4.5.0
   hooks:
