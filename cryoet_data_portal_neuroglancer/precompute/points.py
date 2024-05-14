@@ -99,7 +99,6 @@ def encode_annotation(
 ) -> None:
     if shard_by_id and len(shard_by_id) < 2:
         shard_by_id = (0, 10)
-
     coordinate_space = CoordinateSpace(
         names=["x", "y", "z"],
         units=["m", "m", "m"],

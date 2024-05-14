@@ -111,10 +111,8 @@ def combine_json_layers(
 ) -> dict[str, Any]:
     image_layers = [layer for layer in layers if layer["type"] == "image"]
     resolution = get_resolution(resolution)
-    dimensions = {dim: [res, units] for dim, res in zip("xyz", resolution, strict=False)}
-
     combined_json = {
-        "dimensions": dimensions,
+        "dimensions": {dim: [res, units] for dim, res in zip("xyz", resolution, strict=False)},
         "crossSectionScale": 1.8,
         "projectionOrientation": [0.173, -0.0126, -0.0015, 0.984],
         "layers": layers,
