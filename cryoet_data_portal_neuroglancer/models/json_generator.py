@@ -134,9 +134,22 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
     point_size_multiplier: float = 1.0
     resolution: tuple[float, float, float] = (1.0, 1.0, 1.0)
     is_visible: bool = True
+    is_instance_segmentation: bool = False
 
     def __post_init__(self):
         self._type = RenderingTypes.ANNOTATION
+
+    def _get_shader(self):
+        set_color = "prop_color()" if self.is_instance_segmentation else self.color
+        return (
+            f"#uicontrol float pointScale slider(min=0.01, max=2.0, default={self.point_size_multiplier}, step=0.01)\n"
+            f"#uicontrol float opacity slider(min=0, max=1, default=1)\n"
+            f"void main() {{\n"
+            f"  setColor(vec4({set_color}, opacity));\n"
+            f"  setPointMarkerSize(pointScale * prop_diameter());\n"
+            f"  setPointMarkerBorderWidth(0.1);\n"
+            f"}}"
+        )
 
     def generate_json(self) -> dict:
         return {
@@ -147,17 +160,6 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
             "shader": self._get_shader(),
             "visible": self.is_visible,
         }
-
-    def _get_shader(self):
-        return (
-            f"#uicontrol float pointScale slider(min=0.01, max=2.0, default={self.point_size_multiplier}, step=0.01)\n"
-            f"#uicontrol float opacity slider(min=0, max=1, default=1)\n"
-            f"void main() {{\n"
-            f"  setColor(vec4(prop_color(), opacity));\n"
-            f"  setPointMarkerSize(pointScale * prop_diameter());\n"
-            f"  setPointMarkerBorderWidth(0.1);\n"
-            f"}}"
-        )
 
 
 @dataclass

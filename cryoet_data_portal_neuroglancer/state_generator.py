@@ -31,15 +31,14 @@ def _parse_to_vec4_color(input_color: list[str]) -> str:
     """
     if input_color is None:
         output_color = [255, 255, 255]
-    elif len(input_color) == 1:
+    elif len(input_color) == 1 and input_color[0][0] == "#":
         color = input_color[0]
         output_color = [int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)]
     elif len(input_color) == 3:
         output_color = [int(x) for x in input_color]  # type: ignore
     else:
-        raise ValueError(f"Color must be a list of 3 values, provided: {input_color}")
-    output_color.append(255)
-    return f"vec4({output_color[0]}, {output_color[1]}, {output_color[2]}, {output_color[3]})"
+        raise ValueError(f"input must be a list of 3 values, provided: {input_color} or a Hex color string")
+    return ",".join(str(x) for x in output_color)
 
 
 def _parse_to_hex_color(color: Optional[str]) -> tuple[str, str]:
@@ -58,6 +57,8 @@ def generate_point_layer(
     color: list[str] = None,
     point_size_multiplier: float = 1.0,
     resolution: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    is_visible: bool = True,
+    is_instance_segmentation: bool = False,
 ) -> dict[str, Any]:
     source, name, url, _, resolution = setup_creation(source, name, url, resolution=resolution)
     new_color = _parse_to_vec4_color(color)
@@ -67,6 +68,8 @@ def generate_point_layer(
         color=new_color,
         point_size_multiplier=point_size_multiplier,
         resolution=resolution,
+        is_visible=is_visible,
+        is_instance_segmentation=is_instance_segmentation
     ).to_json()
 
 
@@ -76,10 +79,13 @@ def generate_segmentation_mask_layer(
     url: str = None,
     color: str = None,
     resolution: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    is_visible: bool = True,
 ) -> dict[str, Any]:
     source, name, url, _, resolution = setup_creation(source, name, url, resolution=resolution)
     color_tuple = _parse_to_hex_color(color)
-    return SegmentationJSONGenerator(source=source, name=name, color=color_tuple, resolution=resolution).to_json()
+    return SegmentationJSONGenerator(
+        source=source, name=name, color=color_tuple, resolution=resolution, is_visible=is_visible
+    ).to_json()
 
 
 def generate_image_layer(
@@ -91,6 +97,7 @@ def generate_image_layer(
     start: dict[str, float] = None,
     mean: float = None,
     rms: float = None,
+    is_visible: bool = True,
 ) -> dict[str, Any]:
     source, name, url, _, resolution = setup_creation(source, name, url, resolution=resolution)
     return ImageJSONGenerator(
@@ -101,6 +108,7 @@ def generate_image_layer(
         start=start,
         mean=mean,
         rms=rms,
+        is_visible=is_visible,
     ).to_json()
 
 
