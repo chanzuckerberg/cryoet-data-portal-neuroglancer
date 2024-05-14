@@ -74,6 +74,7 @@ class ImageJSONGenerator(RenderingJSONGenerator):
     start: dict[str, float] = None
     mean: float = None
     rms: float = None
+    is_visible: bool = True
 
     def __post_init__(self):
         self._type = RenderingTypes.IMAGE
@@ -121,6 +122,7 @@ class ImageJSONGenerator(RenderingJSONGenerator):
             "source": create_source(f"zarr://{self.source}", self.resolution, self.resolution),
             "opacity": 0.51,
             "tab": "rendering",
+            "visible": self.is_visible,
         }
         return {**config, **self._create_shader_and_controls(), **self._get_computed_values()}
 
@@ -131,6 +133,7 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
     color: str
     point_size_multiplier: float = 1.0
     resolution: tuple[float, float, float] = (1.0, 1.0, 1.0)
+    is_visible: bool = True
 
     def __post_init__(self):
         self._type = RenderingTypes.ANNOTATION
@@ -142,13 +145,15 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
             "source": create_source(f"precomputed://{self.source}", self.resolution, self.resolution),
             "tab": "rendering",
             "shader": self._get_shader(),
+            "visible": self.is_visible,
         }
 
     def _get_shader(self):
         return (
             f"#uicontrol float pointScale slider(min=0.01, max=2.0, default={self.point_size_multiplier}, step=0.01)\n"
+            f"#uicontrol float opacity slider(min=0, max=1, default=1)\n"
             f"void main() {{\n"
-            f"  setColor({self.color});\n"
+            f"  setColor(vec4(prop_color(), opacity));\n"
             f"  setPointMarkerSize(pointScale * prop_diameter());\n"
             f"  setPointMarkerBorderWidth(0.1);\n"
             f"}}"
@@ -161,6 +166,7 @@ class SegmentationJSONGenerator(RenderingJSONGenerator):
 
     color: tuple[str, str]
     resolution: tuple[float, float, float]
+    is_visible: bool = True
 
     def __post_init__(self):
         self._type = RenderingTypes.SEGMENTATION
@@ -178,4 +184,5 @@ class SegmentationJSONGenerator(RenderingJSONGenerator):
                 1,
             ],
             "segmentDefaultColor": self.color[0],
+            "visible": self.is_visible,
         }

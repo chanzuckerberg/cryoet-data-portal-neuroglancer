@@ -20,6 +20,7 @@ def _write_annotations(
     is_oriented: bool,
     labels: dict[str, int],
     label_key: Callable[[dict[str, Any]], int],
+    color_mapper: Callable[[dict[str, Any]], tuple[int, int, int]],
 ) -> Path:
     """
     Create a neuroglancer annotation folder with the given annotations.
@@ -41,6 +42,7 @@ def _write_annotations(
             ),
             AnnotationPropertySpec(id="diameter", type="float32"),
             AnnotationPropertySpec(id="point_index", type="float32"),
+            AnnotationPropertySpec(id="color", type="rgb"),
             # Spec must be added at the object construction time, not after
             *(_build_rotation_matrix_properties() if is_oriented else []),
         ],
@@ -55,7 +57,9 @@ def _write_annotations(
             rot_mat = {
                 f"rot_mat_{i}_{j}": col for i, line in enumerate(p["xyz_rotation_matrix"]) for j, col in enumerate(line)
             }
-        writer.add_point(location, diameter=diameter, point_index=float(index), name=label_key(p), **rot_mat)
+        writer.add_point(
+            location, diameter=diameter, point_index=float(index), name=label_key(p), **rot_mat, color=color_mapper(p)
+        )
     writer.properties.sort(key=lambda prop: prop.id != "name")
     writer.write(output_dir)
     return output_dir
@@ -95,6 +99,7 @@ def encode_annotation(
     is_oriented: bool = False,
     labels: dict[str, int] = None,
     label_key: Callable[[dict[str, Any]], int] = lambda x: 0,
+    color_mapper: Callable[[dict[str, Any]], tuple[int, int, int]] = lambda x: (255, 255, 255),
     shard_by_id: tuple[int, int] = (0, 10),
 ) -> None:
     if shard_by_id and len(shard_by_id) < 2:
@@ -104,7 +109,7 @@ def encode_annotation(
         units=["m", "m", "m"],
         scales=[resolution, resolution, resolution],
     )
-    _write_annotations(output_path, data, metadata, coordinate_space, is_oriented, labels, label_key)
+    _write_annotations(output_path, data, metadata, coordinate_space, is_oriented, labels, label_key, color_mapper)
     print("Wrote annotations to", output_path)
 
     if shard_by_id and len(shard_by_id) == 2:
