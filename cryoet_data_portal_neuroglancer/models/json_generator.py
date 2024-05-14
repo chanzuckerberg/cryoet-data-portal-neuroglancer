@@ -166,7 +166,7 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
 class SegmentationJSONGenerator(RenderingJSONGenerator):
     """Generates JSON Neuroglancer config for segmentation mask."""
 
-    color: tuple[str, str]
+    color: str
     resolution: tuple[float, float, float]
     is_visible: bool = True
 
@@ -174,10 +174,9 @@ class SegmentationJSONGenerator(RenderingJSONGenerator):
         self._type = RenderingTypes.SEGMENTATION
 
     def generate_json(self) -> dict:
-        color_part = f" ({self.color[1]})" if self.color[1] else ""
         return {
             "type": self.layer_type,
-            "name": f"{self.name}{color_part}",
+            "name": f"{self.name}",
             "source": create_source(f"precomputed://{self.source}", self.resolution, self.resolution),
             "tab": "rendering",
             "selectedAlpha": 1,
@@ -185,6 +184,44 @@ class SegmentationJSONGenerator(RenderingJSONGenerator):
             "segments": [
                 1,
             ],
-            "segmentDefaultColor": self.color[0],
+            "segmentDefaultColor": self.color,
             "visible": self.is_visible,
+        }
+
+
+@dataclass
+class ImageVolumeJSONGenerator(RenderingJSONGenerator):
+    """Generates JSON Neuroglancer config for volume rendering."""
+
+    color: str
+    resolution: tuple[float, float, float]
+    is_visible: bool = True
+
+    def __post_init__(self):
+        self._type = RenderingTypes.IMAGE
+
+    def _get_shader(self) -> dict[str, Any]:
+        shader = (
+            f"#uicontrol vec3 color color(default=\"{self.color}\")\n"
+            f"#uicontrol invlerp toRaw(range=[0, 1], window=[-1, 2])\n"
+            f"void main() {{\n"
+            f"  emitRGBA(vec4(color * toRaw(getDataValue()), toRaw(getDataValue())));\n"
+            f"}}"
+        )
+        return {
+            "shader": shader,
+            "shaderControls": {"color": self.color},
+        }
+
+    def generate_json(self) -> dict:
+        return {
+            "type": self.layer_type,
+            "name": f"{self.name}",
+            "source": create_source(f"zarr://{self.source}", self.resolution, self.resolution),
+            "tab": "rendering",
+            "blend": "additive",
+            "volumeRendering": "on",
+            "volumeRenderingDepthSamples": 5000,
+            "visible": self.is_visible,
+            **self._get_shader(),
         }

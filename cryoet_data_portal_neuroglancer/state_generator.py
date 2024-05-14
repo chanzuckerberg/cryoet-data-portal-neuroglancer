@@ -4,7 +4,7 @@ from typing import Any, Optional
 from cryoet_data_portal_neuroglancer.models.json_generator import (
     AnnotationJSONGenerator,
     ImageJSONGenerator,
-    SegmentationJSONGenerator,
+    SegmentationJSONGenerator, ImageVolumeJSONGenerator,
 )
 from cryoet_data_portal_neuroglancer.utils import get_resolution
 
@@ -41,13 +41,9 @@ def _parse_to_vec4_color(input_color: list[str]) -> str:
     return ",".join(str(x) for x in output_color)
 
 
-def _parse_to_hex_color(color: Optional[str]) -> tuple[str, str]:
-    if color is None:
-        return "#FFFFFF", ""
-    color_parts = color.split(" ")
-    if len(color_parts) == 1:
-        raise ValueError("Color must be a hex string followed by a name e.g. #FF0000 red")
-    return color_parts[0], " ".join(color_parts[1:])
+def _validate_color(color: Optional[str]):
+    if len(color) != 7 or color[0] != "#":
+        raise ValueError("Color must be a hex string e.g. #FF0000")
 
 
 def generate_point_layer(
@@ -77,14 +73,14 @@ def generate_segmentation_mask_layer(
     source: str,
     name: str = None,
     url: str = None,
-    color: str = None,
+    color: str = "#FFFFFF",
     resolution: tuple[float, float, float] = (1.0, 1.0, 1.0),
     is_visible: bool = True,
 ) -> dict[str, Any]:
     source, name, url, _, resolution = setup_creation(source, name, url, resolution=resolution)
-    color_tuple = _parse_to_hex_color(color)
+    _validate_color(color)
     return SegmentationJSONGenerator(
-        source=source, name=name, color=color_tuple, resolution=resolution, is_visible=is_visible
+        source=source, name=name, color=color, resolution=resolution, is_visible=is_visible
     ).to_json()
 
 
@@ -109,6 +105,21 @@ def generate_image_layer(
         mean=mean,
         rms=rms,
         is_visible=is_visible,
+    ).to_json()
+
+
+def generate_image_volume_layer(
+    source: str,
+    name: str = None,
+    url: str = None,
+    color: str = "#FFFFFF",
+    resolution: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    is_visible: bool = True,
+) -> dict[str, Any]:
+    source, name, url, _, resolution = setup_creation(source, name, url, resolution=resolution)
+    _validate_color(color)
+    return ImageVolumeJSONGenerator(
+        source=source, name=name, color=color, resolution=resolution, is_visible=is_visible
     ).to_json()
 
 
