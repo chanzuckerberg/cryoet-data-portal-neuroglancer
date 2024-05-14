@@ -4,7 +4,8 @@ from typing import Any, Optional
 from cryoet_data_portal_neuroglancer.models.json_generator import (
     AnnotationJSONGenerator,
     ImageJSONGenerator,
-    SegmentationJSONGenerator, ImageVolumeJSONGenerator,
+    SegmentationJSONGenerator,
+    ImageVolumeJSONGenerator,
 )
 from cryoet_data_portal_neuroglancer.utils import get_resolution
 

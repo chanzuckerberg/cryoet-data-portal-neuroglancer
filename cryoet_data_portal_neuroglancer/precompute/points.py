@@ -43,7 +43,7 @@ def _write_annotations(
             # *(_build_rotation_matrix_properties() if is_oriented else []),
         ],
     )
-    # Convert angstrom to nanometer
+
     # Using 10nm as default size
     diameter = metadata["annotation_object"].get("diameter", 100) / 10
     for index, p in enumerate(data):
