@@ -10,6 +10,26 @@ def make_transform(input_dict: dict, dim: str, resolution: float):
     input_dict[dim] = [resolution, "m"]
 
 
+def create_source(
+        url: str, input_resolution: tuple[float, float, float], output_resolution: tuple[float, float, float]
+) -> dict[str, Any]:
+    return {
+        "url": url,
+        "transform": {
+            "outputDimensions": {
+                "x": [output_resolution[0], "m"],
+                "y": [output_resolution[1], "m"],
+                "z": [output_resolution[2], "m"],
+            },
+            "inputDimensions": {
+                "x": [input_resolution[0], "m"],
+                "y": [input_resolution[1], "m"],
+                "z": [input_resolution[2], "m"],
+            },
+        },
+    }
+
+
 class RenderingTypes(Enum):
     """Types of rendering for Neuroglancer."""
 
@@ -47,8 +67,7 @@ class RenderingJSONGenerator:
 
 @dataclass
 class ImageJSONGenerator(RenderingJSONGenerator):
-    """Generates a JSON file for Neuroglancer to read."""
-
+    """Generates JSON Neuroglancer config for Image volume."""
     resolution: tuple[float, float, float]
     size: dict[str, float]
     contrast_limits: tuple[float, float] = (-64, 64)
@@ -96,24 +115,10 @@ class ImageJSONGenerator(RenderingJSONGenerator):
         }
 
     def generate_json(self) -> dict:
-        transform: dict = {}
-        for dim, resolution in zip("zyx", self.resolution[::-1], strict=False):
-            make_transform(transform, dim, resolution)
-
-        original: dict = {}
-        for dim, resolution in zip("zyx", self.resolution[::-1], strict=False):
-            make_transform(original, dim, resolution)
-
         config = {
             "type": self.layer_type,
             "name": self.name,
-            "source": {
-                "url": f"zarr://{self.source}",
-                "transform": {
-                    "outputDimensions": transform,
-                    "inputDimensions": original,
-                },
-            },
+            "source": create_source(f"zarr://{self.source}", self.resolution, self.resolution),
             "opacity": 0.51,
             "tab": "rendering",
         }
@@ -122,10 +127,10 @@ class ImageJSONGenerator(RenderingJSONGenerator):
 
 @dataclass
 class AnnotationJSONGenerator(RenderingJSONGenerator):
-    """Generates a JSON file for Neuroglancer to read."""
-
+    """Generates JSON Neuroglancer config for point annotation."""
     color: str
     point_size_multiplier: float = 1.0
+    resolution: tuple[float, float, float] = (1.0, 1.0, 1.0)
 
     def __post_init__(self):
         self._type = RenderingTypes.ANNOTATION
@@ -134,7 +139,7 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
         return {
             "type": self.layer_type,
             "name": f"{self.name}",
-            "source": f"precomputed://{self.source}",
+            "source": create_source(f"precomputed://{self.source}", self.resolution, self.resolution),
             "tab": "rendering",
             "shader": self._get_shader(),
         }
@@ -152,9 +157,10 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
 
 @dataclass
 class SegmentationJSONGenerator(RenderingJSONGenerator):
-    """Generates a JSON file for Neuroglancer to read."""
+    """Generates JSON Neuroglancer config for segmentation mask."""
 
     color: tuple[str, str]
+    resolution: tuple[float, float, float]
 
     def __post_init__(self):
         self._type = RenderingTypes.SEGMENTATION
@@ -164,7 +170,7 @@ class SegmentationJSONGenerator(RenderingJSONGenerator):
         return {
             "type": self.layer_type,
             "name": f"{self.name}{color_part}",
-            "source": f"precomputed://{self.source}",
+            "source": create_source(f"precomputed://{self.source}", self.resolution, self.resolution),
             "tab": "rendering",
             "selectedAlpha": 1,
             "hoverHighlight": False,

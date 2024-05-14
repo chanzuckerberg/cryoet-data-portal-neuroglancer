@@ -14,7 +14,7 @@ def setup_creation(
     name: str = None,
     url: str = None,
     zarr_path: str = None,
-    resolution: float | tuple[float, float, float] = None,
+    resolution: float | tuple[float, float, float] = 1.0,
 ) -> tuple[str, str, str, str, tuple[float, float, float]]:
     name = Path(source).stem if name is None else name
     url = url if url is not None else ""
@@ -57,14 +57,16 @@ def generate_point_layer(
     url: str = None,
     color: list[str] = None,
     point_size_multiplier: float = 1.0,
+    resolution: tuple[float, float, float] = (1.0, 1.0, 1.0),
 ) -> dict[str, Any]:
-    source, name, url, _, _ = setup_creation(source, name, url)
+    source, name, url, _, resolution = setup_creation(source, name, url, resolution=resolution)
     new_color = _parse_to_vec4_color(color)
     return AnnotationJSONGenerator(
         source=source,
         name=name,
         color=new_color,
         point_size_multiplier=point_size_multiplier,
+        resolution=resolution,
     ).to_json()
 
 
@@ -73,15 +75,16 @@ def generate_segmentation_mask_layer(
     name: str = None,
     url: str = None,
     color: str = None,
+    resolution: tuple[float, float, float] = (1.0, 1.0, 1.0),
 ) -> dict[str, Any]:
-    source, name, url, _, _ = setup_creation(source, name, url)
+    source, name, url, _, resolution = setup_creation(source, name, url, resolution=resolution)
     color_tuple = _parse_to_hex_color(color)
-    return SegmentationJSONGenerator(source=source, name=name, color=color_tuple).to_json()
+    return SegmentationJSONGenerator(source=source, name=name, color=color_tuple, resolution=resolution).to_json()
 
 
 def generate_image_layer(
     source: str,
-    resolution: Optional[tuple[float, float, float] | list[float] | float],
+    resolution: tuple[float, float, float],
     size: dict[str, float],
     name: str = None,
     url: str = None,
@@ -89,12 +92,11 @@ def generate_image_layer(
     mean: float = None,
     rms: float = None,
 ) -> dict[str, Any]:
-    source, name, url, _, _ = setup_creation(source, name, url)
-    validated_resolution = get_resolution(resolution)
+    source, name, url, _, resolution = setup_creation(source, name, url, resolution=resolution)
     return ImageJSONGenerator(
         source=source,
         name=name,
-        resolution=validated_resolution,
+        resolution=resolution,
         size=size,
         start=start,
         mean=mean,
@@ -114,12 +116,7 @@ def combine_json_layers(
     combined_json = {
         "dimensions": dimensions,
         "crossSectionScale": 1.8,
-        "projectionOrientation": [
-            0.0,
-            0.655,
-            0.0,
-            -0.756,
-        ],
+        "projectionOrientation": [0.173, -0.0126, -0.0015, 0.984],
         "layers": layers,
         "selectedLayer": {
             "visible": True,

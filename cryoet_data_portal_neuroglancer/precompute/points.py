@@ -102,7 +102,7 @@ def encode_annotation(
 
     coordinate_space = CoordinateSpace(
         names=["x", "y", "z"],
-        units=["nm", "nm", "nm"],
+        units=["m", "m", "m"],
         scales=[resolution, resolution, resolution],
     )
     _write_annotations(output_path, data, metadata, coordinate_space, is_oriented, labels, label_key)
