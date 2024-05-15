@@ -17,9 +17,9 @@ def _write_annotations(
     data: list[dict[str, Any]],
     metadata: dict[str, Any],
     coordinate_space: CoordinateSpace,
-    # is_oriented: bool,
-    labels: dict[str, int],
-    label_key: Callable[[dict[str, Any]], int],
+    is_oriented: bool,
+    names_by_id: dict[int, str],
+    label_key_mapper: Callable[[dict[str, Any]], int],
     color_mapper: Callable[[dict[str, Any]], tuple[int, int, int]],
 ) -> Path:
     """
@@ -33,14 +33,14 @@ def _write_annotations(
             AnnotationPropertySpec(
                 id="name",
                 type="uint8",
-                enum_values=list(labels.values()),
-                enum_labels=list(labels.keys()),
+                enum_values=list(names_by_id.keys()),
+                enum_labels=list(names_by_id.values()),
             ),
             AnnotationPropertySpec(id="diameter", type="float32"),
             AnnotationPropertySpec(id="point_index", type="float32"),
             AnnotationPropertySpec(id="color", type="rgb"),
             # Spec must be added at the object construction time, not after
-            # *(_build_rotation_matrix_properties() if is_oriented else []),
+            *(_build_rotation_matrix_properties() if is_oriented else []),
         ],
     )
 
@@ -48,18 +48,18 @@ def _write_annotations(
     diameter = metadata["annotation_object"].get("diameter", 100) / 10
     for index, p in enumerate(data):
         location = [p["location"][k] for k in ("x", "y", "z")]
-        # rot_mat = {}
-        # if is_oriented:
-        #     rot_mat = {
-        #         f"rot_mat_{i}_{j}": col for i, line in enumerate(p["xyz_rotation_matrix"]) for j, col in enumerate(line)
-        #     }
+        rot_mat = {}
+        if is_oriented:
+            rot_mat = {
+                f"rot_mat_{i}_{j}": col for i, line in enumerate(p["xyz_rotation_matrix"]) for j, col in enumerate(line)
+            }
         writer.add_point(
             location,
             diameter=diameter,
             point_index=float(index),
-            name=label_key(p),
+            name=label_key_mapper(p),
             color=color_mapper(p),
-            # **rot_mat,
+            **rot_mat,
         )
     writer.properties.sort(key=lambda prop: prop.id != "name")
     writer.write(output_dir)
@@ -97,8 +97,9 @@ def encode_annotation(
     metadata: dict[str, Any],
     output_path: Path,
     resolution: float,
-    labels: dict[str, int] = None,
-    label_key: Callable[[dict[str, Any]], int] = lambda x: 0,
+    is_oriented: bool = False,
+    names_by_id: dict[int, str] = None,
+    label_key_mapper: Callable[[dict[str, Any]], int] = lambda x: 0,
     color_mapper: Callable[[dict[str, Any]], tuple[int, int, int]] = lambda x: (255, 255, 255),
     shard_by_id: tuple[int, int] = (0, 10),
 ) -> None:
@@ -109,9 +110,18 @@ def encode_annotation(
         units=["m", "m", "m"],
         scales=[resolution, resolution, resolution],
     )
-    if labels is None:
-        labels = {metadata["annotation_object"]["name"]: 0}
-    _write_annotations(output_path, data, metadata, coordinate_space, labels, label_key, color_mapper)
+    if names_by_id is None:
+        names_by_id = {0: metadata.get("annotation_object", {}).get("name", "")}
+    _write_annotations(
+        output_path,
+        data,
+        metadata,
+        coordinate_space,
+        is_oriented,
+        names_by_id,
+        label_key_mapper,
+        color_mapper,
+    )
     print("Wrote annotations to", output_path)
 
     if shard_by_id and len(shard_by_id) == 2:
