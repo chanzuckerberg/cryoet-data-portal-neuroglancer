@@ -6,27 +6,23 @@ from typing import Any
 import numpy as np
 
 
-def make_transform(input_dict: dict, dim: str, resolution: float):
-    input_dict[dim] = [resolution, "m"]
-
-
 def create_source(
     url: str,
-    input_resolution: tuple[float, float, float],
-    output_resolution: tuple[float, float, float],
+    input_dimension: tuple[float, float, float],
+    output_dimension: tuple[float, float, float],
 ) -> dict[str, Any]:
     return {
         "url": url,
         "transform": {
             "outputDimensions": {
-                "x": [output_resolution[0], "m"],
-                "y": [output_resolution[1], "m"],
-                "z": [output_resolution[2], "m"],
+                "x": [output_dimension[0], "m"],
+                "y": [output_dimension[1], "m"],
+                "z": [output_dimension[2], "m"],
             },
             "inputDimensions": {
-                "x": [input_resolution[0], "m"],
-                "y": [input_resolution[1], "m"],
-                "z": [input_resolution[2], "m"],
+                "x": [input_dimension[0], "m"],
+                "y": [input_dimension[1], "m"],
+                "z": [input_dimension[2], "m"],
             },
         },
     }
@@ -49,6 +45,7 @@ class RenderingJSONGenerator:
 
     source: str
     name: str
+    scale: tuple[float, float, float]
 
     @property
     def layer_type(self) -> str:
@@ -71,7 +68,6 @@ class RenderingJSONGenerator:
 class ImageJSONGenerator(RenderingJSONGenerator):
     """Generates JSON Neuroglancer config for Image volume."""
 
-    resolution: tuple[float, float, float]
     size: dict[str, float]
     contrast_limits: tuple[float, float] = (-64, 64)
     start: dict[str, float] = None
@@ -122,7 +118,7 @@ class ImageJSONGenerator(RenderingJSONGenerator):
         config = {
             "type": self.layer_type,
             "name": self.name,
-            "source": create_source(f"zarr://{self.source}", self.resolution, self.resolution),
+            "source": create_source(f"zarr://{self.source}", self.scale, self.scale),
             "opacity": 0.51,
             "tab": "rendering",
             "visible": self.is_visible,
@@ -136,9 +132,8 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
 
     color: str
     point_size_multiplier: float = 1.0
-    resolution: tuple[float, float, float] = (1.0, 1.0, 1.0)
-    is_visible: bool = True
     is_instance_segmentation: bool = False
+    is_visible: bool = True
 
     def __post_init__(self):
         self._type = RenderingTypes.ANNOTATION
@@ -159,7 +154,7 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
         return {
             "type": self.layer_type,
             "name": f"{self.name}",
-            "source": create_source(f"precomputed://{self.source}", self.resolution, self.resolution),
+            "source": create_source(f"precomputed://{self.source}", self.scale, self.scale),
             "tab": "rendering",
             "shader": self._get_shader(),
             "visible": self.is_visible,
@@ -171,7 +166,6 @@ class SegmentationJSONGenerator(RenderingJSONGenerator):
     """Generates JSON Neuroglancer config for segmentation mask."""
 
     color: str
-    resolution: tuple[float, float, float]
     is_visible: bool = True
 
     def __post_init__(self):
@@ -181,7 +175,7 @@ class SegmentationJSONGenerator(RenderingJSONGenerator):
         return {
             "type": self.layer_type,
             "name": f"{self.name}",
-            "source": create_source(f"precomputed://{self.source}", self.resolution, self.resolution),
+            "source": create_source(f"precomputed://{self.source}", self.scale, self.scale),
             "tab": "rendering",
             "selectedAlpha": 1,
             "hoverHighlight": False,
@@ -198,7 +192,7 @@ class ImageVolumeJSONGenerator(RenderingJSONGenerator):
     """Generates JSON Neuroglancer config for volume rendering."""
 
     color: str
-    resolution: tuple[float, float, float]
+    rendering_depth: int
     is_visible: bool = True
 
     def __post_init__(self):
@@ -221,11 +215,11 @@ class ImageVolumeJSONGenerator(RenderingJSONGenerator):
         return {
             "type": self.layer_type,
             "name": f"{self.name}",
-            "source": create_source(f"zarr://{self.source}", self.resolution, self.resolution),
+            "source": create_source(f"zarr://{self.source}", self.scale, self.scale),
             "tab": "rendering",
             "blend": "additive",
             "volumeRendering": "on",
-            "volumeRenderingDepthSamples": 5000,
+            "volumeRenderingDepthSamples": self.rendering_depth,
             "visible": self.is_visible,
             **self._get_shader(),
         }

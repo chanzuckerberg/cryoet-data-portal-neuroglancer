@@ -6,7 +6,7 @@ import dask.array as da
 import numpy as np
 
 
-def get_resolution(
+def get_scale(
     resolution: tuple[float, float, float] | list[float] | float,
 ) -> tuple[float, float, float]:
     if not isinstance(resolution, (tuple, list)):
