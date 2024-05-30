@@ -1,5 +1,8 @@
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import urljoin
+
+from scipy.spatial.transform import Rotation
 
 from cryoet_data_portal_neuroglancer.models.json_generator import (
     AnnotationJSONGenerator,
@@ -21,8 +24,7 @@ def _setup_creation(
     url = url if url is not None else ""
     zarr_path = zarr_path if zarr_path is not None else source
     scale = get_scale(scale)
-    sep = "/" if url else ""
-    source = f"{url}{sep}{source}"
+    source = urljoin(url, source.strip("/")) if url else source
     return source, name, url, zarr_path, scale
 
 
@@ -141,13 +143,16 @@ def combine_json_layers(
     layers: list[dict[str, Any]],
     scale: Optional[tuple[float, float, float] | list[float]],
     units: str = "m",
+    projection_quaternion: list[float] = None,
 ) -> dict[str, Any]:
     image_layers = [layer for layer in layers if layer["type"] == "image"]
     scale = get_scale(scale)
+    if not projection_quaternion:
+        projection_quaternion = Rotation.from_euler(seq="xyz", angles=(45, 0, 0), degrees=True).as_quat()
     combined_json = {
         "dimensions": {dim: [res, units] for dim, res in zip("xyz", scale, strict=False)},
         "crossSectionScale": 1.8,
-        "projectionOrientation": [0.173, -0.0126, -0.0015, 0.984],
+        "projectionOrientation": projection_quaternion,
         "layers": layers,
         "selectedLayer": {
             "visible": True,
