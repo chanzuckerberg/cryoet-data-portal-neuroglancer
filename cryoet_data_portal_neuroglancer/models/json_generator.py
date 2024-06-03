@@ -112,6 +112,7 @@ class ImageJSONGenerator(RenderingJSONGenerator):
         return {
             "_position": [np.round(np.mean([self.size.get(d, 0), nstart.get(d, 0)])) for d in "xyz"],
             "_crossSectionScale": max(largest_dimension / avg_cross_section_render_height, 1),
+            "_projectionScale": largest_dimension * 1.1,
         }
 
     def generate_json(self) -> dict:
@@ -139,10 +140,15 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
         self._type = RenderingTypes.ANNOTATION
 
     def _get_shader(self):
-        set_color = "prop_color()" if self.is_instance_segmentation else self.color
+        set_color = "color"
+        ui_color_control = f'#uicontrol vec3 color color(default="{self.color}")\n'
+        if self.is_instance_segmentation:
+            set_color = "prop_color()"
+            ui_color_control = ""
         return (
             f"#uicontrol float pointScale slider(min=0.01, max=2.0, default={self.point_size_multiplier}, step=0.01)\n"
             f"#uicontrol float opacity slider(min=0, max=1, default=1)\n"
+            f"{ui_color_control}\n"
             f"void main() {{\n"
             f"  setColor(vec4({set_color}, opacity));\n"
             f"  setPointMarkerSize(pointScale * prop_diameter());\n"
