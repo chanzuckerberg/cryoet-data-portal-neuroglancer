@@ -145,5 +145,6 @@ def combine_json_layers(
     if image_layers is not None:
         combined_json["position"] = image_layers[0]["_position"]
         combined_json["crossSectionScale"] = image_layers[0]["_crossSectionScale"]
+        combined_json["projectionScale"] = image_layers[0]["_projectionScale"]
 
     return combined_json

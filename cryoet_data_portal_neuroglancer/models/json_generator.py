@@ -112,6 +112,7 @@ class ImageJSONGenerator(RenderingJSONGenerator):
         return {
             "_position": [np.round(np.mean([self.size.get(d, 0), nstart.get(d, 0)])) for d in "xyz"],
             "_crossSectionScale": max(largest_dimension / avg_cross_section_render_height, 1),
+            "_projectionScale": largest_dimension * 1.1,
         }
 
     def generate_json(self) -> dict:
