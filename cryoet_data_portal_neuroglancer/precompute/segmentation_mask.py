@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Iterator, Optional
 
 import dask.array as da
+import neuroglancer
 import numpy as np
 from tqdm import tqdm
 
@@ -236,6 +237,7 @@ def _create_metadata(
     data_size: tuple[int, int, int],
     data_directory: str,
     resolution: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    mesh_directory: str = None,
 ) -> dict[str, Any]:
     """Create the metadata for the segmentation"""
     metadata = {
@@ -254,6 +256,8 @@ def _create_metadata(
         ],
         "type": "segmentation",
     }
+    if mesh_directory:
+        metadata["mesh"] = mesh_directory
     return metadata
 
 
@@ -274,6 +278,36 @@ def create_segmentation(
         )
 
 
+def create_mesh(
+    dask_data: da.Array,
+    output_path: Path,
+    mesh_directory: str,
+    resolution: tuple[float, float, float],
+) -> None:
+    """Create the mesh for the given volume if a mesh directory is provided"""
+    mesh = np.dstack([np.array(dask_data).astype(np.uint8)])
+    transposed_mesh = np.transpose(mesh, (2, 1, 0))
+
+    ids = [int(i) for i in np.unique(transposed_mesh[:])]
+    coordinate_space = neuroglancer.CoordinateSpace(
+        names=("x", "y", "z"),
+        units=("m",) * 3,
+        scales=resolution,
+    )
+    vol = neuroglancer.LocalVolume(data=transposed_mesh, dimensions=coordinate_space)
+
+    mesh_path = output_path / mesh_directory
+    mesh_path.mkdir(exist_ok=True, parents=True)
+    json_descriptor = '{{"fragments": ["mesh.{}.{}"]}}'
+    for id in ids[1:]:
+        mesh_data = vol.get_object_mesh(id)
+        with open(str(mesh_path / ".".join(("mesh", str(id), str(id)))), "wb") as mesh_file:
+            mesh_file.write(mesh_data)
+        with open(str(mesh_path / "".join((str(id), ":0"))), "w") as frag_file:
+            frag_file.write(json_descriptor.format(id, id))
+    print(f"Wrote segmentation mesh to {mesh_path}")
+
+
 def write_metadata(metadata: dict[str, Any], output_directory: Path) -> None:
     """Write the segmentation to the given directory"""
     metadata_path = output_directory / "info"
@@ -290,14 +324,16 @@ def encode_segmentation(
     data_directory: str = "data",
     delete_existing: bool = False,
     convert_non_zero_to: Optional[int] = 0,
+    include_mesh: bool = False,
+    mesh_directory: str = "mesh",
 ) -> None:
     """Convert the given OME-Zarr file to neuroglancer segmentation format with the given block size"""
     print(f"Converting {filename} to neuroglancer compressed segmentation format")
     dask_data = load_omezarr_data(filename)
     if delete_existing and output_path.exists():
         contents = list(output_path.iterdir())
-        content_names = sorted([c.name for c in contents])
-        if content_names and content_names != ["data", "info"]:
+        content_names = {c.name for c in contents}
+        if content_names and content_names.difference({"data", "info", "mesh"}):
             raise FileExistsError(
                 f"Output directory {output_path!s} exists and contains non-conversion related files. {content_names}",
             )
@@ -315,12 +351,18 @@ def encode_segmentation(
 
     if len(dask_data.chunksize) != 3:
         raise ValueError(f"Expected 3 chunk dimensions, got {len(dask_data.chunksize)}")
+
+    if include_mesh:
+        print(f"Converting {filename} to neuroglancer mesh format")
+        create_mesh(dask_data, output_path, mesh_directory, resolution)
+
     metadata = _create_metadata(
         dask_data.chunksize,
         block_size,
         dask_data.shape,
         data_directory,
         resolution,  # type: ignore
+        mesh_directory=mesh_directory if include_mesh else None,
     )
     write_metadata(metadata, output_path)
     print(f"Wrote segmentation to {output_path}")
