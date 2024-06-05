@@ -8,7 +8,6 @@ from typing import Any, Iterator, Optional
 import dask.array as da
 import neuroglancer
 import numpy as np
-from neuroglancer import CoordinateSpace
 from tqdm import tqdm
 
 from cryoet_data_portal_neuroglancer.io import load_omezarr_data
@@ -288,10 +287,9 @@ def create_mesh(
     """Create the mesh for the given volume if a mesh directory is provided"""
     mesh = np.dstack([np.array(dask_data).astype(np.uint8)])
     transposed_mesh = np.transpose(mesh, (2, 1, 0))
-    # transposed_mesh = mesh
 
     ids = [int(i) for i in np.unique(transposed_mesh[:])]
-    coordinate_space = CoordinateSpace(
+    coordinate_space = neuroglancer.CoordinateSpace(
         names=("x", "y", "z"),
         units=("m",) * 3,
         scales=resolution,
