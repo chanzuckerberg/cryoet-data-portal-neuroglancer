@@ -199,7 +199,7 @@ class ImageVolumeJSONGenerator(RenderingJSONGenerator):
     """Generates JSON Neuroglancer config for volume rendering."""
 
     color: str
-    rendering_depth: int # Ideally, this should be a power of 2
+    rendering_depth: int  # Ideally, this should be a power of 2
     contrast_limits: tuple[float, float] = (-64, 64)
     threedee_contrast_limits: tuple[float, float] = (-64, 64)
     is_visible: bool = True

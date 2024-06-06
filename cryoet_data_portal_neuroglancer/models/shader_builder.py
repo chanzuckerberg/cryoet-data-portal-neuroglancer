@@ -93,7 +93,11 @@ class ImageVolumeShaderBuilder(ShaderBuilder):
 
     def _make_default_shader(self):
         self.add_to_shader_controls(
-            self.make_invertible_invlerp_component(self._contrast_name, self._contrast_limits, self._window_limits),
+            self.make_invertible_invlerp_component(
+                self._contrast_name,
+                self._contrast_limits,
+                self._window_limits,
+            ),
         )
         self.add_to_shader_controls(
             self.make_invertible_invlerp_component(
