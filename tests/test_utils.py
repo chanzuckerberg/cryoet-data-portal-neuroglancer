@@ -53,6 +53,8 @@ def test__get_grid_size_from_block_shape(dshape, bshape, expected):
         ((100, -100), (-120, 120)),
     ],
 )
-def test_create_default_window_limits_from_contrast_limits(contrast_limits, window_limits):
+def test_create_default_window_limits_from_contrast_limits(
+    contrast_limits,
+    window_limits,
+):
     assert get_window_limits_from_contrast_limits(contrast_limits) == window_limits
-    assert contrast_limits == contrast_limits
