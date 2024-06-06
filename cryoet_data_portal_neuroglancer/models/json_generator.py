@@ -5,6 +5,7 @@ from typing import Any
 
 import numpy as np
 
+from cryoet_data_portal_neuroglancer.models.shader_builder import ImageVolumeShaderBuilder
 from cryoet_data_portal_neuroglancer.utils import get_window_limits_from_contrast_limits
 
 
@@ -82,7 +83,6 @@ class ImageJSONGenerator(RenderingJSONGenerator):
 
     def _create_shader_and_controls(self) -> dict[str, Any]:
         if self.mean is None or self.rms is None:
-            print("hellloo")
             window_limits = get_window_limits_from_contrast_limits(self.contrast_limits)
             shader = (
                 f"#uicontrol invlerp contrast(range=[{self.contrast_limits[0]}, {self.contrast_limits[1]}], "
@@ -199,24 +199,22 @@ class ImageVolumeJSONGenerator(RenderingJSONGenerator):
     """Generates JSON Neuroglancer config for volume rendering."""
 
     color: str
-    rendering_depth: int
+    rendering_depth: int # Ideally, this should be a power of 2
+    contrast_limits: tuple[float, float] = (-64, 64)
+    threedee_contrast_limits: tuple[float, float] = (-64, 64)
     is_visible: bool = True
 
     def __post_init__(self):
         self._type = RenderingTypes.IMAGE
 
     def _get_shader(self) -> dict[str, Any]:
-        shader = (
-            f'#uicontrol vec3 color color(default="{self.color}")\n'
-            f"#uicontrol invlerp toRaw(range=[0, 1], window=[-1, 2])\n"
-            f"void main() {{\n"
-            f"  emitRGBA(vec4(color * toRaw(getDataValue()), toRaw(getDataValue())));\n"
-            f"}}"
+        # TODO (skm) - verify expected color usage
+        shader_builder = ImageVolumeShaderBuilder(
+            contrast_limits=self.contrast_limits,
+            threedee_contrast_limits=self.threedee_contrast_limits,
+            default_color=self.color,
         )
-        return {
-            "shader": shader,
-            "shaderControls": {"color": self.color},
-        }
+        return shader_builder.build_shader()
 
     def generate_json(self) -> dict:
         return {
