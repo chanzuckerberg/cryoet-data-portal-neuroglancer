@@ -19,6 +19,7 @@ class ShaderBuilder:
         else:
             self._shader_pre_main += "\n".join(code)
         self._shader_pre_main += "\n"
+        return self
 
     def add_to_shader_main(self, code: str | list[str], indent: int = 1):
         if isinstance(code, str):
@@ -26,6 +27,7 @@ class ShaderBuilder:
         else:
             self._shader_main_function += "\n".join([TAB * indent + line for line in code])
         self._shader_main_function += "\n"
+        return self
 
     def _make_main(self) -> str:
         return f"void main() {{\n{self._shader_main_function}}}"

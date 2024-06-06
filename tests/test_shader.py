@@ -1,4 +1,4 @@
-from cryoet_data_portal_neuroglancer.models.shader_builder import ImageVolumeShaderBuilder
+from cryoet_data_portal_neuroglancer.models.shader_builder import ImageVolumeShaderBuilder, ShaderBuilder
 
 
 def test_get_default_image_shader():
@@ -38,7 +38,7 @@ void main() {
     )
     shader = shader_builder.build_shader()
     actual_shader = shader["shader"]
-    assert actual_shader.strip() == expected_shader.strip()
+    assert actual_shader == expected_shader.strip()
 
     shader_controls = shader["shaderControls"]
     contrast_control = shader_controls[contrast_name]
@@ -48,3 +48,18 @@ void main() {
     contrast_threedee_control = shader_controls[threedee_contrast_name]
     assert contrast_threedee_control["range"] == list(threedee_contrast_limits)
     assert contrast_threedee_control["window"] == [-1.2, 1.2]
+
+
+def test_shader_builder():
+    expected_shader = """
+#uicontrol test
+
+void main() {
+  test_main
+}
+"""
+    shader_components = (
+        ShaderBuilder().add_to_shader_controls("#uicontrol test").add_to_shader_main("test_main").build_shader()
+    )
+    assert shader_components["shader"] == expected_shader.strip()
+    assert shader_components["shaderControls"] == {}
