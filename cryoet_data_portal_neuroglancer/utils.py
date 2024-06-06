@@ -117,11 +117,12 @@ def get_window_limits_from_contrast_limits(contrast_limits: tuple[float, float])
     tuple[float, float]
         The window limits
     """
+    lower_contrast, higher_contrast = contrast_limits
     # First check if the contrast limits are inverted
-    if contrast_limits[0] > contrast_limits[1]:
-        contrast_limits = (contrast_limits[1], contrast_limits[0])
+    if lower_contrast > higher_contrast:
+        lower_contrast, higher_contrast = higher_contrast, lower_contrast
 
-    distance = contrast_limits[1] - contrast_limits[0]
-    window_start = contrast_limits[0] - (distance / 10)
-    window_end = contrast_limits[1] + (distance / 10)
+    distance = higher_contrast - lower_contrast
+    window_start = lower_contrast - (distance / 10)
+    window_end = higher_contrast + (distance / 10)
     return window_start, window_end
