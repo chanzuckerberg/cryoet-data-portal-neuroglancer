@@ -15,6 +15,7 @@ float contrast_get() { return invert_contrast ? 1.0 - contrast() : contrast(); }
 #uicontrol invlerp contrast3D
 #uicontrol bool invert_contrast3D checkbox(default=false)
 float contrast3D_get() { return invert_contrast3D ? 1.0 - contrast3D() : contrast3D(); }
+#uicontrol vec3 color color
 
 void main() {
   float outputValue;
@@ -24,7 +25,7 @@ void main() {
   } else {
     outputValue = contrast_get();
   }
-  emitGrayscale(outputValue);
+  emitRGBA(vec4(outputValue * color, outputValue));
 }
 """
     shader_builder = ImageVolumeShaderBuilder(
@@ -35,7 +36,7 @@ void main() {
         contrast_name=contrast_name,
         threedee_contrast_name=threedee_contrast_name,
     )
-    shader = shader_builder.make_shader()
+    shader = shader_builder.build_shader()
     actual_shader = shader["shader"]
     assert actual_shader.strip() == expected_shader.strip()
 

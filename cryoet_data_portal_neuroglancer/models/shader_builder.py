@@ -30,7 +30,7 @@ class ShaderBuilder:
     def _make_main(self) -> str:
         return f"void main() {{\n{self._shader_main_function}}}"
 
-    def make_shader(self) -> dict[str, str | dict[str, Any]]:
+    def build_shader(self) -> dict[str, str | dict[str, Any]]:
         return {
             "shader": self._shader_pre_main + "\n" + self._make_main(),
             "shaderControls": self._shader_controls,
@@ -58,6 +58,10 @@ class ShaderBuilder:
         data_value_getter = f"float {name}_get() {{ return invert_{name} ? 1.0 - {name}() : {name}(); }}"
         return [invlerp_component, checkbox_part, data_value_getter]
 
+    def make_color_component(self, name: str, default_color: str) -> str:
+        self._shader_controls[name] = default_color
+        return f"#uicontrol vec3 {name} color"
+
 
 class ImageVolumeShaderBuilder(ShaderBuilder):
     def __init__(
@@ -66,6 +70,7 @@ class ImageVolumeShaderBuilder(ShaderBuilder):
         threedee_contrast_limits: tuple[float, float],
         window_limits: Optional[tuple[float, float]] = None,
         threedee_window_limits: Optional[tuple[float, float]] = None,
+        default_color: str = "#FFFFFF",
         contrast_name="contrast",
         threedee_contrast_name="contrast3D",
     ):
@@ -82,6 +87,7 @@ class ImageVolumeShaderBuilder(ShaderBuilder):
         )
         self._contrast_name = contrast_name
         self._threedee_contrast_name = threedee_contrast_name
+        self._default_color = default_color
 
         self._make_default_shader()
 
@@ -96,6 +102,7 @@ class ImageVolumeShaderBuilder(ShaderBuilder):
                 self._threedee_window_limits,
             ),
         )
+        self.add_to_shader_controls(self.make_color_component("color", self._default_color))
         self.add_to_shader_main("float outputValue;")
         self._add_cross_section_and_vr_code(
             [
@@ -106,7 +113,7 @@ class ImageVolumeShaderBuilder(ShaderBuilder):
                 f"outputValue = {self._contrast_name}_get();",
             ],
         )
-        self.add_to_shader_main("emitGrayscale(outputValue);")
+        self.add_to_shader_main("emitRGBA(vec4(outputValue * color, outputValue));")
 
     def _add_cross_section_and_vr_code(
         self,
