@@ -122,7 +122,7 @@ def generate_image_volume_layer(
 
 def combine_json_layers(
     layers: list[dict[str, Any]],
-    scale: Optional[tuple[float, float, float] | list[float]],
+    scale: tuple[float, float, float] | list[float] | float,
     units: str = "m",
     projection_quaternion: list[float] = None,
 ) -> dict[str, Any]:
