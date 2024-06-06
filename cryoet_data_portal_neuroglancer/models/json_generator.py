@@ -5,6 +5,8 @@ from typing import Any
 
 import numpy as np
 
+from cryoet_data_portal_neuroglancer.utils import get_window_limits_from_contrast_limits
+
 
 def create_source(
     url: str,
@@ -80,12 +82,11 @@ class ImageJSONGenerator(RenderingJSONGenerator):
 
     def _create_shader_and_controls(self) -> dict[str, Any]:
         if self.mean is None or self.rms is None:
-            distance = self.contrast_limits[1] - self.contrast_limits[0]
-            window_start = self.contrast_limits[0] - (distance / 10)
-            window_end = self.contrast_limits[1] + (distance / 10)
+            print("hellloo")
+            window_limits = get_window_limits_from_contrast_limits(self.contrast_limits)
             shader = (
                 f"#uicontrol invlerp contrast(range=[{self.contrast_limits[0]}, {self.contrast_limits[1]}], "
-                f"window=[{window_start}, {window_end}])\nvoid main() {{\n  emitGrayscale(contrast());\n}}"
+                f"window=[{window_limits[0]}, {window_limits[1]}])\nvoid main() {{\n  emitGrayscale(contrast());\n}}"
             )
             return {"shader": shader}
 
