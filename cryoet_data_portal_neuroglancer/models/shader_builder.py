@@ -101,7 +101,11 @@ class ImageVolumeShaderBuilder(ShaderBuilder):
         )
         self.add_to_shader_main("emitGrayscale(outputValue);")
 
-    def _add_cross_section_and_vr_code(self, volume_rendering_code: list[str], cross_section_code: list[str]):
+    def _add_cross_section_and_vr_code(
+        self,
+        volume_rendering_code: list[str],
+        cross_section_code: list[str],
+    ):
         self.add_to_shader_main("if (VOLUME_RENDERING) {")
         self.add_to_shader_main(volume_rendering_code, indent=2)
         self.add_to_shader_main("} else {")
