@@ -1,6 +1,6 @@
 """Create GLSL shaders for Neuroglancer."""
 
-from typing import Optional
+from typing import Any, Optional
 
 from cryoet_data_portal_neuroglancer.utils import get_window_limits_from_contrast_limits
 
@@ -11,6 +11,7 @@ class ShaderBuilder:
     def __init__(self):
         self._shader_pre_main = ""
         self._shader_main_function = ""
+        self._shader_controls = {}
 
     def add_to_shader_controls(self, code: str | list[str]):
         if isinstance(code, str):
@@ -29,24 +30,30 @@ class ShaderBuilder:
     def _make_main(self) -> str:
         return f"void main() {{\n{self._shader_main_function}}}"
 
-    def make_shader(self) -> str:
-        return self._shader_pre_main + "\n" + self._make_main()
+    def make_shader(self) -> dict[str, str | dict[str, Any]]:
+        return {
+            "shader": self._shader_pre_main + "\n" + self._make_main(),
+            "shaderControls": self._shader_controls,
+        }
 
-    @staticmethod
     def make_invlerp_component(
+        self,
         name: str,
         contrast_limits: tuple[float, float],
         window_limits: tuple[float, float],
     ) -> str:
-        return f"#uicontrol invlerp {name}(range=[{contrast_limits[0]}, {contrast_limits[1]}], window=[{window_limits[0]}, {window_limits[1]}])"
+        controls = self._shader_controls.setdefault(name, {})
+        controls["range"] = list(contrast_limits)
+        controls["window"] = list(window_limits)
+        return f"#uicontrol invlerp {name}"
 
-    @staticmethod
     def make_invertible_invlerp_component(
+        self,
         name: str,
         contrast_limits: tuple[float, float],
         window_limits: tuple[float, float],
     ) -> list[str]:
-        invlerp_component = ShaderBuilder.make_invlerp_component(name, contrast_limits, window_limits)
+        invlerp_component = self.make_invlerp_component(name, contrast_limits, window_limits)
         checkbox_part = f"#uicontrol bool invert_{name} checkbox(default=false)"
         data_value_getter = f"float {name}_get() {{ return invert_{name} ? 1.0 - {name}() : {name}(); }}"
         return [invlerp_component, checkbox_part, data_value_getter]
