@@ -142,7 +142,9 @@ def combine_json_layers(
         "crossSectionBackgroundColor": "#000000",
         "layout": "4panel",
     }
-    if image_layers is not None:
+    # TODO (skm) the second check can probably be removed once VR
+    # layers have been fully decided upon
+    if len(image_layers) > 0 and "_position" in image_layers[0]:
         combined_json["position"] = image_layers[0]["_position"]
         combined_json["crossSectionScale"] = image_layers[0]["_crossSectionScale"]
         combined_json["projectionScale"] = image_layers[0]["_projectionScale"]
