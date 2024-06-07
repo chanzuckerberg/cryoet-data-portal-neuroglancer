@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from neuroglancer import AnnotationPropertySpec, CoordinateSpace
 from neuroglancer.write_annotations import AnnotationWriter
@@ -101,7 +101,7 @@ def encode_annotation(
     names_by_id: dict[int, str] = None,
     label_key_mapper: Callable[[dict[str, Any]], int] = lambda x: 0,
     color_mapper: Callable[[dict[str, Any]], tuple[int, int, int]] = lambda x: (255, 255, 255),
-    shard_by_id: tuple[int, int] = (0, 10),
+    shard_by_id: Optional[tuple[int, int]] = (0, 10),
 ) -> None:
     if shard_by_id and len(shard_by_id) < 2:
         shard_by_id = (0, 10)
