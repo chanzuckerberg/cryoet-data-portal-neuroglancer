@@ -2,14 +2,62 @@ import json
 from pathlib import Path
 from typing import Any, Callable
 
+import numpy as np
 from neuroglancer import AnnotationPropertySpec, CoordinateSpace
 from neuroglancer.write_annotations import AnnotationWriter
 
 from cryoet_data_portal_neuroglancer.sharding import ShardingSpecification, jsonify
+from cryoet_data_portal_neuroglancer.utils import rotate_xyz_via_matrix
 
 
-def _build_rotation_matrix_properties() -> list[AnnotationPropertySpec]:
-    return [AnnotationPropertySpec(id=f"rot_mat_{i}_{j}", type="float32") for i in range(3) for j in range(3)]
+def _write_annotations_oriented(
+    output_dir: Path,
+    data: list[dict[str, Any]],
+    metadata: dict[str, Any],
+    coordinate_space: CoordinateSpace,
+    names_by_id: dict[int, str],
+    label_key_mapper: Callable[[dict[str, Any]], int],
+    color_mapper: Callable[[dict[str, Any]], tuple[int, int, int]],
+) -> Path:
+    """
+    Create a neuroglancer annotation folder with the given annotations.
+    See https://github.com/google/neuroglancer/blob/master/src/neuroglancer/datasource/precomputed/annotations.md
+    """
+    writer = AnnotationWriter(
+        coordinate_space=coordinate_space,
+        annotation_type="line",
+        properties=[
+            AnnotationPropertySpec(
+                id="name",
+                type="uint8",
+                enum_values=list(names_by_id.keys()),
+                enum_labels=list(names_by_id.values()),
+            ),
+            AnnotationPropertySpec(id="diameter", type="float32"),
+            AnnotationPropertySpec(id="point_index", type="float32"),
+            AnnotationPropertySpec(id="color", type="rgb"),
+        ],
+    )
+
+    # Using 10nm as default size
+    diameter = metadata["annotation_object"].get("diameter", 100) / 10
+    line_distance = 10  # TODO (skm) update
+    for index, p in enumerate(data):
+        rotated_xyz = rotate_xyz_via_matrix(p["xyz_rotation_matrix"])
+        start_point = np.array([p["location"][k] for k in ("x", "y", "z")])
+        for i in range(3):
+            end_point = start_point + line_distance * rotated_xyz[i]
+        writer.add_line(
+            start_point,
+            end_point,
+            diameter=diameter,
+            point_index=float(index),
+            name=label_key_mapper(p),
+            color=color_mapper(p),
+        )
+    writer.properties.sort(key=lambda prop: prop.id != "name")
+    writer.write(output_dir)
+    return output_dir
 
 
 def _write_annotations(
@@ -17,7 +65,6 @@ def _write_annotations(
     data: list[dict[str, Any]],
     metadata: dict[str, Any],
     coordinate_space: CoordinateSpace,
-    is_oriented: bool,
     names_by_id: dict[int, str],
     label_key_mapper: Callable[[dict[str, Any]], int],
     color_mapper: Callable[[dict[str, Any]], tuple[int, int, int]],
@@ -39,8 +86,6 @@ def _write_annotations(
             AnnotationPropertySpec(id="diameter", type="float32"),
             AnnotationPropertySpec(id="point_index", type="float32"),
             AnnotationPropertySpec(id="color", type="rgb"),
-            # Spec must be added at the object construction time, not after
-            *(_build_rotation_matrix_properties() if is_oriented else []),
         ],
     )
 
@@ -48,18 +93,12 @@ def _write_annotations(
     diameter = metadata["annotation_object"].get("diameter", 100) / 10
     for index, p in enumerate(data):
         location = [p["location"][k] for k in ("x", "y", "z")]
-        rot_mat = {}
-        if is_oriented:
-            rot_mat = {
-                f"rot_mat_{i}_{j}": col for i, line in enumerate(p["xyz_rotation_matrix"]) for j, col in enumerate(line)
-            }
         writer.add_point(
             location,
             diameter=diameter,
             point_index=float(index),
             name=label_key_mapper(p),
             color=color_mapper(p),
-            **rot_mat,
         )
     writer.properties.sort(key=lambda prop: prop.id != "name")
     writer.write(output_dir)
@@ -112,12 +151,12 @@ def encode_annotation(
     )
     if names_by_id is None:
         names_by_id = {0: metadata.get("annotation_object", {}).get("name", "")}
-    _write_annotations(
+    writer_function = _write_annotations_oriented if is_oriented else _write_annotations
+    writer_function(
         output_path,
         data,
         metadata,
         coordinate_space,
-        is_oriented,
         names_by_id,
         label_key_mapper,
         color_mapper,
