@@ -1,8 +1,11 @@
+import numpy as np
 import pytest
 
 from cryoet_data_portal_neuroglancer.utils import (
     get_grid_size_from_block_shape,
     number_of_encoding_bits,
+    rotate_vector_via_matrix,
+    rotate_xyz_via_matrix,
 )
 
 
@@ -41,3 +44,44 @@ def test___number_of_encoding_bits__too_many_values():
 )
 def test__get_grid_size_from_block_shape(dshape, bshape, expected):
     assert get_grid_size_from_block_shape(dshape, bshape) == expected
+
+
+def test__rotate_vector_via_matrix():
+    # 90 degrees rotation around the z axis
+    # Expect to get the X vector to the Y vector
+    vec = np.array([1, 0, 0])
+    z_rotation_matrix = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
+    expected_result = np.array([0, 1, 0])
+    assert np.allclose(rotate_vector_via_matrix(vec, z_rotation_matrix), expected_result)
+
+    # 90 degrees rotation around the y axis
+    # Expect to get the X vector to the -Z vector
+    vec = np.array([1, 0, 0])
+    y_rotation_matrix = np.array([[0, 0, 1], [0, 1, 0], [-1, 0, 0]])
+    expected_result = np.array([0, 0, -1])
+    assert np.allclose(rotate_vector_via_matrix(vec, y_rotation_matrix), expected_result)
+
+    # 90 degrees rotation around the x axis
+    # Expect to get the Y vector to the Z vector
+    vec = np.array([0, 1, 0])
+    x_rotation_matrix = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]])
+    expected_result = np.array([0, 0, 1])
+    assert np.allclose(rotate_vector_via_matrix(vec, x_rotation_matrix), expected_result)
+
+
+def test__rotate_xyz_via_matrix():
+    # 90 degrees rotation around the z axis
+    # Expect to get the X axis to the Y axis, and the Y axis to the -X axis
+    z_rotation_matrix = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
+    expected_result = np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]])
+    assert np.allclose(rotate_xyz_via_matrix(z_rotation_matrix), expected_result)
+    # 90 degrees rotation around the y axis
+    # Expect to get the X axis to the -Z axis, and the Z axis to the X axis
+    y_rotation_matrix = np.array([[0, 0, 1], [0, 1, 0], [-1, 0, 0]])
+    expected_result = np.array([[0, 0, -1], [0, 1, 0], [1, 0, 0]])
+    assert np.allclose(rotate_xyz_via_matrix(y_rotation_matrix), expected_result)
+    # 90 degrees rotation around the x axis
+    # Expect to get the Y axis to the Z axis, and the Z axis to the -Y axis
+    x_rotation_matrix = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]])
+    expected_result = np.array([[1, 0, 0], [0, 0, 1], [0, -1, 0]])
+    assert np.allclose(rotate_xyz_via_matrix(x_rotation_matrix), expected_result)

@@ -101,3 +101,39 @@ def number_of_encoding_bits(nb_values: int) -> int:
         if (1 << nb_bits) >= nb_values:
             return nb_bits
     raise ValueError("Too many unique values in block")
+
+
+def rotate_vector_via_matrix(vec3: np.ndarray, matrix: np.ndarray) -> np.ndarray:
+    """
+    Rotate a 3D vector using a 3x3 rotation matrix
+
+    Parameters
+    ----------
+    vec3 : np.ndarray
+        The 3D vector to rotate
+    matrix : np.ndarray
+        The 3x3 rotation matrix
+
+    Returns
+    -------
+    np.ndarray
+        The rotated vector
+    """
+    return np.dot(matrix, vec3)
+
+
+def rotate_xyz_via_matrix(matrix: np.ndarray) -> np.ndarray:
+    """
+    Rotate the XYZ axes using a 3x3 rotation matrix
+
+    Parameters
+    ----------
+    matrix : np.ndarray
+        The 3x3 rotation matrix
+
+    Returns
+    -------
+    np.ndarray
+        The rotated XYZ axes
+    """
+    return np.dot(matrix, np.eye(3)).T
