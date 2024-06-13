@@ -32,7 +32,7 @@ def _write_annotations(
         properties=[
             AnnotationPropertySpec(
                 id="name",
-                type="uint8",
+                type="uint8" if len(names_by_id) < 2**8 else "uint16",
                 enum_values=list(names_by_id.keys()),
                 enum_labels=list(names_by_id.values()),
             ),
