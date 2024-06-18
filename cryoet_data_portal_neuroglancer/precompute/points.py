@@ -10,6 +10,16 @@ from cryoet_data_portal_neuroglancer.sharding import ShardingSpecification, json
 from cryoet_data_portal_neuroglancer.utils import rotate_xyz_via_matrix
 
 
+def _line_index_to_rgb(line_index: int) -> tuple[int, int, int]:
+    """x = red, y = green, z = blue"""
+    line_to_rgb = {
+        0: (255, 0, 0),
+        1: (0, 255, 0),
+        2: (0, 0, 255),
+    }
+    return line_to_rgb.get(line_index, (255, 255, 255))
+
+
 def _write_annotations_oriented(
     output_dir: Path,
     data: list[dict[str, Any]],
@@ -35,7 +45,8 @@ def _write_annotations_oriented(
             ),
             AnnotationPropertySpec(id="diameter", type="float32"),
             AnnotationPropertySpec(id="point_index", type="float32"),
-            AnnotationPropertySpec(id="color", type="rgb"),
+            AnnotationPropertySpec(id="point_color", type="rgb"),
+            AnnotationPropertySpec(id="line_color", type="rgb"),
         ],
     )
 
@@ -47,14 +58,15 @@ def _write_annotations_oriented(
         start_point = np.array([p["location"][k] for k in ("x", "y", "z")])
         for i in range(3):
             end_point = start_point + line_distance * rotated_xyz[i]
-        writer.add_line(
-            start_point,
-            end_point,
-            diameter=diameter,
-            point_index=float(index),
-            name=label_key_mapper(p),
-            color=color_mapper(p),
-        )
+            writer.add_line(
+                start_point,
+                end_point,
+                diameter=diameter,
+                point_index=float(index),
+                name=label_key_mapper(p),
+                point_color=color_mapper(p),
+                line_color=_line_index_to_rgb(i),
+            )
     writer.properties.sort(key=lambda prop: prop.id != "name")
     writer.write(output_dir)
     return output_dir
