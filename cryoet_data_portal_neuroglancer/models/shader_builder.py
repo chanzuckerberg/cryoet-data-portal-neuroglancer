@@ -75,15 +75,27 @@ class ShaderBuilder:
 
 
 class OrientedPointShaderBuilder(ShaderBuilder):
-    def __init__(self):
+    def __init__(self, point_size_multiplier: float = 1.0, line_width: float = 1.0):
         super().__init__()
+        self.point_size_multiplier = point_size_multiplier
+        self.line_width = line_width
         self._make_default_shader()
 
     def _make_default_shader(self):
         self.add_to_shader_controls(
             (
-                self.make_slider_component("pointScale", 0.01, 10.0, 1.0),
-                self.make_slider_component("lineWidth", 0.01, 10.0, 1.0),
+                self.make_slider_component(
+                    "pointScale",
+                    min_value=0.01,
+                    max_value=4.0,
+                    default_value=self.point_size_multiplier,
+                ),
+                self.make_slider_component(
+                    "lineWidth",
+                    min_value=0.01,
+                    max_value=2.0,
+                    default_value=self.line_width,
+                ),
             ),
         )
         self.add_to_shader_main(
@@ -92,7 +104,7 @@ class OrientedPointShaderBuilder(ShaderBuilder):
                 "setLineColor(prop_line_color());",
                 "setEndpointMarkerSize(pointScale, pointScale * 0.5);",
                 "setEndpointMarkerColor(prop_point_color());",
-                "setEndpointMarkerBorderWidth(0.0, 0.0);",
+                "setEndpointMarkerBorderWidth(0.1);",
                 "setEndpointMarkerBorderColor(vec3(0.0, 0.0, 0.0));",
             ),
         )

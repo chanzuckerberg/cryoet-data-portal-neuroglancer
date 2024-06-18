@@ -8,6 +8,7 @@ from cryoet_data_portal_neuroglancer.models.json_generator import (
     AnnotationJSONGenerator,
     ImageJSONGenerator,
     ImageVolumeJSONGenerator,
+    OrientedPointAnnotationGenerator,
     SegmentationJSONGenerator,
 )
 from cryoet_data_portal_neuroglancer.utils import get_scale
@@ -50,6 +51,31 @@ def generate_point_layer(
         name=name,
         color=color,
         point_size_multiplier=point_size_multiplier,
+        scale=scale,
+        is_visible=is_visible,
+        is_instance_segmentation=is_instance_segmentation,
+    ).to_json()
+
+
+def generate_oriented_point_layer(
+    source: str,
+    name: str = None,
+    url: str = None,
+    color: str = "#FFFFFF",
+    point_size_multiplier: float = 1.0,
+    line_width: float = 1.0,
+    scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    is_visible: bool = True,
+    is_instance_segmentation: bool = False,
+) -> dict[str, Any]:
+    source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
+    _validate_color(color)
+    return OrientedPointAnnotationGenerator(
+        source=source,
+        name=name,
+        color=color,
+        point_size_multiplier=point_size_multiplier,
+        line_width=line_width,
         scale=scale,
         is_visible=is_visible,
         is_instance_segmentation=is_instance_segmentation,

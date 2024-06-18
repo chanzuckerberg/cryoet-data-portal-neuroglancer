@@ -5,6 +5,8 @@ from typing import Any
 
 import numpy as np
 
+from cryoet_data_portal_neuroglancer.models.shader_builder import OrientedPointShaderBuilder
+
 
 def create_source(
     url: str,
@@ -165,6 +167,28 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
             "shader": self._get_shader(),
             "visible": self.is_visible,
         }
+
+
+@dataclass
+class OrientedPointAnnotationGenerator(AnnotationJSONGenerator):
+    """Generates JSON Neuroglancer config for oriented point annotation."""
+
+    line_width: float = 1.0
+
+    def _get_shader(self):
+        builder = OrientedPointShaderBuilder(
+            self.point_size_multiplier,
+            self.line_width,
+        )
+        result = builder.build_shader()
+        return result
+
+    def generate_json(self) -> dict:
+        output = super().generate_json()
+        shader_result = self._get_shader()
+        output["shader"] = shader_result["shader"]
+        output["shaderControls"] = shader_result["shaderControls"]
+        return output
 
 
 @dataclass
