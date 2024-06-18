@@ -88,9 +88,9 @@ class OrientedPointShaderBuilder(ShaderBuilder):
         )
         self.add_to_shader_main(
             (
-                "setLineWidth(lineWidth());",
+                "setLineWidth(lineWidth);",
                 "setLineColor(prop_line_color());",
-                "setEndpointMarkerSize(prop_diameter() * pointScale(), 0.0);",
+                "setEndpointMarkerSize(pointScale, pointScale * 0.5);",
                 "setEndpointMarkerColor(prop_point_color());",
                 "setEndpointMarkerBorderWidth(0.0, 0.0);",
                 "setEndpointMarkerBorderColor(vec3(0.0, 0.0, 0.0));",
