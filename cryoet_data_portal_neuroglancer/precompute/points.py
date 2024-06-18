@@ -43,7 +43,6 @@ def _write_annotations_oriented(
                 enum_values=list(names_by_id.keys()),
                 enum_labels=list(names_by_id.values()),
             ),
-            AnnotationPropertySpec(id="diameter", type="float32"),
             AnnotationPropertySpec(id="point_index", type="float32"),
             AnnotationPropertySpec(id="point_color", type="rgb"),
             AnnotationPropertySpec(id="line_color", type="rgb"),
@@ -52,16 +51,20 @@ def _write_annotations_oriented(
 
     # Using 10nm as default size
     diameter = metadata["annotation_object"].get("diameter", 100) / 10
-    line_distance = 10  # TODO (skm) update
+    # Make the line length be a little longer than the diameter
+    line_distance = diameter * 2
     for index, p in enumerate(data):
         rotated_xyz = rotate_xyz_via_matrix(p["xyz_rotation_matrix"])
         start_point = np.array([p["location"][k] for k in ("x", "y", "z")])
         for i in range(3):
             end_point = start_point + line_distance * rotated_xyz[i]
+            if not np.isclose(np.linalg.norm(end_point - start_point), line_distance):
+                raise ValueError(
+                    "Incorrect input rotation matrix, resulting in incorrect line length for oriented points.",
+                )
             writer.add_line(
                 start_point,
                 end_point,
-                diameter=diameter,
                 point_index=float(index),
                 name=label_key_mapper(p),
                 point_color=color_mapper(p),
