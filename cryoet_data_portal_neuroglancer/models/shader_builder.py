@@ -67,7 +67,7 @@ class ShaderBuilder:
     ) -> str:
         if default_value is not None:
             self._shader_controls[name] = default_value
-        return f"#uicontrol float {name} slider(min={min_value}, max={max_value})"
+        return f"#uicontrol float {name} slider(min={min_value}, max={max_value}, step=0.01)"
 
     def make_color_component(self, name: str, default_color: str) -> str:
         self._shader_controls[name] = default_color
@@ -102,7 +102,7 @@ class OrientedPointShaderBuilder(ShaderBuilder):
             (
                 "setLineWidth(lineWidth);",
                 "setLineColor(prop_line_color());",
-                "setEndpointMarkerSize(pointScale, pointScale * 0.5);",
+                "setEndpointMarkerSize(pointScale * prop_diameter(), pointScale * 0.5 * prop_diameter());",
                 "setEndpointMarkerColor(prop_point_color());",
                 "setEndpointMarkerBorderWidth(0.1);",
                 "setEndpointMarkerBorderColor(vec3(0.0, 0.0, 0.0));",

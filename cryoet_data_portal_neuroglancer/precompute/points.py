@@ -43,6 +43,7 @@ def _write_annotations_oriented(
                 enum_values=list(names_by_id.keys()),
                 enum_labels=list(names_by_id.values()),
             ),
+            AnnotationPropertySpec(id="diameter", type="float32"),
             AnnotationPropertySpec(id="point_index", type="float32"),
             AnnotationPropertySpec(id="point_color", type="rgb"),
             AnnotationPropertySpec(id="line_color", type="rgb"),
@@ -52,7 +53,8 @@ def _write_annotations_oriented(
     # Using 10nm as default size
     diameter = metadata["annotation_object"].get("diameter", 100) / 10
     # Make the line length be a little longer than the diameter
-    line_distance = diameter * 2
+    # This can't be changed in post, and has to be done at the time of encoding
+    line_distance = diameter * 1.5
     for index, p in enumerate(data):
         rotated_xyz = rotate_xyz_via_matrix(p["xyz_rotation_matrix"])
         start_point = np.array([p["location"][k] for k in ("x", "y", "z")])
@@ -65,6 +67,7 @@ def _write_annotations_oriented(
             writer.add_line(
                 start_point,
                 end_point,
+                diameter=diameter,
                 point_index=float(index),
                 name=label_key_mapper(p),
                 point_color=color_mapper(p),
