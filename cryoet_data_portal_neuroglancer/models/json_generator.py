@@ -176,19 +176,13 @@ class OrientedPointAnnotationGenerator(AnnotationJSONGenerator):
     line_width: float = 1.0
 
     def _get_shader(self):
-        builder = OrientedPointShaderBuilder(
-            self.point_size_multiplier,
-            self.line_width,
+        shader_builder = OrientedPointShaderBuilder(
+            point_size_multiplier=self.point_size_multiplier,
+            is_instance_segmentation=self.is_instance_segmentation,
+            color=self.color,
+            line_width=self.line_width,
         )
-        result = builder.build_shader()
-        return result
-
-    def generate_json(self) -> dict:
-        output = super().generate_json()
-        shader_result = self._get_shader()
-        output["shader"] = shader_result["shader"]
-        output["shaderControls"] = shader_result["shaderControls"]
-        return output
+        return shader_builder.build_shader()
 
 
 @dataclass
