@@ -76,7 +76,7 @@ class ImageJSONGenerator(RenderingJSONGenerator):
     mean: float = None
     rms: float = None
     is_visible: bool = True
-    volume_rendering_depth_samples: int = 512  # Ideally, this should be a power of 2
+    volume_rendering_depth_samples: int = 256  # Ideally, this should be a power of 2
 
     def __post_init__(self):
         self._type = RenderingTypes.IMAGE
