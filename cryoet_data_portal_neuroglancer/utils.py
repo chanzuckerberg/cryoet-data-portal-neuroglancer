@@ -103,7 +103,10 @@ def number_of_encoding_bits(nb_values: int) -> int:
     raise ValueError("Too many unique values in block")
 
 
-def get_window_limits_from_contrast_limits(contrast_limits: tuple[float, float]) -> tuple[float, float]:
+def get_window_limits_from_contrast_limits(
+    contrast_limits: tuple[float, float],
+    distance_scale: float = 0.1,
+) -> tuple[float, float]:
     """
     Create default window limits from contrast limits, 10% padding
 
@@ -123,6 +126,6 @@ def get_window_limits_from_contrast_limits(contrast_limits: tuple[float, float])
         lower_contrast, higher_contrast = higher_contrast, lower_contrast
 
     distance = higher_contrast - lower_contrast
-    window_start = lower_contrast - (distance / 10)
-    window_end = higher_contrast + (distance / 10)
+    window_start = lower_contrast - (distance * distance_scale)
+    window_end = higher_contrast + (distance * distance_scale)
     return window_start, window_end
