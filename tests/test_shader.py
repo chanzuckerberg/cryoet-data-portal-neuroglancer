@@ -10,10 +10,11 @@ def test_get_default_image_shader():
     threedee_contrast_name = "contrast3D"
     expected_shader = """
 #uicontrol invlerp contrast
-#uicontrol bool invert_contrast checkbox(default=false)
-float contrast_get() { return invert_contrast ? 1.0 - contrast() : contrast(); }
+#uicontrol bool invert_contrast checkbox
 #uicontrol invlerp contrast3D
-#uicontrol bool invert_contrast3D checkbox(default=false)
+#uicontrol bool invert_contrast3D checkbox
+
+float contrast_get() { return invert_contrast ? 1.0 - contrast() : contrast(); }
 float contrast3D_get() { return invert_contrast3D ? 1.0 - contrast3D() : contrast3D(); }
 
 void main() {
