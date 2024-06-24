@@ -5,7 +5,10 @@ from typing import Any
 
 import numpy as np
 
-from cryoet_data_portal_neuroglancer.models.shader_builder import OrientedPointShaderBuilder
+from cryoet_data_portal_neuroglancer.models.shader_builder import (
+    NonOrientedPointShaderBuilder,
+    OrientedPointShaderBuilder,
+)
 
 
 def create_source(
@@ -142,21 +145,12 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
         self._type = RenderingTypes.ANNOTATION
 
     def _get_shader(self):
-        set_color = "color"
-        ui_color_control = f'#uicontrol vec3 color color(default="{self.color}")\n'
-        if self.is_instance_segmentation:
-            set_color = "prop_color()"
-            ui_color_control = ""
-        return (
-            f"#uicontrol float pointScale slider(min=0.01, max=2.0, default={self.point_size_multiplier}, step=0.01)\n"
-            f"#uicontrol float opacity slider(min=0, max=1, default=1)\n"
-            f"{ui_color_control}\n"
-            f"void main() {{\n"
-            f"  setColor(vec4({set_color}, opacity));\n"
-            f"  setPointMarkerSize(pointScale * prop_diameter());\n"
-            f"  setPointMarkerBorderWidth(0.1);\n"
-            f"}}"
+        shader_builder = NonOrientedPointShaderBuilder(
+            point_size_multiplier=self.point_size_multiplier,
+            is_instance_segmentation=self.is_instance_segmentation,
+            color=self.color,
         )
+        return shader_builder.build_shader()
 
     def generate_json(self) -> dict:
         return {
@@ -164,8 +158,8 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
             "name": f"{self.name}",
             "source": create_source(f"precomputed://{self.source}", self.scale, self.scale),
             "tab": "rendering",
-            "shader": self._get_shader(),
             "visible": self.is_visible,
+            **self._get_shader(),
         }
 
 
