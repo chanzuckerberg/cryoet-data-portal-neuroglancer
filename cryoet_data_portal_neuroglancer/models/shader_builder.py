@@ -73,7 +73,7 @@ class ShaderBuilder:
         invlerp_component = self.make_invlerp_component(name, contrast_limits, window_limits)
         checkbox_part = f"#uicontrol bool invert_{name} checkbox"
         data_value_getter = [
-            f"float {name}_get()" + " {",
+            f"float get_{name}()" + " {",
             f"{TAB}return invert_{name} ? 1.0 - {name}() : {name}();",
             "}",
         ]
@@ -128,11 +128,11 @@ class ImageShaderBuilder(ShaderBuilder):
         self.add_to_shader_main("float outputValue;")
         self._add_cross_section_and_vr_code(
             [
-                f"outputValue = {self._threedee_contrast_name}_get();",
+                f"outputValue = get_{self._threedee_contrast_name}();",
                 "emitIntensity(outputValue);",
             ],
             [
-                f"outputValue = {self._contrast_name}_get();",
+                f"outputValue = get_{self._contrast_name}();",
             ],
         )
         self.add_to_shader_main("emitGrayscale(outputValue);")

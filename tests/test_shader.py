@@ -14,20 +14,20 @@ def test_get_default_image_shader():
 #uicontrol invlerp contrast3D
 #uicontrol bool invert_contrast3D checkbox
 
-float contrast_get() {
+float get_contrast() {
   return invert_contrast ? 1.0 - contrast() : contrast();
 }
-float contrast3D_get() {
+float get_contrast3D() {
   return invert_contrast3D ? 1.0 - contrast3D() : contrast3D();
 }
 
 void main() {
   float outputValue;
   if (VOLUME_RENDERING) {
-    outputValue = contrast3D_get();
+    outputValue = get_contrast3D();
     emitIntensity(outputValue);
   } else {
-    outputValue = contrast_get();
+    outputValue = get_contrast();
   }
   emitGrayscale(outputValue);
 }
