@@ -168,7 +168,8 @@ def combine_json_layers(
         "crossSectionBackgroundColor": "#000000",
         "layout": "4panel",
     }
-    if image_layers is not None:
+    # TODO temp, remove this fix
+    if len(image_layers) > 0:
         combined_json["position"] = image_layers[0]["_position"]
         combined_json["crossSectionScale"] = image_layers[0]["_crossSectionScale"]
         combined_json["projectionScale"] = image_layers[0]["_projectionScale"]
