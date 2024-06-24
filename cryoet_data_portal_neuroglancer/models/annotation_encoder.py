@@ -7,7 +7,7 @@ from typing import Any, Callable, Optional
 from neuroglancer import CoordinateSpace
 from neuroglancer.write_annotations import AnnotationWriter
 
-from cryoet_data_portal_neuroglancer.sharding import ShardingSpecification, jsonify
+from cryoet_data_portal_neuroglancer.precompute.sharding import ShardingSpecification, jsonify
 
 
 @dataclass
