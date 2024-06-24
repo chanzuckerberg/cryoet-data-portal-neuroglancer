@@ -87,13 +87,13 @@ class OrientedPointShaderBuilder(ShaderBuilder):
                 self.make_slider_component(
                     "pointScale",
                     min_value=0.01,
-                    max_value=4.0,
+                    max_value=2.0,
                     default_value=self.point_size_multiplier,
                 ),
                 self.make_slider_component(
                     "lineWidth",
                     min_value=0.01,
-                    max_value=2.0,
+                    max_value=4.0,
                     default_value=self.line_width,
                 ),
             ),
