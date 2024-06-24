@@ -5,7 +5,7 @@ from typing import Any
 
 import numpy as np
 
-from cryoet_data_portal_neuroglancer.models.shader_builder import (
+from cryoet_data_portal_neuroglancer.shaders.annotation import (
     NonOrientedPointShaderBuilder,
     OrientedPointShaderBuilder,
 )
