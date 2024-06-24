@@ -15,7 +15,6 @@ float contrast_get() { return invert_contrast ? 1.0 - contrast() : contrast(); }
 #uicontrol invlerp contrast3D
 #uicontrol bool invert_contrast3D checkbox(default=false)
 float contrast3D_get() { return invert_contrast3D ? 1.0 - contrast3D() : contrast3D(); }
-#uicontrol vec3 color color
 
 void main() {
   float outputValue;
@@ -25,7 +24,7 @@ void main() {
   } else {
     outputValue = contrast_get();
   }
-  emitRGBA(vec4(outputValue * color, outputValue));
+  emitGrayscale(outputValue);
 }
 """
     shader_builder = ImageVolumeShaderBuilder(

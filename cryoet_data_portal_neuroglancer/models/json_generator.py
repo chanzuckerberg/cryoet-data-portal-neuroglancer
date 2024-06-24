@@ -198,7 +198,6 @@ class SegmentationJSONGenerator(RenderingJSONGenerator):
 class ImageVolumeJSONGenerator(RenderingJSONGenerator):
     """Generates JSON Neuroglancer config for volume rendering."""
 
-    color: str
     rendering_depth: int  # Ideally, this should be a power of 2
     contrast_limits: tuple[float, float] = (-64, 64)
     threedee_contrast_limits: tuple[float, float] = (-64, 64)
@@ -208,11 +207,9 @@ class ImageVolumeJSONGenerator(RenderingJSONGenerator):
         self._type = RenderingTypes.IMAGE
 
     def _get_shader(self) -> dict[str, Any]:
-        # TODO (skm) - verify expected color usage
         shader_builder = ImageVolumeShaderBuilder(
             contrast_limits=self.contrast_limits,
             threedee_contrast_limits=self.threedee_contrast_limits,
-            default_color=self.color,
         )
         return shader_builder.build_shader()
 

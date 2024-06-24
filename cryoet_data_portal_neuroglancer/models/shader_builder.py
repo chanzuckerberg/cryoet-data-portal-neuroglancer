@@ -72,7 +72,6 @@ class ImageVolumeShaderBuilder(ShaderBuilder):
         threedee_contrast_limits: tuple[float, float],
         window_limits: Optional[tuple[float, float]] = None,
         threedee_window_limits: Optional[tuple[float, float]] = None,
-        default_color: str = "#FFFFFF",
         contrast_name="contrast",
         threedee_contrast_name="contrast3D",
     ):
@@ -89,7 +88,6 @@ class ImageVolumeShaderBuilder(ShaderBuilder):
         )
         self._contrast_name = contrast_name
         self._threedee_contrast_name = threedee_contrast_name
-        self._default_color = default_color
 
         self._make_default_shader()
 
@@ -108,7 +106,6 @@ class ImageVolumeShaderBuilder(ShaderBuilder):
                 self._threedee_window_limits,
             ),
         )
-        self.add_to_shader_controls(self.make_color_component("color", self._default_color))
         self.add_to_shader_main("float outputValue;")
         self._add_cross_section_and_vr_code(
             [
@@ -119,7 +116,7 @@ class ImageVolumeShaderBuilder(ShaderBuilder):
                 f"outputValue = {self._contrast_name}_get();",
             ],
         )
-        self.add_to_shader_main("emitRGBA(vec4(outputValue * color, outputValue));")
+        self.add_to_shader_main("emitGrayscale(outputValue);")
 
     def _add_cross_section_and_vr_code(
         self,
