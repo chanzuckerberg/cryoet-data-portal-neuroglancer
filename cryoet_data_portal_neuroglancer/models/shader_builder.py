@@ -103,6 +103,7 @@ class PointShaderBuilder(ShaderBuilder):
         )
         if not self.is_instance_segmentation:
             self.add_to_shader_controls(self.make_color_component("color", self.color))
+        self.add_to_shader_main("if (opacity == 0.0) discard;")
 
     def _get_color_setter(self):
         return "color" if not self.is_instance_segmentation else "prop_color()"
@@ -132,6 +133,7 @@ class NonOrientedPointShaderBuilder(PointShaderBuilder):
                     f"setColor(vec4({self._get_color_setter()}, opacity));",
                     "setPointMarkerSize(pointScale * prop_diameter());",
                     "setPointMarkerBorderWidth(0.1);",
+                    "setPointMarkerBorderColor(vec4(0.0, 0.0, 0.0, opacity));",
                 ]
             ),
         )
