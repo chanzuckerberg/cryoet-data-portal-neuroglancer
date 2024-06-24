@@ -65,7 +65,7 @@ class ShaderBuilder:
         return f"#uicontrol vec3 {name} color"
 
 
-class ImageVolumeShaderBuilder(ShaderBuilder):
+class ImageShaderBuilder(ShaderBuilder):
     def __init__(
         self,
         contrast_limits: tuple[float, float],

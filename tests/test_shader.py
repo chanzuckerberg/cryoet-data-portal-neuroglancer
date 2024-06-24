@@ -1,4 +1,4 @@
-from cryoet_data_portal_neuroglancer.models.shader_builder import ImageVolumeShaderBuilder, ShaderBuilder
+from cryoet_data_portal_neuroglancer.models.shader_builder import ImageShaderBuilder, ShaderBuilder
 
 
 def test_get_default_image_shader():
@@ -27,7 +27,7 @@ void main() {
   emitGrayscale(outputValue);
 }
 """
-    shader_builder = ImageVolumeShaderBuilder(
+    shader_builder = ImageShaderBuilder(
         contrast_limits=contrast_limits,
         window_limits=window_limits,
         threedee_contrast_limits=threedee_contrast_limits,

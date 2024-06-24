@@ -5,8 +5,7 @@ from typing import Any
 
 import numpy as np
 
-from cryoet_data_portal_neuroglancer.models.shader_builder import ImageVolumeShaderBuilder
-from cryoet_data_portal_neuroglancer.utils import get_window_limits_from_contrast_limits
+from cryoet_data_portal_neuroglancer.models.shader_builder import ImageShaderBuilder
 
 
 def create_source(
@@ -77,34 +76,27 @@ class ImageJSONGenerator(RenderingJSONGenerator):
     mean: float = None
     rms: float = None
     is_visible: bool = True
+    volume_rendering_depth_samples: int = 512  # Ideally, this should be a power of 2
 
     def __post_init__(self):
         self._type = RenderingTypes.IMAGE
 
-    def _create_shader_and_controls(self) -> dict[str, Any]:
+    def _compute_contrast_limits(self) -> tuple[float, float]:
         if self.mean is None or self.rms is None:
-            window_limits = get_window_limits_from_contrast_limits(self.contrast_limits)
-            shader = (
-                f"#uicontrol invlerp contrast(range=[{self.contrast_limits[0]}, {self.contrast_limits[1]}], "
-                f"window=[{window_limits[0]}, {window_limits[1]}])\nvoid main() {{\n  emitGrayscale(contrast());\n}}"
-            )
-            return {"shader": shader}
-
+            return self.contrast_limits
         width = 3 * self.rms
-        start = self.mean - width
-        end = self.mean + width
-        window_width_factor = width * 0.1
-        window_start = start - window_width_factor
-        window_end = end + window_width_factor
-        return {
-            "shader": "#uicontrol invlerp normalized\n\nvoid main() {\n  emitGrayscale(normalized());\n}\n",
-            "shaderControls": {
-                "normalized": {
-                    "range": [start, end],
-                    "window": [window_start, window_end],
-                },
-            },
-        }
+        return (self.mean - width, self.mean + width)
+
+    def _create_shader_and_controls(self) -> dict[str, Any]:
+        contrast_limits = self._compute_contrast_limits()
+        # At the moment these are the same limits,
+        # but in the future the calculation might change for 3D rendering
+        threedee_contrast_limits = contrast_limits
+        shader_builder = ImageShaderBuilder(
+            contrast_limits=contrast_limits,
+            threedee_contrast_limits=threedee_contrast_limits,
+        )
+        return shader_builder.build_shader()
 
     def _get_computed_values(self) -> dict[str, Any]:
         nstart = self.start or {k: 0 for k in "xyz"}
@@ -122,6 +114,7 @@ class ImageJSONGenerator(RenderingJSONGenerator):
             "name": self.name,
             "source": create_source(f"zarr://{self.source}", self.scale, self.scale),
             "opacity": 0.51,
+            "volumeRenderingDepthSamples": self.volume_rendering_depth_samples,
             "tab": "rendering",
             "visible": self.is_visible,
         }
@@ -207,7 +200,7 @@ class ImageVolumeJSONGenerator(RenderingJSONGenerator):
         self._type = RenderingTypes.IMAGE
 
     def _get_shader(self) -> dict[str, Any]:
-        shader_builder = ImageVolumeShaderBuilder(
+        shader_builder = ImageShaderBuilder(
             contrast_limits=self.contrast_limits,
             threedee_contrast_limits=self.threedee_contrast_limits,
         )
