@@ -72,8 +72,12 @@ class ShaderBuilder:
     ) -> list[str]:
         invlerp_component = self.make_invlerp_component(name, contrast_limits, window_limits)
         checkbox_part = f"#uicontrol bool invert_{name} checkbox"
-        data_value_getter = f"float {name}_get() {{ return invert_{name} ? 1.0 - {name}() : {name}(); }}"
-        return [invlerp_component, checkbox_part, data_value_getter]
+        data_value_getter = [
+            f"float {name}_get()" + " {",
+            f"{TAB}return invert_{name} ? 1.0 - {name}() : {name}();",
+            "}",
+        ]
+        return [invlerp_component, checkbox_part, *data_value_getter]
 
     def make_color_component(self, name: str, default_color: str) -> str:
         self._shader_controls[name] = default_color
