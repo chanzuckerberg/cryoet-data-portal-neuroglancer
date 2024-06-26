@@ -1,4 +1,5 @@
-from cryoet_data_portal_neuroglancer.models.shader_builder import ImageShaderBuilder, ShaderBuilder
+from cryoet_data_portal_neuroglancer.shaders.image import ImageShaderBuilder
+from cryoet_data_portal_neuroglancer.shaders.shader_builder import ShaderBuilder
 
 
 def test_get_default_image_shader():
