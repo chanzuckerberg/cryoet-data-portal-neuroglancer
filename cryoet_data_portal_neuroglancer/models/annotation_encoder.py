@@ -4,10 +4,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+from cloudvolume.datasource.precomputed.sharding import ShardingSpecification
+from cloudvolume.lib import jsonify
 from neuroglancer import CoordinateSpace
 from neuroglancer.write_annotations import AnnotationWriter
-
-from cryoet_data_portal_neuroglancer.precompute.sharding import ShardingSpecification, jsonify
 
 
 @dataclass
