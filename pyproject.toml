@@ -37,9 +37,10 @@ python = "^3.11"
 zarr = "^2.18.0"
 ome-zarr = "0.9.0"
 neuroglancer = "^2.39.2"
-cloud-files = "^4.24.1"
+cloud-files = "^4.24.2"
 tqdm = "^4.66.4"
 ndjson = "^0.3.1"
+igneous = "^1.1.1"
 
 [tool.poetry.group.dev]
 optional = true

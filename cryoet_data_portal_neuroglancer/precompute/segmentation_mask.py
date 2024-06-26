@@ -6,10 +6,13 @@ from pathlib import Path
 from typing import Any, Iterator, Optional
 
 import dask.array as da
+import igneous.task_creation as tc
 import neuroglancer
 import numpy as np
+from taskqueue import LocalTaskQueue
 from tqdm import tqdm
 
+import cryoet_data_portal_neuroglancer.igneous_patch as igneous_patch
 from cryoet_data_portal_neuroglancer.io import load_omezarr_data
 from cryoet_data_portal_neuroglancer.models.chunk import Chunk
 from cryoet_data_portal_neuroglancer.utils import (
@@ -18,6 +21,9 @@ from cryoet_data_portal_neuroglancer.utils import (
     number_of_encoding_bits,
     pad_block,
 )
+
+# Patch igneous
+igneous_patch.patch()
 
 
 def _get_buffer_position(buffer: bytearray) -> int:
@@ -308,6 +314,23 @@ def create_mesh(
     print(f"Wrote segmentation mesh to {mesh_path}")
 
 
+def generate_mesh(precomputed_segmentation_path: Path, mesh_directory: str, num_lod: int) -> None:
+    tq = LocalTaskQueue()
+
+    path = f"precomputed://file://{precomputed_segmentation_path}"
+    tasks = tc.create_meshing_tasks(path, mip=0, mesh_dir=mesh_directory, sharded=True, compress=None)
+    tq.insert(tasks)
+    tq.execute()
+
+    tasks = tc.create_mesh_manifest_tasks(path, mesh_dir=mesh_directory, magnitude=3)
+    tq.insert(tasks)
+    tq.execute()
+
+    tasks = tc.create_sharded_multires_mesh_tasks(path, mesh_dir=mesh_directory, num_lod=num_lod)
+    tq.insert(tasks)
+    tq.execute()
+
+
 def write_metadata(metadata: dict[str, Any], output_directory: Path) -> None:
     """Write the segmentation to the given directory"""
     metadata_path = output_directory / "info"
@@ -326,6 +349,7 @@ def encode_segmentation(
     convert_non_zero_to: Optional[int] = 0,
     include_mesh: bool = False,
     mesh_directory: str = "mesh",
+    num_lod: int = 5,
 ) -> None:
     """Convert the given OME-Zarr file to neuroglancer segmentation format with the given block size"""
     print(f"Converting {filename} to neuroglancer compressed segmentation format")
@@ -352,10 +376,6 @@ def encode_segmentation(
     if len(dask_data.chunksize) != 3:
         raise ValueError(f"Expected 3 chunk dimensions, got {len(dask_data.chunksize)}")
 
-    if include_mesh:
-        print(f"Converting {filename} to neuroglancer mesh format")
-        create_mesh(dask_data, output_path, mesh_directory, resolution)
-
     metadata = _create_metadata(
         dask_data.chunksize,
         block_size,
@@ -365,4 +385,9 @@ def encode_segmentation(
         mesh_directory=mesh_directory if include_mesh else None,
     )
     write_metadata(metadata, output_path)
+
+    if include_mesh:
+        print(f"Converting {filename} to neuroglancer mesh format")
+        generate_mesh(output_path, mesh_directory, num_lod=num_lod)
+        # create_mesh(dask_data, output_path, mesh_directory, resolution)
     print(f"Wrote segmentation to {output_path}")
