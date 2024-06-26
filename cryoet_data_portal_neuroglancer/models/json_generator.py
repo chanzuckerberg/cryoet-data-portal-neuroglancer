@@ -191,20 +191,24 @@ class SegmentationJSONGenerator(RenderingJSONGenerator):
 class ImageVolumeJSONGenerator(RenderingJSONGenerator):
     """Generates JSON Neuroglancer config for volume rendering."""
 
-    rendering_depth: int  # Ideally, this should be a power of 2
-    contrast_limits: tuple[float, float] = (-64, 64)
-    threedee_contrast_limits: tuple[float, float] = (-64, 64)
-    is_visible: bool = True
+    color: str
+    rendering_depth: int
 
     def __post_init__(self):
         self._type = RenderingTypes.IMAGE
 
     def _get_shader(self) -> dict[str, Any]:
-        shader_builder = ImageShaderBuilder(
-            contrast_limits=self.contrast_limits,
-            threedee_contrast_limits=self.threedee_contrast_limits,
+        shader = (
+            f'#uicontrol vec3 color color(default="{self.color}")\n'
+            f"#uicontrol invlerp toRaw(range=[0, 1], window=[-1, 2])\n"
+            f"void main() {{\n"
+            f"  emitRGBA(vec4(color * toRaw(getDataValue()), toRaw(getDataValue())));\n"
+            f"}}"
         )
-        return shader_builder.build_shader()
+        return {
+            "shader": shader,
+            "shaderControls": {"color": self.color},
+        }
 
     def generate_json(self) -> dict:
         return {

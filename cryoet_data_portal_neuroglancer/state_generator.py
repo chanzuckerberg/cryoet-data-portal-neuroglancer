@@ -103,14 +103,17 @@ def generate_image_volume_layer(
     source: str,
     name: str = None,
     url: str = None,
+    color: str = "#FFFFFF",
     scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
     is_visible: bool = True,
     rendering_depth: int = 1024,
 ) -> dict[str, Any]:
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
+    _validate_color(color)
     return ImageVolumeJSONGenerator(
         source=source,
         name=name,
+        color=color,
         scale=scale,
         is_visible=is_visible,
         rendering_depth=rendering_depth,
