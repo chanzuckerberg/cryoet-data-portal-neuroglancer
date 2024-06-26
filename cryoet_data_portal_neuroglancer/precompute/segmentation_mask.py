@@ -318,7 +318,7 @@ def generate_mesh(precomputed_segmentation_path: Path, mesh_directory: str, num_
     tq = LocalTaskQueue()
 
     path = f"precomputed://file://{precomputed_segmentation_path}"
-    tasks = tc.create_meshing_tasks(path, mip=0, mesh_dir=mesh_directory, sharded=True, compress=None)
+    tasks = tc.create_meshing_tasks(path, mip=0, mesh_dir=mesh_directory, sharded=True)
     tq.insert(tasks)
     tq.execute()
 
