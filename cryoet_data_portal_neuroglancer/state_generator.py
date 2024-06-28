@@ -85,6 +85,7 @@ def generate_image_layer(
     mean: float = None,
     rms: float = None,
     is_visible: bool = True,
+    has_volume_rendering_shader: bool = False,
 ) -> dict[str, Any]:
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     return ImageJSONGenerator(
@@ -96,6 +97,7 @@ def generate_image_layer(
         mean=mean,
         rms=rms,
         is_visible=is_visible,
+        has_volume_rendering_shader=has_volume_rendering_shader,
     ).to_json()
 
 

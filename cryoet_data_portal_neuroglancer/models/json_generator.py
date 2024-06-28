@@ -5,7 +5,7 @@ from typing import Any
 
 import numpy as np
 
-from cryoet_data_portal_neuroglancer.shaders.image import ImageShaderBuilder
+from cryoet_data_portal_neuroglancer.shaders.image import ImageShaderBuilder, ImageWithVolumeRenderingShaderBuilder
 
 
 def create_source(
@@ -76,6 +76,7 @@ class ImageJSONGenerator(RenderingJSONGenerator):
     mean: float = None
     rms: float = None
     is_visible: bool = True
+    has_volume_rendering_shader: bool = False
     volume_rendering_depth_samples: int = 256  # Ideally, this should be a power of 2
 
     def __post_init__(self):
@@ -91,11 +92,16 @@ class ImageJSONGenerator(RenderingJSONGenerator):
         contrast_limits = self._compute_contrast_limits()
         # At the moment these are the same limits,
         # but in the future the calculation might change for 3D rendering
-        threedee_contrast_limits = contrast_limits
-        shader_builder = ImageShaderBuilder(
-            contrast_limits=contrast_limits,
-            threedee_contrast_limits=threedee_contrast_limits,
-        )
+        if self.has_volume_rendering_shader:
+            shader_builder = ImageShaderBuilder(
+                contrast_limits=contrast_limits,
+            )
+        else:
+            threedee_contrast_limits = contrast_limits
+            shader_builder = ImageWithVolumeRenderingShaderBuilder(
+                contrast_limits=contrast_limits,
+                threedee_contrast_limits=threedee_contrast_limits,
+            )
         return shader_builder.build_shader()
 
     def _get_computed_values(self) -> dict[str, Any]:
@@ -114,10 +120,11 @@ class ImageJSONGenerator(RenderingJSONGenerator):
             "name": self.name,
             "source": create_source(f"zarr://{self.source}", self.scale, self.scale),
             "opacity": 0.51,
-            "volumeRenderingDepthSamples": self.volume_rendering_depth_samples,
             "tab": "rendering",
             "visible": self.is_visible,
         }
+        if self.has_volume_rendering_shader:
+            config["volumeRenderingDepthSamples"] = self.volume_rendering_depth_samples
         return {**config, **self._create_shader_and_controls(), **self._get_computed_values()}
 
 
