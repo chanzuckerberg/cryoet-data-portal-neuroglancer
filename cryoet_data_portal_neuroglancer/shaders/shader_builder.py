@@ -45,7 +45,7 @@ class ShaderBuilder:
             pre_main_lines.insert(0, "")
         return "\n".join(uicontrol_lines + pre_main_lines)
 
-    def build_shader(self) -> dict[str, str | dict[str, Any]]:
+    def build(self) -> dict[str, str | dict[str, Any]]:
         return {
             "shader": self._make_pre_main() + "\n" + self._make_main(),
             "shaderControls": self._shader_controls,

@@ -102,7 +102,7 @@ class ImageJSONGenerator(RenderingJSONGenerator):
             shader_builder = ImageShaderBuilder(
                 contrast_limits=contrast_limits,
             )
-        return shader_builder.build_shader()
+        return shader_builder.build()
 
     def _get_computed_values(self) -> dict[str, Any]:
         nstart = self.start or {k: 0 for k in "xyz"}

@@ -41,7 +41,7 @@ void main() {
         contrast_name=contrast_name,
         threedee_contrast_name=threedee_contrast_name,
     )
-    shader = shader_builder.build_shader()
+    shader = shader_builder.build()
     actual_shader = shader["shader"]
     assert actual_shader == expected_shader.strip()
 
@@ -78,7 +78,7 @@ void main() {
         window_limits=window_limits,
         contrast_name=contrast_name,
     )
-    shader = shader_builder.build_shader()
+    shader = shader_builder.build()
     actual_shader = shader["shader"]
     assert actual_shader == expected_shader.strip()
 
@@ -97,7 +97,7 @@ void main() {
 }
 """
     shader_components = (
-        ShaderBuilder().add_to_shader_controls("#uicontrol test").add_to_shader_main("test_main").build_shader()
+        ShaderBuilder().add_to_shader_controls("#uicontrol test").add_to_shader_main("test_main").build()
     )
     assert shader_components["shader"] == expected_shader.strip()
     assert shader_components["shaderControls"] == {}
