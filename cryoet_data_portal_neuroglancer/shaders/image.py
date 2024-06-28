@@ -99,14 +99,12 @@ class ImageWithVolumeRenderingShaderBuilder(ImageShaderBuilder):
         threedee_contrast_name : str, optional
             The name of the contrast control for volume rendering, by default "contrast3D".
         """
-        self._suppress_make_shader = True
         super().__init__(
             contrast_limits=contrast_limits,
             window_limits=window_limits,
             contrast_name=contrast_name,
             create_default_shader=False,
         )
-        self._suppress_make_shader = False
         self._threedee_contrast_limits = threedee_contrast_limits
         self._threedee_window_limits = (
             threedee_window_limits
