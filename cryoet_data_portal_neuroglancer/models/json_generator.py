@@ -93,14 +93,14 @@ class ImageJSONGenerator(RenderingJSONGenerator):
         # At the moment these are the same limits,
         # but in the future the calculation might change for 3D rendering
         if self.has_volume_rendering_shader:
-            shader_builder = ImageShaderBuilder(
-                contrast_limits=contrast_limits,
-            )
-        else:
             threedee_contrast_limits = contrast_limits
             shader_builder = ImageWithVolumeRenderingShaderBuilder(
                 contrast_limits=contrast_limits,
                 threedee_contrast_limits=threedee_contrast_limits,
+            )
+        else:
+            shader_builder = ImageShaderBuilder(
+                contrast_limits=contrast_limits,
             )
         return shader_builder.build_shader()
 
