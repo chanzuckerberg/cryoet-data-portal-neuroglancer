@@ -90,9 +90,9 @@ class ImageJSONGenerator(RenderingJSONGenerator):
 
     def _create_shader_and_controls(self) -> dict[str, Any]:
         contrast_limits = self._compute_contrast_limits()
-        # At the moment these are the same limits,
-        # but in the future the calculation might change for 3D rendering
         if self.has_volume_rendering_shader:
+            # At the moment these are the same limits,
+            # but in the future the calculation might change for 3D rendering
             threedee_contrast_limits = contrast_limits
             shader_builder = ImageWithVolumeRenderingShaderBuilder(
                 contrast_limits=contrast_limits,
