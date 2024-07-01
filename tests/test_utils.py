@@ -2,6 +2,7 @@ import pytest
 
 from cryoet_data_portal_neuroglancer.utils import (
     get_grid_size_from_block_shape,
+    get_window_limits_from_contrast_limits,
     number_of_encoding_bits,
 )
 
@@ -41,3 +42,19 @@ def test___number_of_encoding_bits__too_many_values():
 )
 def test__get_grid_size_from_block_shape(dshape, bshape, expected):
     assert get_grid_size_from_block_shape(dshape, bshape) == expected
+
+
+@pytest.mark.parametrize(
+    "contrast_limits, window_limits",
+    [
+        ((0.0, 1.0), (-0.1, 1.1)),
+        ((-5.0, 5.0), (-6.0, 6.0)),
+        ((20, 10), (9, 21)),
+        ((100, -100), (-120, 120)),
+    ],
+)
+def test_create_default_window_limits_from_contrast_limits(
+    contrast_limits,
+    window_limits,
+):
+    assert get_window_limits_from_contrast_limits(contrast_limits) == window_limits
