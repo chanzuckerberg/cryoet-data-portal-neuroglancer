@@ -1,9 +1,12 @@
 from functools import lru_cache
 from math import ceil
-from typing import Iterator
+from typing import TYPE_CHECKING, Iterator
 
 import dask.array as da
 import numpy as np
+
+if TYPE_CHECKING:
+    from trimesh import Trimesh
 
 
 def get_scale(
@@ -137,3 +140,49 @@ def rotate_xyz_via_matrix(matrix: np.ndarray) -> np.ndarray:
         The rotated XYZ axes
     """
     return np.dot(matrix, np.eye(3)).T
+
+
+def rotate_and_translate_mesh(
+    mesh: "Trimesh.Mesh",
+    rotation_matrix: np.ndarray,
+    translation_vector: np.ndarray,
+    should_copy: bool = True,
+) -> "Trimesh.Mesh":
+    """
+    Rotate and translate a mesh using a 3x3 or 4x4 rotation matrix
+    and a 3D translation vector
+
+    Parameters
+    ----------
+    mesh : Trimesh.Mesh
+        The mesh to rotate and translate
+    matrix : np.ndarray
+        The 3x3 or 4x4 rotation matrix
+    translation_vector : np.ndarray
+        The 3D translation vector
+    should_copy : bool
+        If True, the mesh will be copied before transforming
+
+    Returns
+    -------
+    Trimesh.Mesh
+        The rotated and translated mesh
+    """
+
+    def _convert_to_homogenous(rotation_matrix):
+        homogenous_matrix = np.eye(4)
+        homogenous_matrix[:3, :3] = rotation_matrix
+        return homogenous_matrix
+
+    if rotation_matrix.shape == (3, 3):
+        transform = _convert_to_homogenous(rotation_matrix)
+    elif rotation_matrix.shape == (4, 4):
+        transform = rotation_matrix
+    else:
+        raise ValueError("Rotation matrix must be 3x3 or 4x4")
+
+    transform[:3, 3] = translation_vector
+
+    if should_copy:
+        return mesh.copy().apply_transform(transform)
+    return mesh.apply_transform(rotation_matrix)
