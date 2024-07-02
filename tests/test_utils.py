@@ -85,3 +85,7 @@ def test__rotate_xyz_via_matrix():
     x_rotation_matrix = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]])
     expected_result = np.array([[1, 0, 0], [0, 0, 1], [0, -1, 0]])
     assert np.allclose(rotate_xyz_via_matrix(x_rotation_matrix), expected_result)
+
+    # Identity matrix should not change the axes
+    identity_matrix = np.eye(3)
+    assert np.allclose(rotate_xyz_via_matrix(identity_matrix), np.eye(3))
