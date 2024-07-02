@@ -55,9 +55,9 @@ class OrientedPointAnnotationEncoder(AnnotationEncoder):
             line_distance = diameter * self.line_width_value
         else:
             line_distance = self.line_width_value
-        for index, p in enumerate(data):
-            rotated_xyz = rotate_xyz_via_matrix(p["xyz_rotation_matrix"])
-            start_point = np.array([p["location"][k] for k in ("x", "y", "z")])
+        for index, point in enumerate(data):
+            rotated_xyz = rotate_xyz_via_matrix(point["xyz_rotation_matrix"])
+            start_point = np.array([point["location"][k] for k in ("x", "y", "z")])
             for i in range(3):
                 end_point = start_point + line_distance * rotated_xyz[i]
                 if not np.isclose(np.linalg.norm(end_point - start_point), line_distance):
@@ -69,8 +69,8 @@ class OrientedPointAnnotationEncoder(AnnotationEncoder):
                     end_point,
                     diameter=diameter,
                     point_index=float(index),
-                    name=self.label_key_mapper(p),
-                    point_color=self.color_mapper(p),
+                    name=self.label_key_mapper(point),
+                    point_color=self.color_mapper(point),
                     line_color=self._line_index_to_rgb(i),
                 )
 
@@ -107,14 +107,14 @@ class PointAnnotationEncoder(AnnotationEncoder):
     def process_data_to_writer_specifications(self, data: list[dict[str, Any]], metadata: dict[str, Any]):
         # Using 10nm as default size
         diameter = metadata["annotation_object"].get("diameter", 100) / 10
-        for index, p in enumerate(data):
-            location = [p["location"][k] for k in ("x", "y", "z")]
+        for index, point in enumerate(data):
+            location = [point["location"][k] for k in ("x", "y", "z")]
             self._writer.add_point(
                 location,
                 diameter=diameter,
                 point_index=float(index),
-                name=self.label_key_mapper(p),
-                color=self.color_mapper(p),
+                name=self.label_key_mapper(point),
+                color=self.color_mapper(point),
             )
 
 
