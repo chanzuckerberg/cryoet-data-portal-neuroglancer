@@ -1,6 +1,8 @@
-from typing import TYPE_CHECKING
+import json
+from typing import TYPE_CHECKING, Any
 
 import dask.array as da
+import ndjson
 import trimesh
 from ome_zarr.io import parse_url
 from ome_zarr.reader import Reader
@@ -23,3 +25,15 @@ def load_omezarr_data(input_filepath: str) -> da.Array:
 
 def load_glb_file(glb_file: "Path") -> trimesh.Trimesh:
     return trimesh.load(glb_file, file_type="glb", force="mesh")
+
+
+def load_oriented_point_data(
+    metadata_path: "Path",
+    annotations_path: "Path",
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Load in the metadata (json) and annotations (ndjson) files."""
+    with open(metadata_path, mode="r") as f:
+        metadata = json.load(f)
+    with open(annotations_path, mode="r") as f:
+        annotations = ndjson.load(f)
+    return metadata, annotations
