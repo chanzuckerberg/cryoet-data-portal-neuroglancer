@@ -44,7 +44,11 @@ class OrientedPointAnnotationEncoder(AnnotationEncoder):
             ],
         )
 
-    def process_data_to_writer_specifications(self, data: list[dict[str, Any]], metadata: dict[str, Any]):
+    def process_data_to_writer_specifications(
+        self,
+        data: list[dict[str, Any]],
+        metadata: dict[str, Any],
+    ):
         # Using 10nm as default size
         diameter = metadata["annotation_object"].get("diameter", 100) / 10
         if self.line_width_method == LineLengthMethod.SCALE:
