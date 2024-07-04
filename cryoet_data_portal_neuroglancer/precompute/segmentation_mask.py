@@ -243,7 +243,7 @@ def _create_metadata(
     data_size: tuple[int, int, int],
     data_directory: str,
     resolution: tuple[float, float, float] = (1.0, 1.0, 1.0),
-    mesh_directory: str = None,
+    mesh_directory: str | None = None,
 ) -> dict[str, Any]:
     """Create the metadata for the segmentation"""
     metadata = {
@@ -341,7 +341,7 @@ def write_metadata(metadata: dict[str, Any], output_directory: Path) -> None:
 
 def encode_segmentation(
     filename: str,
-    output_path: Path,
+    output_path: Path | str,
     resolution: tuple[float, float, float],
     block_size: tuple[int, int, int] = (64, 64, 64),
     data_directory: str = "data",
@@ -353,6 +353,8 @@ def encode_segmentation(
 ) -> None:
     """Convert the given OME-Zarr file to neuroglancer segmentation format with the given block size"""
     print(f"Converting {filename} to neuroglancer compressed segmentation format")
+    output_path = Path(output_path)
+
     dask_data = load_omezarr_data(filename)
     if delete_existing and output_path.exists():
         contents = list(output_path.iterdir())
@@ -370,6 +372,10 @@ def encode_segmentation(
         print(f"The output directory {output_path!s} already exists")
         return
     output_path.mkdir(parents=True, exist_ok=True)
+
+    if include_mesh:
+        block_size = (32, 32, 32)
+
     for c in create_segmentation(dask_data, block_size, convert_non_zero_to=convert_non_zero_to):
         c.write_to_directory(output_path / data_directory)
 
@@ -389,5 +395,5 @@ def encode_segmentation(
     if include_mesh:
         print(f"Converting {filename} to neuroglancer mesh format")
         generate_mesh(output_path, mesh_directory, num_lod=num_lod)
-        # create_mesh(dask_data, output_path, mesh_directory, resolution)
+
     print(f"Wrote segmentation to {output_path}")

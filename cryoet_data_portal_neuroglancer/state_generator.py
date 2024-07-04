@@ -15,9 +15,9 @@ from cryoet_data_portal_neuroglancer.utils import get_scale
 
 def _setup_creation(
     source: str,
-    name: str = None,
-    url: str = None,
-    zarr_path: str = None,
+    name: str | None = None,
+    url: str | None = None,
+    zarr_path: str | None = None,
     scale: float | tuple[float, float, float] = 1.0,
 ) -> tuple[str, str, str, str, tuple[float, float, float]]:
     name = Path(source).stem if name is None else name
@@ -28,15 +28,15 @@ def _setup_creation(
     return source, name, url, zarr_path, scale
 
 
-def _validate_color(color: Optional[str]):
-    if len(color) != 7 or color[0] != "#":
+def _validate_color(color: str | None):
+    if color and (len(color) != 7 or color[0] != "#"):
         raise ValueError("Color must be a hex string e.g. #FF0000")
 
 
 def generate_point_layer(
     source: str,
-    name: str = None,
-    url: str = None,
+    name: str | None = None,
+    url: str | None = None,
     color: str = "#FFFFFF",
     point_size_multiplier: float = 1.0,
     scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
@@ -58,8 +58,8 @@ def generate_point_layer(
 
 def generate_segmentation_mask_layer(
     source: str,
-    name: str = None,
-    url: str = None,
+    name: str | None = None,
+    url: str | None = None,
     color: str = "#FFFFFF",
     scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
     is_visible: bool = True,
@@ -79,11 +79,11 @@ def generate_image_layer(
     source: str,
     scale: tuple[float, float, float],
     size: dict[str, float],
-    name: str = None,
-    url: str = None,
-    start: dict[str, float] = None,
-    mean: float = None,
-    rms: float = None,
+    name: str | None = None,
+    url: str | None = None,
+    start: dict[str, float] | None = None,
+    mean: float | None = None,
+    rms: float | None = None,
     is_visible: bool = True,
 ) -> dict[str, Any]:
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
@@ -101,8 +101,8 @@ def generate_image_layer(
 
 def generate_image_volume_layer(
     source: str,
-    name: str = None,
-    url: str = None,
+    name: str | None = None,
+    url: str | None = None,
     color: str = "#FFFFFF",
     scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
     is_visible: bool = True,
@@ -124,7 +124,7 @@ def combine_json_layers(
     layers: list[dict[str, Any]],
     scale: Optional[tuple[float, float, float] | list[float]],
     units: str = "m",
-    projection_quaternion: list[float] = None,
+    projection_quaternion: list[float] | None = None,
 ) -> dict[str, Any]:
     image_layers = [layer for layer in layers if layer["type"] == "image"]
     scale = get_scale(scale)

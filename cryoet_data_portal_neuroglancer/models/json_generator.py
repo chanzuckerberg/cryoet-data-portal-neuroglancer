@@ -70,9 +70,9 @@ class ImageJSONGenerator(RenderingJSONGenerator):
 
     size: dict[str, float]
     contrast_limits: tuple[float, float] = (-64, 64)
-    start: dict[str, float] = None
-    mean: float = None
-    rms: float = None
+    start: dict[str, float] | None = None
+    mean: float | None = None
+    rms: float | None = None
     is_visible: bool = True
 
     def __post_init__(self):
