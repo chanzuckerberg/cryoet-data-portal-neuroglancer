@@ -1,12 +1,10 @@
 from functools import lru_cache
 from math import ceil
-from typing import TYPE_CHECKING, Iterator
+from typing import Iterator, Optional
 
 import dask.array as da
 import numpy as np
-
-if TYPE_CHECKING:
-    from trimesh import Trimesh
+import trimesh
 
 
 def get_scale(
@@ -143,25 +141,28 @@ def rotate_xyz_via_matrix(matrix: np.ndarray) -> np.ndarray:
 
 
 def rotate_and_translate_mesh(
-    mesh: "Trimesh.Mesh",
+    mesh: "trimesh.Trimesh",
+    scene: "trimesh.Scene",
+    id_: str | int,
     rotation_matrix: np.ndarray,
     translation_vector: np.ndarray,
-    should_copy: bool = True,
-) -> "Trimesh.Mesh":
+) -> "trimesh.Trimesh":
     """
     Rotate and translate a mesh using a 3x3 or 4x4 rotation matrix
     and a 3D translation vector
 
     Parameters
     ----------
-    mesh : Trimesh.Mesh
+    mesh: Trimesh.Mesh
         The mesh to rotate and translate
-    matrix : np.ndarray
+    scene: Trimesh.Scene
+        The scene containing the mesh
+    id_: str | int
+        The ID of the mesh
+    matrix: np.ndarray
         The 3x3 or 4x4 rotation matrix
-    translation_vector : np.ndarray
+    translation_vector: np.ndarray
         The 3D translation vector
-    should_copy : bool
-        If True, the mesh will be copied before transforming
 
     Returns
     -------
@@ -183,6 +184,20 @@ def rotate_and_translate_mesh(
 
     transform[:3, 3] = translation_vector
 
-    if should_copy:
-        return mesh.copy().apply_transform(transform)
-    return mesh.apply_transform(rotation_matrix)
+    transformed_mesh = mesh.copy().apply_transform(transform)
+    scene.add_geometry(transformed_mesh, node_name=str(id_))
+
+    return scene
+
+
+def subsample_scene(
+    scene: "trimesh.Scene",
+    num_elements: Optional[int] = None,
+    keys_to_sample: Optional[list] = None,
+):
+    if (num_elements and keys_to_sample) or (not num_elements and not keys_to_sample):
+        raise ValueError("Either num_elements or keys_to_sample should be provided, but not both")
+    if num_elements:
+        keys_to_sample = np.random.choice(list(scene.geometry.keys()), num_elements)
+    selected_geometries = {k: v for k, v in scene.geometry.items() if k in keys_to_sample}
+    return trimesh.Scene(selected_geometries)

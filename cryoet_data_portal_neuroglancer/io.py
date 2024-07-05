@@ -23,8 +23,8 @@ def load_omezarr_data(input_filepath: str) -> da.Array:
     return dask_data.persist()
 
 
-def load_glb_file(glb_file: "Path") -> trimesh.Trimesh:
-    return trimesh.load(glb_file, file_type="glb", force="mesh")
+def load_glb_file(glb_file: "Path") -> trimesh.Scene:
+    return trimesh.load(glb_file, file_type="glb", force="scene")
 
 
 def load_oriented_point_data(
