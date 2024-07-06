@@ -194,10 +194,27 @@ def subsample_scene(
     scene: "trimesh.Scene",
     num_elements: Optional[int] = None,
     keys_to_sample: Optional[list] = None,
+    at_random: bool = False,
 ):
+    """Subsample the scene to a smaller scene with a given number of elements or keys to sample
+
+    Parameters
+    ----------
+    scene : trimesh.Scene
+        The scene to subsample
+    num_elements : int, optional
+        The number of elements to sample, by default None
+    keys_to_sample : list, optional
+        The keys to sample, by default None
+    at_random : bool, optional
+        Whether to sample at random, by default False
+    """
     if (num_elements and keys_to_sample) or (not num_elements and not keys_to_sample):
         raise ValueError("Either num_elements or keys_to_sample should be provided, but not both")
     if num_elements:
-        keys_to_sample = np.random.choice(list(scene.geometry.keys()), num_elements)
+        if at_random:
+            keys_to_sample = np.random.choice(list(scene.geometry.keys()), num_elements)
+        else:  # Take the first num_elements
+            keys_to_sample = list(scene.geometry.keys())[:num_elements]
     selected_geometries = {k: v for k, v in scene.geometry.items() if k in keys_to_sample}
     return trimesh.Scene(selected_geometries)
