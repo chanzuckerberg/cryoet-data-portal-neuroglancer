@@ -197,17 +197,20 @@ def generate_standalone_mesh_info(
 
 
 def generate_standalone_sharded_multiresolution_mesh(
+    glb: trimesh.Scene | str | Path,
     outfolder: str | Path,
     label: int = 1,
-    glb_file: str | Path | None = None,
-    scene: trimesh.Scene | None = None,
     size: tuple[float, float, float] | None = None,
 ):
-    if scene is None:
-        scene: trimesh.Scene = trimesh.load(glb_file)
+    scene: trimesh.Scene = trimesh.load(glb, force="scene") if isinstance(glb, (str, Path)) else glb
     mesh = scene.dump(concatenate=True)
     _, bb2 = mesh.bounds
-    size_x, size_y, size_z = size if size is not None else np.ceil(bb2)
+
+    def _compute_size():
+        max_bound = np.ceil(bb2)
+        return np.maximum(max_bound, np.full(3, 1))
+
+    size_x, size_y, size_z = size if size is not None else _compute_size()
 
     # The resolution is not handled here, but in the neuroglancer state
     generate_standalone_mesh_info(
