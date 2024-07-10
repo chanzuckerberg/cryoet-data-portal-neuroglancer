@@ -218,3 +218,31 @@ def subsample_scene(
             keys_to_sample = list(scene.geometry.keys())[:num_elements]
     selected_geometries = {k: v for k, v in scene.geometry.items() if k in keys_to_sample}
     return trimesh.Scene(selected_geometries)
+
+
+def get_window_limits_from_contrast_limits(
+    contrast_limits: tuple[float, float],
+    distance_scale: float = 0.1,
+) -> tuple[float, float]:
+    """
+    Create default window limits from contrast limits, 10% padding
+
+    Parameters
+    ----------
+    contrast_limits : tuple[float, float]
+        The contrast limits
+
+    Returns
+    -------
+    tuple[float, float]
+        The window limits
+    """
+    lower_contrast, higher_contrast = contrast_limits
+    # First check if the contrast limits are inverted
+    if lower_contrast > higher_contrast:
+        lower_contrast, higher_contrast = higher_contrast, lower_contrast
+
+    distance = higher_contrast - lower_contrast
+    window_start = lower_contrast - (distance * distance_scale)
+    window_end = higher_contrast + (distance * distance_scale)
+    return window_start, window_end
