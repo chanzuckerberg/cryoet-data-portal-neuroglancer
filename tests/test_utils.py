@@ -3,6 +3,7 @@ import pytest
 
 from cryoet_data_portal_neuroglancer.utils import (
     get_grid_size_from_block_shape,
+    get_window_limits_from_contrast_limits,
     number_of_encoding_bits,
     rotate_vector_via_matrix,
     rotate_xyz_via_matrix,
@@ -89,3 +90,19 @@ def test__rotate_xyz_via_matrix():
     # Identity matrix should not change the axes
     identity_matrix = np.eye(3)
     assert np.allclose(rotate_xyz_via_matrix(identity_matrix), np.eye(3))
+
+
+@pytest.mark.parametrize(
+    "contrast_limits, window_limits",
+    [
+        ((0.0, 1.0), (-0.1, 1.1)),
+        ((-5.0, 5.0), (-6.0, 6.0)),
+        ((20, 10), (9, 21)),
+        ((100, -100), (-120, 120)),
+    ],
+)
+def test_create_default_window_limits_from_contrast_limits(
+    contrast_limits,
+    window_limits,
+):
+    assert get_window_limits_from_contrast_limits(contrast_limits) == window_limits

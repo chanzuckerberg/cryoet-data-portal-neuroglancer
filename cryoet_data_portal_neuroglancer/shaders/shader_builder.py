@@ -30,14 +30,29 @@ class ShaderBuilder:
     def _make_main(self) -> str:
         return f"void main() {{\n{self._shader_main_function}}}"
 
-    def build_shader(self) -> dict[str, str | dict[str, Any]]:
-        return {
-            "shader": self._shader_pre_main + "\n" + self._make_main(),
-            "shaderControls": self._shader_controls,
-        }
-
     def sort_shader_preamble(self, sorting: lambda x: x):
         self._shader_pre_main = "\n".join(sorted(self._shader_pre_main.split("\n"), key=sorting))
+
+    def _make_pre_main(self) -> str:
+        """Sort the preamble for more visually appealing code"""
+        # Extract all the #uicontrol lines and put them at the top
+        uicontrol_lines = []
+        pre_main_lines = []
+        for line in self._shader_pre_main.split("\n"):
+            if line.startswith("#uicontrol"):
+                uicontrol_lines.append(line)
+            else:
+                pre_main_lines.append(line)
+        # Create a blank line between the uicontrols and the rest of the code
+        if len(pre_main_lines) > 1:
+            pre_main_lines.insert(0, "")
+        return "\n".join(uicontrol_lines + pre_main_lines)
+
+    def build(self) -> dict[str, str | dict[str, Any]]:
+        return {
+            "shader": self._make_pre_main() + "\n" + self._make_main(),
+            "shaderControls": self._shader_controls,
+        }
 
     def make_invlerp_component(
         self,
@@ -57,9 +72,13 @@ class ShaderBuilder:
         window_limits: tuple[float, float],
     ) -> list[str]:
         invlerp_component = self.make_invlerp_component(name, contrast_limits, window_limits)
-        checkbox_part = f"#uicontrol bool invert_{name} checkbox(default=false)"
-        data_value_getter = f"float {name}_get() {{ return invert_{name} ? 1.0 - {name}() : {name}(); }}"
-        return [invlerp_component, checkbox_part, data_value_getter]
+        checkbox_part = f"#uicontrol bool invert_{name} checkbox"
+        data_value_getter = [
+            f"float get_{name}()" + " {",
+            f"{TAB}return invert_{name} ? 1.0 - {name}() : {name}();",
+            "}",
+        ]
+        return [invlerp_component, checkbox_part, *data_value_getter]
 
     def make_slider_component(
         self,
