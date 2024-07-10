@@ -8,6 +8,7 @@ from cryoet_data_portal_neuroglancer.models.json_generator import (
     AnnotationJSONGenerator,
     ImageJSONGenerator,
     ImageVolumeJSONGenerator,
+    OrientedPointAnnotationGenerator,
     SegmentationJSONGenerator,
 )
 from cryoet_data_portal_neuroglancer.utils import get_scale
@@ -56,6 +57,31 @@ def generate_point_layer(
     ).to_json()
 
 
+def generate_oriented_point_layer(
+    source: str,
+    name: str = None,
+    url: str = None,
+    color: str = "#FFFFFF",
+    point_size_multiplier: float = 1.0,
+    line_width: float = 1.0,
+    scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    is_visible: bool = True,
+    is_instance_segmentation: bool = False,
+) -> dict[str, Any]:
+    source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
+    _validate_color(color)
+    return OrientedPointAnnotationGenerator(
+        source=source,
+        name=name,
+        color=color,
+        point_size_multiplier=point_size_multiplier,
+        line_width=line_width,
+        scale=scale,
+        is_visible=is_visible,
+        is_instance_segmentation=is_instance_segmentation,
+    ).to_json()
+
+
 def generate_segmentation_mask_layer(
     source: str,
     name: str = None,
@@ -85,6 +111,7 @@ def generate_image_layer(
     mean: float = None,
     rms: float = None,
     is_visible: bool = True,
+    has_volume_rendering_shader: bool = False,
 ) -> dict[str, Any]:
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     return ImageJSONGenerator(
@@ -96,6 +123,7 @@ def generate_image_layer(
         mean=mean,
         rms=rms,
         is_visible=is_visible,
+        has_volume_rendering_shader=has_volume_rendering_shader,
     ).to_json()
 
 
@@ -106,7 +134,7 @@ def generate_image_volume_layer(
     color: str = "#FFFFFF",
     scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
     is_visible: bool = True,
-    rendering_depth: int = 10000,
+    rendering_depth: int = 1024,
 ) -> dict[str, Any]:
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     _validate_color(color)
@@ -122,7 +150,7 @@ def generate_image_volume_layer(
 
 def combine_json_layers(
     layers: list[dict[str, Any]],
-    scale: Optional[tuple[float, float, float] | list[float]],
+    scale: tuple[float, float, float] | list[float] | float,
     units: str = "m",
     projection_quaternion: list[float] = None,
 ) -> dict[str, Any]:
@@ -142,7 +170,7 @@ def combine_json_layers(
         "crossSectionBackgroundColor": "#000000",
         "layout": "4panel",
     }
-    if image_layers is not None:
+    if len(image_layers) > 0 and "_position" in image_layers[0]:
         combined_json["position"] = image_layers[0]["_position"]
         combined_json["crossSectionScale"] = image_layers[0]["_crossSectionScale"]
         combined_json["projectionScale"] = image_layers[0]["_projectionScale"]

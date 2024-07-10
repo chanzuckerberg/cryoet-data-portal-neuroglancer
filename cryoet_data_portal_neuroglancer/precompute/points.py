@@ -1,95 +1,121 @@
-import json
+from dataclasses import dataclass
+from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
+import numpy as np
 from neuroglancer import AnnotationPropertySpec, CoordinateSpace
 from neuroglancer.write_annotations import AnnotationWriter
 
-from cryoet_data_portal_neuroglancer.sharding import ShardingSpecification, jsonify
+from cryoet_data_portal_neuroglancer.models.annotation_encoder import AnnotationEncoder
+from cryoet_data_portal_neuroglancer.utils import rotate_xyz_via_matrix
 
 
-def _build_rotation_matrix_properties() -> list[AnnotationPropertySpec]:
-    return [AnnotationPropertySpec(id=f"rot_mat_{i}_{j}", type="float32") for i in range(3) for j in range(3)]
+class LineLengthMethod(Enum):
+    """Method for determining line length for oriented points."""
+
+    SCALE = auto()
+    ABSOLUTE = auto()
+
+    def __str__(self):
+        return self.name.lower()
 
 
-def _write_annotations(
-    output_dir: Path,
-    data: list[dict[str, Any]],
-    metadata: dict[str, Any],
-    coordinate_space: CoordinateSpace,
-    is_oriented: bool,
-    names_by_id: dict[int, str],
-    label_key_mapper: Callable[[dict[str, Any]], int],
-    color_mapper: Callable[[dict[str, Any]], tuple[int, int, int]],
-) -> Path:
-    """
-    Create a neuroglancer annotation folder with the given annotations.
-    See https://github.com/google/neuroglancer/blob/master/src/neuroglancer/datasource/precomputed/annotations.md
-    """
-    writer = AnnotationWriter(
-        coordinate_space=coordinate_space,
-        annotation_type="point",
-        properties=[
-            AnnotationPropertySpec(
-                id="name",
-                type="uint8",
-                enum_values=list(names_by_id.keys()),
-                enum_labels=list(names_by_id.values()),
-            ),
-            AnnotationPropertySpec(id="diameter", type="float32"),
-            AnnotationPropertySpec(id="point_index", type="float32"),
-            AnnotationPropertySpec(id="color", type="rgb"),
-            # Spec must be added at the object construction time, not after
-            *(_build_rotation_matrix_properties() if is_oriented else []),
-        ],
-    )
+@dataclass
+class OrientedPointAnnotationEncoder(AnnotationEncoder):
+    line_width_value: float = 1.5
+    line_width_method: LineLengthMethod = LineLengthMethod.SCALE
 
-    # Using 10nm as default size
-    diameter = metadata["annotation_object"].get("diameter", 100) / 10
-    for index, p in enumerate(data):
-        location = [p["location"][k] for k in ("x", "y", "z")]
-        rot_mat = {}
-        if is_oriented:
-            rot_mat = {
-                f"rot_mat_{i}_{j}": col for i, line in enumerate(p["xyz_rotation_matrix"]) for j, col in enumerate(line)
-            }
-        writer.add_point(
-            location,
-            diameter=diameter,
-            point_index=float(index),
-            name=label_key_mapper(p),
-            color=color_mapper(p),
-            **rot_mat,
+    def _prepare_writer_specifications(self):
+        self._writer = AnnotationWriter(
+            coordinate_space=self.coordinate_space,
+            annotation_type="line",
+            properties=[
+                AnnotationPropertySpec(
+                    id="name",
+                    type="uint8" if len(self.names_by_id) < 2**8 else "uint16",
+                    enum_values=list(self.names_by_id.keys()),
+                    enum_labels=list(self.names_by_id.values()),
+                ),
+                AnnotationPropertySpec(id="diameter", type="float32"),
+                AnnotationPropertySpec(id="point_index", type="float32"),
+                AnnotationPropertySpec(id="point_color", type="rgb"),
+                AnnotationPropertySpec(id="line_color", type="rgb"),
+            ],
         )
-    writer.properties.sort(key=lambda prop: prop.id != "name")
-    writer.write(output_dir)
-    return output_dir
+
+    def process_data_to_writer_specifications(
+        self,
+        data: list[dict[str, Any]],
+        metadata: dict[str, Any],
+    ):
+        # Using 10nm as default size
+        diameter = metadata["annotation_object"].get("diameter", 100) / 10
+        if self.line_width_method == LineLengthMethod.SCALE:
+            line_distance = diameter * self.line_width_value
+        else:
+            line_distance = self.line_width_value
+        for index, point in enumerate(data):
+            rotated_xyz = rotate_xyz_via_matrix(point["xyz_rotation_matrix"])
+            start_point = np.array([point["location"][k] for k in ("x", "y", "z")])
+            for i in range(3):
+                end_point = start_point + line_distance * rotated_xyz[i]
+                if not np.isclose(np.linalg.norm(end_point - start_point), line_distance):
+                    raise ValueError(
+                        "Incorrect input rotation matrix, resulting in incorrect line length for oriented points.",
+                    )
+                self._writer.add_line(
+                    start_point,
+                    end_point,
+                    diameter=diameter,
+                    point_index=float(index),
+                    name=self.label_key_mapper(point),
+                    point_color=self.color_mapper(point),
+                    line_color=self._line_index_to_rgb(i),
+                )
+
+    @staticmethod
+    def _line_index_to_rgb(line_index: int) -> tuple[int, int, int]:
+        """x = red, y = green, z = blue"""
+        line_to_rgb = {
+            0: (255, 0, 0),
+            1: (0, 255, 0),
+            2: (0, 0, 255),
+        }
+        return line_to_rgb.get(line_index, (255, 255, 255))
 
 
-def _shard_by_id_index(directory: Path, shard_bits: int, minishard_bits: int):
-    sharding_specification = ShardingSpecification(
-        type="neuroglancer_uint64_sharded_v1",
-        preshift_bits=0,
-        hash="identity",
-        minishard_bits=minishard_bits,
-        shard_bits=shard_bits,
-        minishard_index_encoding="gzip",
-        data_encoding="gzip",
-    )
-    labels = {}
-    for file in (directory / "by_id").iterdir():
-        if ".shard" not in file.name:
-            labels[int(file.name)] = file.read_bytes()
-            file.unlink()
+@dataclass
+class PointAnnotationEncoder(AnnotationEncoder):
+    def _prepare_writer_specifications(self):
+        self._writer = AnnotationWriter(
+            coordinate_space=self.coordinate_space,
+            annotation_type="point",
+            properties=[
+                AnnotationPropertySpec(
+                    id="name",
+                    type="uint8" if len(self.names_by_id) < 2**8 else "uint16",
+                    enum_values=list(self.names_by_id.keys()),
+                    enum_labels=list(self.names_by_id.values()),
+                ),
+                AnnotationPropertySpec(id="diameter", type="float32"),
+                AnnotationPropertySpec(id="point_index", type="float32"),
+                AnnotationPropertySpec(id="color", type="rgb"),
+            ],
+        )
 
-    shard_files = sharding_specification.synthesize_shards(labels, progress=True)
-    for shard_filename, shard_content in shard_files.items():
-        (directory / "by_id" / shard_filename).write_bytes(shard_content)
-
-    info_path = directory / "info"
-    info = json.load(info_path.open("r", encoding="utf-8"))
-    info["by_id"]["sharding"] = sharding_specification.to_dict()
-    info_path.write_text(jsonify(info, indent=2))
+    def process_data_to_writer_specifications(self, data: list[dict[str, Any]], metadata: dict[str, Any]):
+        # Using 10nm as default size
+        diameter = metadata["annotation_object"].get("diameter", 100) / 10
+        for index, point in enumerate(data):
+            location = [point["location"][k] for k in ("x", "y", "z")]
+            self._writer.add_point(
+                location,
+                diameter=diameter,
+                point_index=float(index),
+                name=self.label_key_mapper(point),
+                color=self.color_mapper(point),
+            )
 
 
 def encode_annotation(
@@ -101,8 +127,35 @@ def encode_annotation(
     names_by_id: dict[int, str] = None,
     label_key_mapper: Callable[[dict[str, Any]], int] = lambda x: 0,
     color_mapper: Callable[[dict[str, Any]], tuple[int, int, int]] = lambda x: (255, 255, 255),
-    shard_by_id: tuple[int, int] = (0, 10),
+    shard_by_id: Optional[tuple[int, int]] = (0, 10),
+    oriented_line_parameters: tuple[float, LineLengthMethod] = (1.5, LineLengthMethod.SCALE),
 ) -> None:
+    """Encode annotation data to Neuroglancer format.
+
+    Parameters
+    ----------
+    data : list[dict[str, Any]]
+        List of dictionaries containing annotation data from ndjson file.
+    metadata : dict[str, Any]
+        Metadata for the annotation data from json file.
+    output_path : Path
+        Path to the output directory for the encoded annotations.
+    resolution : float
+        Resolution of the data in nanometers. Assumed the same in all 3 dimensions.
+    is_oriented : bool, optional
+        Whether the annotations are oriented points, by default False
+    names_by_id : dict[int, str], optional
+        Mapping of annotation id to name, by default None
+    label_key_mapper : Callable[[dict[str, Any]], int], optional
+        Function to map annotation data to label key, by default, all annotations are labeled as 0
+    color_mapper : Callable[[dict[str, Any]], tuple[int, int, int]], optional
+        Function to map annotation data to RGB color, by default all annotations are white
+    shard_by_id : Optional[tuple[int, int]], optional
+        Tuple of shard_bits and minishard_bits, by default (0, 10)
+        If None, no sharding will be done.
+    line_length_parameters : tuple[float, LineLengthMethod], optional
+        Tuple of line length and method for determining line length for oriented points, by default (1.5, LineLengthMethod.SCALE)
+    """
     if shard_by_id and len(shard_by_id) < 2:
         shard_by_id = (0, 10)
     coordinate_space = CoordinateSpace(
@@ -112,18 +165,22 @@ def encode_annotation(
     )
     if names_by_id is None:
         names_by_id = {0: metadata.get("annotation_object", {}).get("name", "")}
-    _write_annotations(
-        output_path,
-        data,
-        metadata,
-        coordinate_space,
-        is_oriented,
-        names_by_id,
-        label_key_mapper,
-        color_mapper,
-    )
-    print("Wrote annotations to", output_path)
 
-    if shard_by_id and len(shard_by_id) == 2:
-        shard_bits, minishard_bits = shard_by_id
-        _shard_by_id_index(output_path, shard_bits, minishard_bits)
+    annotation_encoder_type = OrientedPointAnnotationEncoder if is_oriented else PointAnnotationEncoder
+    kwargs = (
+        {}
+        if not is_oriented
+        else {"line_width_value": oriented_line_parameters[0], "line_width_method": oriented_line_parameters[1]}
+    )
+    annotation_encoder = annotation_encoder_type(
+        output_path=output_path,
+        resolution=resolution,
+        coordinate_space=coordinate_space,
+        shard_by_id=shard_by_id,
+        names_by_id=names_by_id,
+        label_key_mapper=label_key_mapper,
+        color_mapper=color_mapper,
+        **kwargs,
+    )
+    annotation_encoder.process_data_to_writer_specifications(data, metadata)
+    annotation_encoder.write_annotations()

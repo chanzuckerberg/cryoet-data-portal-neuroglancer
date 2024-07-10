@@ -1,9 +1,10 @@
 from functools import lru_cache
 from math import ceil
-from typing import Iterator
+from typing import Iterator, Optional
 
 import dask.array as da
 import numpy as np
+import trimesh
 
 
 def get_scale(
@@ -101,3 +102,147 @@ def number_of_encoding_bits(nb_values: int) -> int:
         if (1 << nb_bits) >= nb_values:
             return nb_bits
     raise ValueError("Too many unique values in block")
+
+
+def rotate_vector_via_matrix(vec3: np.ndarray, matrix: np.ndarray) -> np.ndarray:
+    """
+    Rotate a 3D vector using a 3x3 rotation matrix
+
+    Parameters
+    ----------
+    vec3 : np.ndarray
+        The 3D vector to rotate
+    matrix : np.ndarray
+        The 3x3 rotation matrix
+
+    Returns
+    -------
+    np.ndarray
+        The rotated vector
+    """
+    return np.dot(matrix, vec3)
+
+
+def rotate_xyz_via_matrix(matrix: np.ndarray) -> np.ndarray:
+    """
+    Rotate the XYZ axes using a 3x3 rotation matrix
+
+    Parameters
+    ----------
+    matrix : np.ndarray
+        The 3x3 rotation matrix
+
+    Returns
+    -------
+    np.ndarray
+        The rotated XYZ axes
+    """
+    return np.dot(matrix, np.eye(3)).T
+
+
+def rotate_and_translate_mesh(
+    mesh: "trimesh.Trimesh",
+    scene: "trimesh.Scene",
+    id_: str | int,
+    rotation_matrix: np.ndarray,
+    translation_vector: np.ndarray,
+) -> "trimesh.Trimesh":
+    """
+    Rotate and translate a mesh using a 3x3 or 4x4 rotation matrix
+    and a 3D translation vector
+
+    Parameters
+    ----------
+    mesh: Trimesh.Mesh
+        The mesh to rotate and translate
+    scene: Trimesh.Scene
+        The scene containing the mesh
+    id_: str | int
+        The ID of the mesh
+    matrix: np.ndarray
+        The 3x3 or 4x4 rotation matrix
+    translation_vector: np.ndarray
+        The 3D translation vector
+
+    Returns
+    -------
+    Trimesh.Mesh
+        The rotated and translated mesh
+    """
+
+    def _convert_to_homogenous(rotation_matrix):
+        homogenous_matrix = np.eye(4)
+        homogenous_matrix[:3, :3] = rotation_matrix
+        return homogenous_matrix
+
+    if rotation_matrix.shape == (3, 3):
+        transform = _convert_to_homogenous(rotation_matrix)
+    elif rotation_matrix.shape == (4, 4):
+        transform = rotation_matrix
+    else:
+        raise ValueError("Rotation matrix must be 3x3 or 4x4")
+
+    transform[:3, 3] = translation_vector
+
+    transformed_mesh = mesh.copy().apply_transform(transform)
+    scene.add_geometry(transformed_mesh, node_name=str(id_))
+
+    return scene
+
+
+def subsample_scene(
+    scene: "trimesh.Scene",
+    num_elements: Optional[int] = None,
+    keys_to_sample: Optional[list] = None,
+    at_random: bool = False,
+):
+    """Subsample the scene to a smaller scene with a given number of elements or keys to sample
+
+    Parameters
+    ----------
+    scene : trimesh.Scene
+        The scene to subsample
+    num_elements : int, optional
+        The number of elements to sample, by default None
+    keys_to_sample : list, optional
+        The keys to sample, by default None
+    at_random : bool, optional
+        Whether to sample at random, by default False
+    """
+    if (num_elements and keys_to_sample) or (not num_elements and not keys_to_sample):
+        raise ValueError("Either num_elements or keys_to_sample should be provided, but not both")
+    if num_elements:
+        if at_random:
+            keys_to_sample = np.random.choice(list(scene.geometry.keys()), num_elements)
+        else:  # Take the first num_elements
+            keys_to_sample = list(scene.geometry.keys())[:num_elements]
+    selected_geometries = {k: v for k, v in scene.geometry.items() if k in keys_to_sample}
+    return trimesh.Scene(selected_geometries)
+
+
+def get_window_limits_from_contrast_limits(
+    contrast_limits: tuple[float, float],
+    distance_scale: float = 0.1,
+) -> tuple[float, float]:
+    """
+    Create default window limits from contrast limits, 10% padding
+
+    Parameters
+    ----------
+    contrast_limits : tuple[float, float]
+        The contrast limits
+
+    Returns
+    -------
+    tuple[float, float]
+        The window limits
+    """
+    lower_contrast, higher_contrast = contrast_limits
+    # First check if the contrast limits are inverted
+    if lower_contrast > higher_contrast:
+        lower_contrast, higher_contrast = higher_contrast, lower_contrast
+
+    distance = higher_contrast - lower_contrast
+    window_start = lower_contrast - (distance * distance_scale)
+    window_end = higher_contrast + (distance * distance_scale)
+    return window_start, window_end

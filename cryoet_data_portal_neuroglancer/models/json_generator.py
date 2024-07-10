@@ -5,6 +5,15 @@ from typing import Any
 
 import numpy as np
 
+from cryoet_data_portal_neuroglancer.shaders.annotation import (
+    NonOrientedPointShaderBuilder,
+    OrientedPointShaderBuilder,
+)
+from cryoet_data_portal_neuroglancer.shaders.image import (
+    ImageShaderBuilder,
+    ImageWithVolumeRenderingShaderBuilder,
+)
+
 
 def create_source(
     url: str,
@@ -74,36 +83,33 @@ class ImageJSONGenerator(RenderingJSONGenerator):
     mean: float = None
     rms: float = None
     is_visible: bool = True
+    has_volume_rendering_shader: bool = False
+    volume_rendering_depth_samples: int = 256  # Ideally, this should be a power of 2
 
     def __post_init__(self):
         self._type = RenderingTypes.IMAGE
 
-    def _create_shader_and_controls(self) -> dict[str, Any]:
+    def _compute_contrast_limits(self) -> tuple[float, float]:
         if self.mean is None or self.rms is None:
-            distance = self.contrast_limits[1] - self.contrast_limits[0]
-            window_start = self.contrast_limits[0] - (distance / 10)
-            window_end = self.contrast_limits[1] + (distance / 10)
-            shader = (
-                f"#uicontrol invlerp contrast(range=[{self.contrast_limits[0]}, {self.contrast_limits[1]}], "
-                f"window=[{window_start}, {window_end}])\nvoid main() {{\n  emitGrayscale(contrast());\n}}"
-            )
-            return {"shader": shader}
-
+            return self.contrast_limits
         width = 3 * self.rms
-        start = self.mean - width
-        end = self.mean + width
-        window_width_factor = width * 0.1
-        window_start = start - window_width_factor
-        window_end = end + window_width_factor
-        return {
-            "shader": "#uicontrol invlerp normalized\n\nvoid main() {\n  emitGrayscale(normalized());\n}\n",
-            "shaderControls": {
-                "normalized": {
-                    "range": [start, end],
-                    "window": [window_start, window_end],
-                },
-            },
-        }
+        return (self.mean - width, self.mean + width)
+
+    def _create_shader_and_controls(self) -> dict[str, Any]:
+        contrast_limits = self._compute_contrast_limits()
+        if self.has_volume_rendering_shader:
+            # At the moment these are the same limits,
+            # but in the future the calculation might change for 3D rendering
+            threedee_contrast_limits = contrast_limits
+            shader_builder = ImageWithVolumeRenderingShaderBuilder(
+                contrast_limits=contrast_limits,
+                threedee_contrast_limits=threedee_contrast_limits,
+            )
+        else:
+            shader_builder = ImageShaderBuilder(
+                contrast_limits=contrast_limits,
+            )
+        return shader_builder.build()
 
     def _get_computed_values(self) -> dict[str, Any]:
         nstart = self.start or {k: 0 for k in "xyz"}
@@ -124,6 +130,8 @@ class ImageJSONGenerator(RenderingJSONGenerator):
             "tab": "rendering",
             "visible": self.is_visible,
         }
+        if self.has_volume_rendering_shader:
+            config["volumeRenderingDepthSamples"] = self.volume_rendering_depth_samples
         return {**config, **self._create_shader_and_controls(), **self._get_computed_values()}
 
 
@@ -140,21 +148,12 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
         self._type = RenderingTypes.ANNOTATION
 
     def _get_shader(self):
-        set_color = "color"
-        ui_color_control = f'#uicontrol vec3 color color(default="{self.color}")\n'
-        if self.is_instance_segmentation:
-            set_color = "prop_color()"
-            ui_color_control = ""
-        return (
-            f"#uicontrol float pointScale slider(min=0.01, max=2.0, default={self.point_size_multiplier}, step=0.01)\n"
-            f"#uicontrol float opacity slider(min=0, max=1, default=1)\n"
-            f"{ui_color_control}\n"
-            f"void main() {{\n"
-            f"  setColor(vec4({set_color}, opacity));\n"
-            f"  setPointMarkerSize(pointScale * prop_diameter());\n"
-            f"  setPointMarkerBorderWidth(0.1);\n"
-            f"}}"
+        shader_builder = NonOrientedPointShaderBuilder(
+            point_size_multiplier=self.point_size_multiplier,
+            is_instance_segmentation=self.is_instance_segmentation,
+            color=self.color,
         )
+        return shader_builder.build_shader()
 
     def generate_json(self) -> dict:
         return {
@@ -162,9 +161,25 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
             "name": f"{self.name}",
             "source": create_source(f"precomputed://{self.source}", self.scale, self.scale),
             "tab": "rendering",
-            "shader": self._get_shader(),
             "visible": self.is_visible,
+            **self._get_shader(),
         }
+
+
+@dataclass
+class OrientedPointAnnotationGenerator(AnnotationJSONGenerator):
+    """Generates JSON Neuroglancer config for oriented point annotation."""
+
+    line_width: float = 1.0
+
+    def _get_shader(self):
+        shader_builder = OrientedPointShaderBuilder(
+            point_size_multiplier=self.point_size_multiplier,
+            is_instance_segmentation=self.is_instance_segmentation,
+            color=self.color,
+            line_width=self.line_width,
+        )
+        return shader_builder.build_shader()
 
 
 @dataclass
@@ -199,7 +214,6 @@ class ImageVolumeJSONGenerator(RenderingJSONGenerator):
 
     color: str
     rendering_depth: int
-    is_visible: bool = True
 
     def __post_init__(self):
         self._type = RenderingTypes.IMAGE
