@@ -153,7 +153,7 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
             is_instance_segmentation=self.is_instance_segmentation,
             color=self.color,
         )
-        return shader_builder.build_shader()
+        return shader_builder.build()
 
     def generate_json(self) -> dict:
         return {
@@ -179,7 +179,7 @@ class OrientedPointAnnotationGenerator(AnnotationJSONGenerator):
             color=self.color,
             line_width=self.line_width,
         )
-        return shader_builder.build_shader()
+        return shader_builder.build()
 
 
 @dataclass
