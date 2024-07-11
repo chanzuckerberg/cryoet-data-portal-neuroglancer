@@ -1,6 +1,6 @@
 """Create GLSL shaders for Neuroglancer."""
 
-from typing import Any
+from typing import Any, Iterable, Optional
 
 TAB = "  "
 
@@ -11,7 +11,7 @@ class ShaderBuilder:
         self._shader_main_function = ""
         self._shader_controls = {}
 
-    def add_to_shader_controls(self, code: str | list[str]):
+    def add_to_shader_controls(self, code: str | Iterable[str]):
         if isinstance(code, str):
             self._shader_pre_main += code
         else:
@@ -29,6 +29,9 @@ class ShaderBuilder:
 
     def _make_main(self) -> str:
         return f"void main() {{\n{self._shader_main_function}}}"
+
+    def sort_shader_preamble(self, sorting: lambda x: x):
+        self._shader_pre_main = "\n".join(sorted(self._shader_pre_main.split("\n"), key=sorting))
 
     def _make_pre_main(self) -> str:
         """Sort the preamble for more visually appealing code"""
@@ -76,6 +79,17 @@ class ShaderBuilder:
             "}",
         ]
         return [invlerp_component, checkbox_part, *data_value_getter]
+
+    def make_slider_component(
+        self,
+        name: str,
+        min_value: float = 0.0,
+        max_value: float = 1.0,
+        default_value: Optional[float] = None,
+    ) -> str:
+        if default_value is not None:
+            self._shader_controls[name] = default_value
+        return f"#uicontrol float {name} slider(min={min_value}, max={max_value}, step=0.01)"
 
     def make_color_component(self, name: str, default_color: str) -> str:
         self._shader_controls[name] = default_color
