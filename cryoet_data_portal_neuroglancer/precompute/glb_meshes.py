@@ -1,18 +1,99 @@
 import json
 from functools import partial
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Iterator, Optional, Tuple
 
+import DracoPy
+import igneous.tasks.mesh.multires
 import numpy as np
 import shardcomputer
 import trimesh
 from cloudfiles import CloudFiles
 from cloudvolume import CloudVolume, Mesh
+from cloudvolume.datasource.precomputed.mesh.multilod import (
+    MultiLevelPrecomputedMeshManifest,
+    to_stored_model_space,
+)
 from cloudvolume.datasource.precomputed.sharding import ShardingSpecification
 from igneous.task_creation.common import compute_shard_params_for_hashed
 from igneous.task_creation.mesh import configure_multires_info
-from igneous.tasks.mesh.multires import create_mesh_shard, generate_lods
+from igneous.tasks.mesh.multires import create_mesh_shard, create_octree_level_from_mesh, generate_lods, process_mesh
 from taskqueue import LocalTaskQueue, queueable
+
+
+def process_decimated_mesh(
+    cv: CloudVolume,
+    label: int,
+    meshes: list[Mesh],
+    num_lod: int,
+    min_chunk_size: Tuple[int, int, int] = (512, 512, 512),
+    draco_compression_level: int = 7,
+) -> Tuple[MultiLevelPrecomputedMeshManifest, Mesh]:
+    grid_origin = np.floor(np.min(meshes[0].vertices, axis=0))
+    mesh_shape = (np.max(meshes[0].vertices, axis=0) - grid_origin).astype(int)
+
+    if np.any(mesh_shape == 0):
+        return (None, None)
+
+    max_lod = len(meshes)  # This is the number of LODs
+    lods = meshes
+    chunk_shape = np.ceil(mesh_shape / 2 ** (max_lod - 1))
+
+    if np.any(chunk_shape == 0):
+        return (None, None)
+
+    lods = [create_octree_level_from_mesh(lods[lod], chunk_shape, lod, len(lods)) for lod in range(len(lods))]
+    fragment_positions = [nodes for submeshes, nodes in lods]
+    lods = [submeshes for submeshes, nodes in lods]
+
+    manifest = MultiLevelPrecomputedMeshManifest(
+        segment_id=label,
+        chunk_shape=chunk_shape,
+        grid_origin=grid_origin,
+        num_lods=len(lods),
+        lod_scales=[2**i for i in range(len(lods))],
+        vertex_offsets=[[0, 0, 0]] * len(lods),
+        num_fragments_per_lod=[len(lods[lod]) for lod in range(len(lods))],
+        fragment_positions=fragment_positions,
+        fragment_offsets=[],  # needs to be set when we have the final value
+    )
+
+    vqb = int(cv.mesh.meta.info["vertex_quantization_bits"])
+
+    mesh_binaries = []
+    for lod, submeshes in enumerate(lods):
+        for frag_no, submesh in enumerate(submeshes):
+            submesh.vertices = to_stored_model_space(
+                submesh.vertices,
+                manifest,
+                lod=lod,
+                vertex_quantization_bits=vqb,
+                frag=frag_no,
+            )
+
+            minpt = np.min(submesh.vertices, axis=0)
+            quantization_range = np.max(submesh.vertices, axis=0) - minpt
+            quantization_range = np.max(quantization_range)
+
+            # mesh.vertices must be integer type or mesh will display
+            # distorted in neuroglancer.
+            try:
+                submesh = DracoPy.encode(
+                    submesh.vertices,
+                    submesh.faces,
+                    quantization_bits=vqb,
+                    compression_level=draco_compression_level,
+                    quantization_range=quantization_range,
+                    quantization_origin=minpt,
+                    create_metadata=True,
+                )
+            except DracoPy.EncodingFailedException:
+                submesh = b""
+
+            manifest.fragment_offsets.append(len(submesh))
+            mesh_binaries.append(submesh)
+
+    return (manifest, b"".join(mesh_binaries))
 
 
 @queueable
@@ -33,7 +114,18 @@ def MultiResShardedMeshFromGlbTask(  # noqa
     if mesh_dir is None and "mesh" in cv.info:
         mesh_dir = cv.info["mesh"]
 
-    fname, shard = create_mesh_shard(cv, labels, num_lod, draco_compression_level, progress, shard_no, min_chunk_size)
+    old_process_mesh = process_mesh
+    igneous.tasks.mesh.multires.process_mesh = process_decimated_mesh
+    fname, shard = create_mesh_shard(
+        cv,
+        labels,
+        num_lod,
+        draco_compression_level,
+        progress,
+        shard_no,
+        min_chunk_size,
+    )
+    igneous.tasks.mesh.multires.process_mesh = old_process_mesh
 
     if shard is None:
         return
@@ -276,6 +368,51 @@ def determine_chunk_size_for_lod(
             if np.all(chunk_shape / 2 > min_chunk_dim):
                 chunk_shape = _determine_chunk_shape_for_lod(lod_level)
     return tuple([int(x) for x in chunk_shape.astype(int)])
+
+
+def generate_sharded_mesh_from_lods(
+    lods: list[trimesh.Scene],
+    outfolder: str | Path,
+    label: int = 1,
+    size: tuple[float, float, float] | None = None,
+):
+    lods = [lod.dump(concatenate=True) for lod in lods]
+    mesh = lods[0]
+    num_lod = len(lods)
+    _, bb2 = lods[0].bounds
+
+    def _compute_size():
+        max_bound = np.ceil(bb2)
+        return np.maximum(max_bound, np.full(3, 1))
+
+    size_x, size_y, size_z = size if size is not None else _compute_size()
+
+    mesh_shape = _determine_mesh_shape(mesh)
+    smallest_chunk_size = determine_chunk_size_for_lod(
+        mesh_shape,
+        num_lod,
+        num_lod,
+        1,
+    )
+
+    # The resolution is not handled here, but in the neuroglancer state
+    generate_standalone_mesh_info(
+        outfolder,
+        size=(size_x, size_y, size_z),
+        resolution=1.0,
+        mesh_chunk_size=smallest_chunk_size,
+    )
+
+    tq = LocalTaskQueue()
+    tasks = create_sharded_multires_mesh_tasks_from_glb(
+        f"precomputed://file://{outfolder}",
+        labels={label: lods},
+        mesh_dir="mesh",
+        num_lod=num_lod,
+        min_chunk_size=smallest_chunk_size,
+    )
+    tq.insert(tasks)
+    tq.execute()
 
 
 def generate_standalone_sharded_multiresolution_mesh(
