@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -8,13 +7,7 @@ import trimesh
 from cryoet_data_portal_neuroglancer.utils import rotate_and_translate_mesh
 
 
-def encode_oriented_mesh(
-    scene: "trimesh.Scene",
-    data: list[dict[str, Any]],
-    metadata: dict[str, Any],
-    output_path: Path,
-    real_resolution: float,
-):
+def encode_oriented_mesh(scene: "trimesh.Scene", data: list[dict[str, Any]]):
     """Turn a mesh into an oriented mesh with a list of orientations and translations
 
     Parameters
@@ -23,13 +16,6 @@ def encode_oriented_mesh(
         The scene containing the mesh
     data : list[dict[str, Any]]
         The list of orientations and translations
-    metadata : dict[str, Any]
-        The metadata for the oriented points
-    output_path : Path
-        The output path for the new mesh
-    real_resolution : float
-        The real resolution of the data units, or the voxel size.
-        Must be in nanometers.
     """
     geometry = scene.geometry
     if len(geometry) > 1:
@@ -37,7 +23,7 @@ def encode_oriented_mesh(
     mesh: trimesh.Trimesh = next(v for v in geometry.values())
     # The co-ordinate system of the mesh is in angstrom
     # As such, one unit of the mesh is 0.1 nm
-    mesh_resolution = 0.1 # nm
+    mesh_resolution = 0.1  # nm
     # Since meshes are in angstrom, we need to scale it to nanometers
     scaled = mesh.copy().apply_scale(mesh_resolution)
     # We don't need to scale to the real tomogram resolution, because we make
@@ -55,6 +41,4 @@ def encode_oriented_mesh(
         rotation = np.array(point["xyz_rotation_matrix"])
         rotate_and_translate_mesh(scaled, new_scene, index, rotation, translation)
 
-    output_path.mkdir(exist_ok=True, parents=True)
-    new_scene.export(output_path / "glb_mesh.glb", file_type="glb")
     return new_scene
