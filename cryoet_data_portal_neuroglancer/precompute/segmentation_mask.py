@@ -219,9 +219,9 @@ def create_segmentation_chunk(
     # data = np.moveaxis(data, (0, 1, 2), (2, 1, 0))
     for z, y, x in np.ndindex((gz, gy, gx)):
         block = data[z * bz : (z + 1) * bz, y * by : (y + 1) * by, x * bx : (x + 1) * bx]
-        unique_values, encoded_values = np.unique(block, return_inverse=True)
         if block.shape != block_size:
             block = pad_block(block, block_size)
+        unique_values, encoded_values = np.unique(block, return_inverse=True)
 
         lookup_table_offset, encoded_bits = _create_lookup_table(buffer, stored_lookup_tables, unique_values)
         encoded_values_offset = _create_encoded_values(buffer, encoded_values, encoded_bits)
@@ -372,9 +372,6 @@ def encode_segmentation(
         print(f"The output directory {output_path!s} already exists")
         return
     output_path.mkdir(parents=True, exist_ok=True)
-
-    if include_mesh:
-        block_size = (32, 32, 32)
 
     for c in create_segmentation(dask_data, block_size, convert_non_zero_to=convert_non_zero_to):
         c.write_to_directory(output_path / data_directory)
