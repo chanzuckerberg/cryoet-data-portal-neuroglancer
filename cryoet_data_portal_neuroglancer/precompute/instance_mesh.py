@@ -7,20 +7,26 @@ import trimesh
 from cryoet_data_portal_neuroglancer.utils import rotate_and_translate_mesh
 
 
-def encode_oriented_mesh(scene: "trimesh.Scene", data: list[dict[str, Any]]):
+def encode_oriented_mesh(
+    input_geometry: trimesh.Scene | trimesh.Trimesh,
+    data: list[dict[str, Any]],
+):
     """Turn a mesh into an oriented mesh with a list of orientations and translations
 
     Parameters
     ----------
-    scene : trimesh.Scene
-        The scene containing the mesh
+    input_geometry : trimesh.Scene | trimesh.Trimesh
+        The scene containing the mesh or the mesh itself
     data : list[dict[str, Any]]
         The list of orientations and translations
     """
-    geometry = scene.geometry
-    if len(geometry) > 1:
-        raise ValueError("Scene has more than one mesh")
-    mesh: trimesh.Trimesh = next(v for v in geometry.values())
+    if isinstance(input_geometry, trimesh.Trimesh):
+        mesh = input_geometry
+    else:
+        geometry = input_geometry.geometry
+        if len(geometry) > 1:
+            raise ValueError("Scene has more than one mesh")
+        mesh: trimesh.Trimesh = next(v for v in geometry.values())
     # The co-ordinate system of the mesh is in angstrom
     # As such, one unit of the mesh is 0.1 nm
     mesh_resolution = 0.1  # nm
