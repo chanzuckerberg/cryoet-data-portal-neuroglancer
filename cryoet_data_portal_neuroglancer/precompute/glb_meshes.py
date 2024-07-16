@@ -39,7 +39,9 @@ def process_decimated_mesh(
     max_lod = len(meshes)  # This is the number of LODs
     lods = meshes
     chunk_shape = np.ceil(mesh_shape / 2 ** (max_lod - 1))
-    print(f"Processing data at the level of {chunk_shape} for {mesh_shape} with {max_lod} LODs")
+    print(
+        f"Processing data into {[int(c) for c in chunk_shape]} sized chunks for a{mesh_shape} size mesh grid with {max_lod} LODs",
+    )
 
     if np.any(chunk_shape == 0):
         return (None, None)
@@ -408,7 +410,7 @@ def generate_sharded_mesh_from_lods(
         mesh_chunk_size=smallest_chunk_size,
     )
 
-    tq = LocalTaskQueue()
+    tq = LocalTaskQueue(progress=False)
     tasks = create_sharded_multires_mesh_tasks_from_glb(
         f"precomputed://file://{outfolder}",
         labels={label: lods},
