@@ -196,12 +196,93 @@ def generate_standalone_mesh_info(
     )
 
 
+def _determine_mesh_shape(mesh: trimesh.Trimesh):
+    # As resolution is fixed at 1.0, we don't need to care about it
+    # See igneous/tasks/mesh/multires.py for the full function
+    grid_origin = np.floor(np.min(mesh.vertices, axis=0))
+    mesh_shape = (np.max(mesh.vertices, axis=0) - grid_origin).astype(int)
+    return mesh_shape
+
+
+def determine_chunk_size_for_lod(
+    mesh_shape: tuple[int, int, int],
+    min_lod: int,
+    max_lod: int,
+    min_chunk_dim: int,
+):
+    """
+    Determine the chunk size for a given mesh shape and LOD levels
+
+    Parameters
+    ----------
+    mesh_shape : tuple[int, int, int]
+        The shape of the mesh
+    min_lod : int
+        The minimum required levels of detail
+    max_lod : int
+        The maximum desired levels of detail
+    min_chunk_dim : int
+        If the chunk size is smaller than this, it will be increased
+        This means that the chunk size will be at least min_chunk_dim x min_chunk_dim x min_chunk_dim
+        This can result in not actually reaching the desired min LOD levels
+
+    Returns
+    -------
+    tuple[int, int, int]
+        The chunk size
+    """
+
+    def _determine_chunk_shape_for_lod(lod_level):
+        return 2 ** np.floor(np.log2(mesh_shape / 2**lod_level))
+
+    # Find a power of 2 chunk size such that the minimum LOD is at least min_lod
+    chunk_shape = _determine_chunk_shape_for_lod(min_lod)
+
+    # If the chunk size is smaller than the minimum chunk dimension
+    # then we can't respect that min_lod and need to increase in size
+    if np.any(chunk_shape < min_chunk_dim):
+        chunk_shape = 2 ** np.floor(np.log2(mesh_shape / min_chunk_dim))
+    else:
+        # If all of the chunk dimensions have not gone below the minimum chunk dimension
+        # then we might be able to use a smaller chunk, up to the max lod
+        for lod_level in range(min_lod, max_lod + 1):
+            if np.all(chunk_shape / 2 > min_chunk_dim):
+                chunk_shape = _determine_chunk_shape_for_lod(lod_level)
+    return tuple([int(x) for x in chunk_shape.astype(int)])
+
+
 def generate_standalone_sharded_multiresolution_mesh(
     glb: trimesh.Scene | str | Path,
     outfolder: str | Path,
     label: int = 1,
     size: tuple[float, float, float] | None = None,
+    min_lod: int = 2,
+    max_lod: int = 5,
+    min_chunk_dim: int = 16,
 ):
+    """
+    Generate a standalone sharded multiresolution mesh from a glb file or scene
+
+    Parameters
+    ----------
+    glb : trimesh.Scene | str | Path
+        The glb file or scene to generate the mesh from
+    outfolder : str | Path
+        The output folder
+    label : int, optional
+        The label to use, by default 1
+    size : tuple[float, float, float] | None, optional
+        The size of the mesh bounding box, by default None
+    min_lod : int, optional
+        The minimum required level of detail, by default 2
+        This would give three levels of detail, 0, 1, and 2
+    max_lod : int, optional
+        The maximum desired level of detail, by default 5
+    min_chunk_dim : int, optional
+        If the chunk size is smaller than this, it will be increased, by default 8
+        This means that the chunk size will be at least 8x8x8
+        This can result in not actually reaching the desired min LOD levels
+    """
     scene: trimesh.Scene = trimesh.load(glb, force="scene") if isinstance(glb, (str, Path)) else glb
     mesh = scene.dump(concatenate=True)
     _, bb2 = mesh.bounds
@@ -212,11 +293,20 @@ def generate_standalone_sharded_multiresolution_mesh(
 
     size_x, size_y, size_z = size if size is not None else _compute_size()
 
+    mesh_shape = _determine_mesh_shape(mesh)
+    smallest_chunk_size = determine_chunk_size_for_lod(
+        mesh_shape,
+        min_lod,
+        max_lod,
+        min_chunk_dim,
+    )
+
     # The resolution is not handled here, but in the neuroglancer state
     generate_standalone_mesh_info(
         outfolder,
         size=(size_x, size_y, size_z),
         resolution=1.0,
+        mesh_chunk_size=smallest_chunk_size,
     )
 
     tq = LocalTaskQueue()
@@ -225,6 +315,7 @@ def generate_standalone_sharded_multiresolution_mesh(
         labels={label: mesh},
         mesh_dir="mesh",
         num_lod=10,
+        min_chunk_size=smallest_chunk_size,
     )
     tq.insert(tasks)
     tq.execute()
