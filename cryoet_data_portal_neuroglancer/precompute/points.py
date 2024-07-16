@@ -104,7 +104,11 @@ class PointAnnotationEncoder(AnnotationEncoder):
             ],
         )
 
-    def process_data_to_writer_specifications(self, data: list[dict[str, Any]], metadata: dict[str, Any]):
+    def process_data_to_writer_specifications(
+        self,
+        data: list[dict[str, Any]],
+        metadata: dict[str, Any],
+    ):
         # Using 10nm as default size
         diameter = metadata["annotation_object"].get("diameter", 100) / 10
         for index, point in enumerate(data):
@@ -124,10 +128,10 @@ def encode_annotation(
     output_path: Path,
     resolution: float,
     is_oriented: bool = False,
-    names_by_id: dict[int, str] = None,
+    names_by_id: Optional[dict[int, str]] = None,
     label_key_mapper: Callable[[dict[str, Any]], int] = lambda x: 0,
     color_mapper: Callable[[dict[str, Any]], tuple[int, int, int]] = lambda x: (255, 255, 255),
-    shard_by_id: Optional[tuple[int, int]] = (0, 10),
+    shard_by_id: Optional[tuple[int, int] | bool] = (0, 10),
     oriented_line_parameters: tuple[float, LineLengthMethod] = (1.5, LineLengthMethod.SCALE),
 ) -> None:
     """Encode annotation data to Neuroglancer format.
