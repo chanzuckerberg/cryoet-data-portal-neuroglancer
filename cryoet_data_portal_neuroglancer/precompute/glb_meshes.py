@@ -299,7 +299,7 @@ def generate_standalone_mesh_info(
 def decimate_mesh(
     mesh: trimesh.Trimesh,
     num_lods: int,
-    aggressiveness: float = 7.0,
+    aggressiveness: float = 5.5,
     as_trimesh: bool = False,
 ) -> list[Mesh] | list[trimesh.Trimesh]:
     """
@@ -389,7 +389,7 @@ def generate_sharded_mesh_from_lods(
 
     # Find the first LOD that has less than max_faces
     found = False
-    for first_lod, lod in enumerate(lods):
+    for first_lod, lod in enumerate(lods): # noqa
         if len(lod.faces) < max_faces:
             found = True
             break
@@ -465,8 +465,8 @@ def generate_standalone_sharded_multiresolution_mesh(
     max_lod : int, optional
         The maximum desired level of detail, by default 5
     min_chunk_dim : int, optional
-        If the chunk size is smaller than this, it will be increased, by default 8
-        This means that the chunk size will be at least 8x8x8
+        If the chunk size is smaller than this, it will be increased, by default 16
+        This means that the chunk size will be at least 16x16x16
         This can result in not actually reaching the desired min LOD levels
     """
     scene: trimesh.Scene = trimesh.load(glb, force="scene") if isinstance(glb, (str, Path)) else glb
