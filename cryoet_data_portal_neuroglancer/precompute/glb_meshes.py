@@ -67,8 +67,9 @@ def process_decimated_mesh(
 
     vqb = int(cv.mesh.meta.info["vertex_quantization_bits"])
 
+    print(f"Encoding octree containing {len(lods)} LODs with Draco")
     mesh_binaries = []
-    for lod, submeshes in tqdm(enumerate(lods), desc="Encoding LODs with Draco"):
+    for lod, submeshes in enumerate(lods):
         for frag_no, submesh in enumerate(submeshes):
             submesh.vertices = to_stored_model_space(
                 submesh.vertices,
@@ -380,13 +381,27 @@ def determine_chunk_size_for_lod(
 def generate_sharded_mesh_from_lods(
     lods: list[trimesh.Scene],
     outfolder: str | Path,
+    max_faces: int = int(2 * 1e6),
     label: int = 1,
     size: tuple[float, float, float] | None = None,
 ):
     lods = [lod.dump(concatenate=True) for lod in lods]
-    mesh = lods[0]
-    num_lod = len(lods)
-    _, bb2 = lods[0].bounds
+
+    # Find the first LOD that has less than max_faces
+    found = False
+    for first_lod, lod in enumerate(lods):
+        if len(lod.faces) < max_faces:
+            found = True
+            break
+    if not found:
+        raise ValueError("No LODs have less than the maximum number of faces")
+    num_lod = len(lods) - first_lod
+    print(
+        f"Using LOD {first_lod} as the first LOD, with {len(lods[first_lod].faces)} faces, which is less than {max_faces} maximum faces. There are {num_lod} LODs remaining in total.",
+    )
+
+    mesh = lods[first_lod]
+    _, bb2 = lods[first_lod].bounds
 
     def _compute_size():
         max_bound = np.ceil(bb2)
@@ -413,7 +428,7 @@ def generate_sharded_mesh_from_lods(
     tq = LocalTaskQueue(progress=False)
     tasks = create_sharded_multires_mesh_tasks_from_glb(
         f"precomputed://file://{outfolder}",
-        labels={label: lods},
+        labels={label: lods[first_lod:]},
         mesh_dir="mesh",
         num_lod=num_lod,
         min_chunk_size=smallest_chunk_size,
