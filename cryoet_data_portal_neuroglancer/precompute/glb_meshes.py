@@ -381,25 +381,12 @@ def determine_chunk_size_for_lod(
 def generate_sharded_mesh_from_lods(
     lods: list[trimesh.Scene],
     outfolder: str | Path,
-    max_faces: int = int(2 * 1e6),
     label: int = 1,
     size: tuple[float, float, float] | None = None,
 ):
     lods = [lod.dump(concatenate=True) for lod in lods]
-
-    # Find the first LOD that has less than max_faces
-    found = False
-    for first_lod, lod in enumerate(lods): # noqa
-        if len(lod.faces) < max_faces:
-            found = True
-            break
-    if not found:
-        raise ValueError("No LODs have less than the maximum number of faces")
-    num_lod = len(lods) - first_lod
-    print(
-        f"Using LOD {first_lod} as the first LOD, with {len(lods[first_lod].faces)} faces, which is less than {max_faces} maximum faces. There are {num_lod} LODs remaining in total.",
-    )
-
+    num_lod = len(lods)
+    first_lod = 0
     mesh = lods[first_lod]
     _, bb2 = lods[first_lod].bounds
 

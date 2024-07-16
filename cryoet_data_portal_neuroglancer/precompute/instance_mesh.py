@@ -11,7 +11,8 @@ from cryoet_data_portal_neuroglancer.utils import rotate_and_translate_mesh
 def encode_oriented_mesh(
     input_geometry: trimesh.Scene | trimesh.Trimesh,
     data: list[dict[str, Any]],
-    num_lods: int = 1,
+    max_lod: int = 1,
+    max_faces: int = 5_000_000,
 ) -> list[trimesh.Scene]:
     """Turn a mesh into an oriented mesh with a list of orientations and translations
 
@@ -21,8 +22,11 @@ def encode_oriented_mesh(
         The scene containing the mesh or the mesh itself
     data : list[dict[str, Any]]
         The list of orientations and translations
-    num_lods : int, optional
-        The number of levels of detail to generate, by default 1
+    max_lod : int, optional
+        The max level of detail, by default 1. Starts at 0 for highest res.
+    max_faces : int, optional
+        The maximum number of faces per mesh, by default 5million
+        This determines the minimum LOD
 
     Returns
     -------
@@ -47,10 +51,21 @@ def encode_oriented_mesh(
     # of the tomogram inside of the neuroglancer viewer
     # instead of at the time of encoding the mesh
 
-    decimated_meshes = decimate_mesh(scaled, num_lods, as_trimesh=True)
+    decimated_meshes = decimate_mesh(scaled, max_lod + 1, as_trimesh=True)
+    num_faces_per_lod = np.array([len(mesh.faces) for mesh in decimated_meshes])
+    total_number_of_points = len(data)
+    total_faces_per_lod = num_faces_per_lod * total_number_of_points
+    if np.all(total_faces_per_lod > max_faces):
+        raise ValueError(
+            f"Total faces per LOD {total_faces_per_lod} are all greater than the maximum faces {max_faces}."
+        )
+    first_lod = np.argmax(total_faces_per_lod <= max_faces)
+    print(
+        f"Using LOD {first_lod} as the first LOD, with {total_faces_per_lod[first_lod]} faces, which is less than {max_faces} maximum faces. There are {max_lod - first_lod} LODs remaining in total.",
+    )
 
     results = []
-    for mesh in tqdm(decimated_meshes, desc="Processing meshes into LODs and positions"):
+    for mesh in tqdm(decimated_meshes[first_lod:], desc="Processing meshes into LODs and positions"):
         new_scene = trimesh.Scene()
         for index, point in enumerate(data):
             translation = np.array([point["location"][k] for k in ("x", "y", "z")])
