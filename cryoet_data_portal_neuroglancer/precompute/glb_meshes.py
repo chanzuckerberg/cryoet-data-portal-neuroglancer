@@ -40,7 +40,7 @@ def process_decimated_mesh(
     lods = meshes
     chunk_shape = np.ceil(mesh_shape / 2 ** (max_lod - 1))
     print(
-        f"Processing data into {[int(c) for c in chunk_shape]} sized chunks for a{mesh_shape} size mesh grid with {max_lod} LODs",
+        f"Processing data into {[int(c) for c in chunk_shape]} sized chunks for a {mesh_shape} size mesh grid with {max_lod} LODs",
     )
 
     if np.any(chunk_shape == 0):
