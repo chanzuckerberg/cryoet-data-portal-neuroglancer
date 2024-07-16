@@ -11,7 +11,7 @@ from cloudvolume import CloudVolume, Mesh
 from cloudvolume.datasource.precomputed.sharding import ShardingSpecification
 from igneous.task_creation.common import compute_shard_params_for_hashed
 from igneous.task_creation.mesh import configure_multires_info
-from igneous.tasks.mesh.multires import create_mesh_shard
+from igneous.tasks.mesh.multires import create_mesh_shard, generate_lods
 from taskqueue import LocalTaskQueue, queueable
 
 
@@ -196,6 +196,33 @@ def generate_standalone_mesh_info(
     )
 
 
+def decimate_mesh(
+    mesh: trimesh.Trimesh,
+    num_lods: int,
+    aggressiveness: float = 7.0,
+    as_trimesh: bool = False,
+) -> list[Mesh] | list[trimesh.Trimesh]:
+    """
+    Decimate a mesh by a factor
+
+    Parameters
+    ----------
+    mesh : trimesh.Trimesh
+        The mesh to decimate
+    num_lods : int
+        The number of levels of detail to generate
+    """
+    unused = 0
+    lods = generate_lods(unused, mesh, num_lods, aggressiveness=aggressiveness)
+    if as_trimesh:
+        return [
+            trimesh.Trimesh(vertices=mesh.vertices, faces=mesh.faces)
+            for mesh in lods
+            if not isinstance(mesh, trimesh.Trimesh)
+        ]
+    return lods
+
+
 def _determine_mesh_shape(mesh: trimesh.Trimesh):
     # As resolution is fixed at 1.0, we don't need to care about it
     # See igneous/tasks/mesh/multires.py for the full function
@@ -300,6 +327,8 @@ def generate_standalone_sharded_multiresolution_mesh(
         max_lod,
         min_chunk_dim,
     )
+    min_chunk_size = np.array(smallest_chunk_size, dtype=int)
+    computed_max_lod = int(max(np.min(np.log2(mesh_shape / min_chunk_size)), 0))
 
     # The resolution is not handled here, but in the neuroglancer state
     generate_standalone_mesh_info(
@@ -314,7 +343,7 @@ def generate_standalone_sharded_multiresolution_mesh(
         f"precomputed://file://{outfolder}",
         labels={label: mesh},
         mesh_dir="mesh",
-        num_lod=10,
+        num_lod=computed_max_lod,
         min_chunk_size=smallest_chunk_size,
     )
     tq.insert(tasks)
