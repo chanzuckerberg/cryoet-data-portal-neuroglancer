@@ -419,7 +419,7 @@ def generate_sharded_mesh_from_lods(
         min_chunk_size=smallest_chunk_size,
     )
     tq.insert(tasks)
-    tq.execute()
+    tq.execute(progress=False)
 
 
 def generate_standalone_sharded_multiresolution_mesh(
