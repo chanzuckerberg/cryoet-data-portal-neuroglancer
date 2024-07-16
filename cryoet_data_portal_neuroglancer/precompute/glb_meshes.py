@@ -19,6 +19,7 @@ from igneous.task_creation.common import compute_shard_params_for_hashed
 from igneous.task_creation.mesh import configure_multires_info
 from igneous.tasks.mesh.multires import create_mesh_shard, create_octree_level_from_mesh, generate_lods, process_mesh
 from taskqueue import LocalTaskQueue, queueable
+from tqdm import tqdm
 
 
 def process_decimated_mesh(
@@ -38,11 +39,15 @@ def process_decimated_mesh(
     max_lod = len(meshes)  # This is the number of LODs
     lods = meshes
     chunk_shape = np.ceil(mesh_shape / 2 ** (max_lod - 1))
+    print(f"Processing data at the level of {chunk_shape} for {mesh_shape} with {max_lod} LODs")
 
     if np.any(chunk_shape == 0):
         return (None, None)
 
-    lods = [create_octree_level_from_mesh(lods[lod], chunk_shape, lod, len(lods)) for lod in range(len(lods))]
+    lods = [
+        create_octree_level_from_mesh(lods[lod], chunk_shape, lod, len(lods))
+        for lod in tqdm(range(len(lods)), desc="Processing LODs into octree")
+    ]
     fragment_positions = [nodes for submeshes, nodes in lods]
     lods = [submeshes for submeshes, nodes in lods]
 
@@ -61,7 +66,7 @@ def process_decimated_mesh(
     vqb = int(cv.mesh.meta.info["vertex_quantization_bits"])
 
     mesh_binaries = []
-    for lod, submeshes in enumerate(lods):
+    for lod, submeshes in tqdm(enumerate(lods), desc="Encoding LODs with Draco"):
         for frag_no, submesh in enumerate(submeshes):
             submesh.vertices = to_stored_model_space(
                 submesh.vertices,

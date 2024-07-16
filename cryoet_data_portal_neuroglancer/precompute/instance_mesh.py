@@ -50,7 +50,7 @@ def encode_oriented_mesh(
     decimated_meshes = decimate_mesh(scaled, num_lods, as_trimesh=True)
 
     results = []
-    for mesh in tqdm(decimated_meshes, desc="Processing LODs"):
+    for mesh in tqdm(decimated_meshes, desc="Processing meshes into LODs and positions"):
         new_scene = trimesh.Scene()
         for index, point in enumerate(data):
             translation = np.array([point["location"][k] for k in ("x", "y", "z")])
