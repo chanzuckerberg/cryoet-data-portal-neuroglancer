@@ -35,12 +35,16 @@ def encode_oriented_mesh(
     if len(geometry) > 1:
         raise ValueError("Scene has more than one mesh")
     mesh: trimesh.Trimesh = next(v for v in geometry.values())
-    # Assuming the mesh resolution is in picometers
-    mesh_resolution = scene.scale * 0.001
-    print(f"Mesh resolution: {mesh_resolution}")
-    resolution_ratio = mesh_resolution / real_resolution
-    print(f"Resolution ratio: {resolution_ratio}")
-    scaled = mesh.copy().apply_scale(resolution_ratio)
+    # The co-ordinate system of the mesh is in angstrom
+    # As such, one unit of the mesh is 0.1 nm
+    mesh_resolution = 0.1 # nm
+    # Since meshes are in angstrom, we need to scale it to nanometers
+    scaled = mesh.copy().apply_scale(mesh_resolution)
+    # We don't need to scale to the real tomogram resolution, because we make
+    # the hard assumption that the resolution of the output mesh
+    # is 1.0 nm, and then we scale the mesh to the real resolution
+    # of the tomogram inside of the neuroglancer viewer
+    # instead of at the time of encoding the mesh
     new_scene = trimesh.Scene()
     for index, point in tqdm.tqdm(
         enumerate(data),
