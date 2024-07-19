@@ -314,7 +314,18 @@ def create_mesh(
     print(f"Wrote segmentation mesh to {mesh_path}")
 
 
-def generate_mesh(precomputed_segmentation_path: Path, mesh_directory: str, num_lod: int) -> None:
+def generate_mesh(precomputed_segmentation_path: Path, mesh_directory: str, num_lod: int):
+    """Generates the meshes for a segmentation stored as a precomputed Neuroglancer format.
+
+    Parameters
+    ----------
+    precomputed_segmentation_path: Path
+        The path towards the segmentation stored as a precomputed Neuroglancer format
+    mesh_directory: str
+        The name of the directory that will receive the mesh information
+    num_lod: int
+        The number maximal of lod that needs to be generated
+    """
     tq = LocalTaskQueue()
 
     path = f"precomputed://file://{precomputed_segmentation_path}"
@@ -346,7 +357,7 @@ def encode_segmentation(
     block_size: tuple[int, int, int] = (64, 64, 64),
     data_directory: str = "data",
     delete_existing: bool = False,
-    convert_non_zero_to: Optional[int] = 0,
+    convert_non_zero_to: int | None = 0,
     include_mesh: bool = False,
     mesh_directory: str = "mesh",
     num_lod: int = 5,
@@ -380,11 +391,11 @@ def encode_segmentation(
         raise ValueError(f"Expected 3 chunk dimensions, got {len(dask_data.chunksize)}")
 
     metadata = _create_metadata(
-        dask_data.chunksize,
+        dask_data.chunksize,  # type: ignore
         block_size,
         dask_data.shape,
         data_directory,
-        resolution,  # type: ignore
+        resolution,
         mesh_directory=mesh_directory if include_mesh else None,
     )
     write_metadata(metadata, output_path)

@@ -1,3 +1,4 @@
+import typing
 from typing import Any
 
 import numpy as np
@@ -44,7 +45,7 @@ def encode_oriented_mesh(
     # As such, one unit of the mesh is 0.1 nm
     mesh_resolution = 0.1  # nm
     # Since meshes are in angstrom, we need to scale it to nanometers
-    scaled = mesh.copy().apply_scale(mesh_resolution)
+    scaled = typing.cast(trimesh.Trimesh, mesh.copy().apply_scale(mesh_resolution))
     # We don't need to scale to the real tomogram resolution, because we make
     # the hard assumption that the resolution of the output mesh
     # is 1.0 nm, and then we scale the mesh to the real resolution
@@ -57,7 +58,7 @@ def encode_oriented_mesh(
     total_faces_per_lod = num_faces_per_lod * total_number_of_points
     if np.all(total_faces_per_lod > max_faces):
         raise ValueError(
-            f"Total faces per LOD {total_faces_per_lod} are all greater than the maximum faces {max_faces}."
+            f"Total faces per LOD {total_faces_per_lod} are all greater than the maximum faces {max_faces}.",
         )
     first_lod = np.argmax(total_faces_per_lod <= max_faces)
     print(
@@ -65,7 +66,7 @@ def encode_oriented_mesh(
     )
 
     results = []
-    for mesh in tqdm(decimated_meshes[first_lod:], desc="Processing meshes into LODs and positions"):
+    for mesh in tqdm(decimated_meshes[first_lod:], desc="Processing meshes into LODs and positions"):  # type: ignore
         new_scene = trimesh.Scene()
         for index, point in enumerate(data):
             translation = np.array([point["location"][k] for k in ("x", "y", "z")])

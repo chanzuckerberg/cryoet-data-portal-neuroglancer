@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urljoin
 
 from scipy.spatial.transform import Rotation
@@ -59,8 +59,8 @@ def generate_point_layer(
 
 def generate_oriented_point_layer(
     source: str,
-    name: str = None,
-    url: str = None,
+    name: str | None = None,
+    url: str | None = None,
     color: str = "#FFFFFF",
     point_size_multiplier: float = 1.0,
     line_width: float = 1.0,

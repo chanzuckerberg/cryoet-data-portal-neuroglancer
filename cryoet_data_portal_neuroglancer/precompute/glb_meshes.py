@@ -1,7 +1,7 @@
 import json
 from functools import partial
 from pathlib import Path
-from typing import Iterator, Optional, Tuple
+from typing import Iterator, cast
 
 import DracoPy
 import igneous.tasks.mesh.multires
@@ -27,9 +27,9 @@ def process_decimated_mesh(
     label: int,
     meshes: list[Mesh],
     num_lod: int,
-    min_chunk_size: Tuple[int, int, int] = (512, 512, 512),
+    min_chunk_size: tuple[int, int, int] = (512, 512, 512),
     draco_compression_level: int = 7,
-) -> Tuple[MultiLevelPrecomputedMeshManifest, Mesh]:
+) -> tuple[MultiLevelPrecomputedMeshManifest, Mesh] | tuple[None, None]:
     grid_origin = np.floor(np.min(meshes[0].vertices, axis=0))
     mesh_shape = (np.max(meshes[0].vertices, axis=0) - grid_origin).astype(int)
 
@@ -110,10 +110,10 @@ def MultiResShardedMeshFromGlbTask(  # noqa
     shard_no: str,
     labels: dict[int, Mesh],
     draco_compression_level: int = 1,
-    mesh_dir: Optional[str] = None,
-    cache: Optional[bool] = False,
+    mesh_dir: str | None = None,
+    cache: bool | None = False,
     num_lod: int = 1,
-    spatial_index_db: Optional[str] = None,
+    spatial_index_db: str | None = None,
     min_chunk_size: tuple[int, int, int] = (128, 128, 128),
     progress: bool = False,
 ):
@@ -148,9 +148,9 @@ def MultiResShardedMeshFromGlbTask(  # noqa
     )
 
 
-def create_sharded_multires_mesh_tasks_from_glb(
+def _create_sharded_multires_mesh_tasks_from_glb(
     cloudpath: str,
-    labels: dict[int, Mesh],
+    labels: dict[int, Mesh | trimesh.Trimesh | list[trimesh.Trimesh]],
     shard_index_bytes=2**13,
     minishard_index_bytes=2**15,
     min_shards: int = 1,
@@ -158,11 +158,11 @@ def create_sharded_multires_mesh_tasks_from_glb(
     draco_compression_level: int = 7,
     vertex_quantization_bits: int = 16,
     minishard_index_encoding="gzip",
-    mesh_dir: Optional[str] = None,
-    spatial_index_db: Optional[str] = None,
-    cache: Optional[bool] = False,
+    mesh_dir: str = "",
+    spatial_index_db: str | None = None,
+    cache: bool | None = False,
     min_chunk_size: tuple[int, int, int] = (256, 256, 256),
-    max_labels_per_shard: Optional[int] = None,
+    max_labels_per_shard: int | None = None,
 ) -> Iterator[MultiResShardedMeshFromGlbTask]:
 
     mesh_info = configure_multires_info(cloudpath, vertex_quantization_bits, mesh_dir)
@@ -313,7 +313,7 @@ def decimate_mesh(
         The number of levels of detail to generate
     """
     unused = 0
-    lods = generate_lods(unused, mesh, num_lods, aggressiveness=aggressiveness)
+    lods = generate_lods(unused, mesh, num_lods, aggressiveness=aggressiveness)  # type: ignore
     if as_trimesh:
         return [
             trimesh.Trimesh(vertices=mesh.vertices, faces=mesh.faces)
@@ -336,7 +336,7 @@ def determine_chunk_size_for_lod(
     min_lod: int,
     max_lod: int,
     min_chunk_dim: int,
-):
+) -> tuple[int, int, int]:
     """
     Determine the chunk size for a given mesh shape and LOD levels
 
@@ -368,14 +368,15 @@ def determine_chunk_size_for_lod(
     # If the chunk size is smaller than the minimum chunk dimension
     # then we can't respect that min_lod and need to increase in size
     if np.any(chunk_shape < min_chunk_dim):
-        chunk_shape = 2 ** np.floor(np.log2(mesh_shape / min_chunk_dim))
+        chunk_shape = 2 ** np.floor(np.log2(mesh_shape / min_chunk_dim))  # type: ignore
     else:
         # If all of the chunk dimensions have not gone below the minimum chunk dimension
         # then we might be able to use a smaller chunk, up to the max lod
         for lod_level in range(min_lod, max_lod + 1):
             if np.all(chunk_shape / 2 > min_chunk_dim):
                 chunk_shape = _determine_chunk_shape_for_lod(lod_level)
-    return tuple([int(x) for x in chunk_shape.astype(int)])
+    x, y, z = chunk_shape.astype(int)
+    return (int(x), int(y), int(z))
 
 
 def generate_sharded_mesh_from_lods(
@@ -384,17 +385,17 @@ def generate_sharded_mesh_from_lods(
     label: int = 1,
     size: tuple[float, float, float] | None = None,
 ):
-    lods = [lod.dump(concatenate=True) for lod in lods]
-    num_lod = len(lods)
+    concatenated_lods: list[trimesh.Trimesh] = cast(list[trimesh.Trimesh], [lod.dump(concatenate=True) for lod in lods])
+    num_lod = len(concatenated_lods)
     first_lod = 0
-    mesh = lods[first_lod]
-    _, bb2 = lods[first_lod].bounds
+    mesh = concatenated_lods[first_lod]
+    _, bb2 = concatenated_lods[first_lod].bounds
 
-    def _compute_size():
-        max_bound = np.ceil(bb2)
+    def _compute_size(bbx):
+        max_bound = np.ceil(bbx)
         return np.maximum(max_bound, np.full(3, 1))
 
-    size_x, size_y, size_z = size if size is not None else _compute_size()
+    size_x, size_y, size_z = size if size is not None else _compute_size(bb2)
 
     mesh_shape = _determine_mesh_shape(mesh)
     smallest_chunk_size = determine_chunk_size_for_lod(
@@ -413,9 +414,9 @@ def generate_sharded_mesh_from_lods(
     )
 
     tq = LocalTaskQueue(progress=False)
-    tasks = create_sharded_multires_mesh_tasks_from_glb(
+    tasks = _create_sharded_multires_mesh_tasks_from_glb(
         f"precomputed://file://{outfolder}",
-        labels={label: lods[first_lod:]},
+        labels={label: concatenated_lods[first_lod:]},
         mesh_dir="mesh",
         num_lod=num_lod,
         min_chunk_size=smallest_chunk_size,
@@ -456,9 +457,11 @@ def generate_standalone_sharded_multiresolution_mesh(
         This means that the chunk size will be at least 16x16x16
         This can result in not actually reaching the desired min LOD levels
     """
-    scene: trimesh.Scene = trimesh.load(glb, force="scene") if isinstance(glb, (str, Path)) else glb
-    mesh = scene.dump(concatenate=True)
-    _, bb2 = mesh.bounds
+    scene: trimesh.Scene = (
+        cast(trimesh.Scene, trimesh.load(glb, force="scene")) if isinstance(glb, (str, Path)) else glb
+    )
+    mesh: trimesh.Trimesh = scene.dump(concatenate=True)  # type: ignore
+    _, bb2 = mesh.bounds  # type: ignore
 
     def _compute_size():
         max_bound = np.ceil(bb2)
@@ -485,7 +488,7 @@ def generate_standalone_sharded_multiresolution_mesh(
     )
 
     tq = LocalTaskQueue()
-    tasks = create_sharded_multires_mesh_tasks_from_glb(
+    tasks = _create_sharded_multires_mesh_tasks_from_glb(
         f"precomputed://file://{outfolder}",
         labels={label: mesh},
         mesh_dir="mesh",
