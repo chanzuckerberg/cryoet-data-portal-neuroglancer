@@ -150,4 +150,4 @@ def _direct_composite_along_ray(
     accumulated_opacity = accumulated_color_and_opacity[3]
     final_color = accumulated_color / accumulated_opacity
     final_opacity = 1.0 - accumulated_revealage
-    return final_color * final_opacity, final_opacity**2
+    return np.clip(final_color * final_opacity, 0.0, 1.0), np.clip(final_opacity**2, 0.0, 1.0)
