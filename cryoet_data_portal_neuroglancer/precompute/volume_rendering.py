@@ -1,42 +1,28 @@
+import multiprocessing as mp
+from multiprocessing import shared_memory
+from typing import Optional
+
 import numpy as np
 from tqdm import tqdm
 
 
-def volume_render(
-    volume: "np.ndarray",
-    contrast_limits: tuple[float, float],
-    exponential_gain: float = 0.0,
-    depth_samples: int = 64,
+def _vr_worker(
+    pixel_indices_chunk,
+    shm_name_volume,
+    volume_shape,
+    contrast_limits,
+    exponential_gain,
+    depth_samples,
+    shm_name_image,
+    image_shape,
 ):
-    """Volume rendering of a 3D numpy array.
+    existing_shm_volume = shared_memory.SharedMemory(name=shm_name_volume)
+    volume = np.ndarray(volume_shape, dtype=np.float32, buffer=existing_shm_volume.buf)
 
-    Parameters
-    ----------
-        volume: np.ndarray
-            3D numpy array to render.
-        contrast_limits: tuple[float, float]
-            Contrast limits for the volume.
-        exponential_gain: float, optional
-            Exponential gain for the volume rendering.
-            By default 0.0.
-        depth_samples: int, optional
-            Number of depth samples for the volume rendering.
-            By default 64.
+    existing_shm_image = shared_memory.SharedMemory(name=shm_name_image)
+    volume_rendered_image = np.ndarray(image_shape, dtype=np.float32, buffer=existing_shm_image.buf)
 
-    Returns
-    -------
-        np.ndarray
-            Volume rendered image.
-    """
-    volume_rendered_image = np.zeros(
-        (volume.shape[1], volume.shape[2], 4),
-        dtype=np.float32,
-    )
-    for y, x in tqdm(
-        np.ndindex(volume.shape[1], volume.shape[2]),
-        total=volume.shape[1] * volume.shape[2],
-        desc="Volume Rendering on ray",
-    ):
+    for y, x in pixel_indices_chunk:
         color, opacity = _direct_composite_along_ray(
             (x, y),
             depth_samples,
@@ -46,7 +32,69 @@ def volume_render(
         )
         volume_rendered_image[y, x] = [*color, opacity]
 
-    return volume_rendered_image
+    existing_shm_volume.close()
+    existing_shm_image.close()
+
+
+def volume_render(
+    volume: "np.ndarray",
+    contrast_limits: tuple[float, float],
+    exponential_gain: float = 0.0,
+    depth_samples: int = 64,
+    num_workers: Optional[int] = None,
+):
+    if num_workers is None:
+        num_workers = mp.cpu_count()
+
+    volume_shape = volume.shape
+    volume_rendered_image_shape = (volume.shape[1], volume.shape[2], 4)
+
+    # Create shared memory for volume
+    shm_volume = shared_memory.SharedMemory(create=True, size=volume.nbytes)
+    shared_volume = np.ndarray(volume_shape, dtype=np.float32, buffer=shm_volume.buf)
+    shared_volume[:] = volume[:]
+
+    # Create shared memory for the rendered image
+    shm_image = shared_memory.SharedMemory(
+        create=True, size=np.prod(volume_rendered_image_shape) * np.float32().itemsize
+    )
+
+    try:
+        pixel_indices = list(np.ndindex(volume.shape[1], volume.shape[2]))
+        chunk_size = len(pixel_indices) // num_workers
+
+        chunks = [pixel_indices[i : i + chunk_size] for i in range(0, len(pixel_indices), chunk_size)]
+
+        processes = [
+            mp.Process(
+                target=_vr_worker,
+                args=(
+                    chunk,
+                    shm_volume.name,
+                    volume_shape,
+                    contrast_limits,
+                    exponential_gain,
+                    depth_samples,
+                    shm_image.name,
+                    volume_rendered_image_shape,
+                ),
+            )
+            for chunk in chunks
+        ]
+
+        for p in processes:
+            p.start()
+
+        for p in tqdm(processes, desc="Processing volume rendering in chunks"):
+            p.join()
+    except Exception as e:
+        print(f"Error processing volume rendering: {e}")
+    # Clean up shared memory
+    finally:
+        shm_volume.close()
+        shm_volume.unlink()
+
+    return shm_image, volume_rendered_image_shape
 
 
 def _inverse_lerp(start_value: float, end_value: float, value: float) -> float:
