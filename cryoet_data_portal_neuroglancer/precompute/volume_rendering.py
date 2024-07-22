@@ -113,8 +113,8 @@ def _order_independent_transparency_wieght(alpha: float, depth: float) -> float:
 
 def _compute_depth_from_sample_index(sample_index: int, depth_samples: int) -> float:
     # -1.0 to 1.0, with 0.0 at the center and 1.0 at the end
-    start = -0.8  # Remove the first 10% depth
-    end = 0.2  # Remove the last 40% of the depth
+    start = -1.0  # Remove the first 10% depth
+    end = 0.0  # Remove the last 40% of the depth
 
     return _lerp(start, end, (sample_index + 0.5) / depth_samples)
 
