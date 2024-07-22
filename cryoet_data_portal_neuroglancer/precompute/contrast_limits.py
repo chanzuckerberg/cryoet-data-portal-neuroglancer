@@ -92,7 +92,7 @@ class ContrastLimitCalculator:
         )
 
     @abstractmethod
-    def calculate_contrast_limits_from_percentiles(
+    def contrast_limits_from_percentiles(
         self,
         low_percentile: float = 1.0,
         high_percentile: float = 99.0,
@@ -116,7 +116,7 @@ class ContrastLimitCalculator:
 
         return low_value, high_value
 
-    def calcalate_contrast_limits_from_mean_and_rms(
+    def contrast_limits_from_mean(
         self,
         multipler: float = 3.0,
     ) -> tuple[float, float]:
@@ -124,10 +124,9 @@ class ContrastLimitCalculator:
 
         Parameters
         ----------
-            mean: float
-                The mean value of the volume.
-            rms: float
-                The RMS value of the volume.
+            multipler: float, optional.
+                The multiplier for the RMS value.
+                By default 3.0.
 
         Returns
         -------
