@@ -29,10 +29,10 @@ def _restrict_volume_around_central_z_slice(
         np.ndarray
             3D numpy array. The restricted volume.
     """
-    central_z_slice = central_z_slice or volume.shape[0] // 2
-    z_min = max(0, central_z_slice - z_radius)
-    z_max = min(volume.shape[0], central_z_slice + z_radius + 1)
-    return volume[z_min:z_max, :, :]
+    central_z_slice = central_z_slice or (0.5 * volume.shape[0] - 0.5)
+    z_min = max(0, int(np.ceil(central_z_slice - z_radius)))
+    z_max = min(volume.shape[0], int(np.floor(central_z_slice + z_radius) + 1))
+    return volume[z_min:z_max]
 
 
 class ContrastLimitCalculator:
@@ -43,8 +43,7 @@ class ContrastLimitCalculator:
         Parameters
         ----------
             volume: np.ndarray or None, optional.
-                3D numpy array with Z as the first axis.
-                By default None.
+                Input volume for calculating contrast limits.
         """
         self.volume = volume
 
@@ -67,8 +66,27 @@ class ContrastLimitCalculator:
                 The number of z-slices to include above and below the central z-slice.
                 By default 5.
         """
+        self.volume = volume
+        self.trim_volume_around_central_zslice(central_z_slice, z_radius)
+
+    def trim_volume_around_central_zslice(
+        self,
+        central_z_slice: Optional[int] = None,
+        z_radius: int = 5,
+    ) -> None:
+        """Trim the volume around a central z-slice.
+
+        Parameters
+        ----------
+            central_z_slice: int or None, optional.
+                The central z-slice around which to restrict the volume.
+                By default None, in which case the central z-slice is the middle slice.
+            z_radius: int, optional.
+                The number of z-slices to include above and below the central z-slice.
+                By default 5.
+        """
         self.volume = _restrict_volume_around_central_z_slice(
-            volume,
+            self.volume,
             central_z_slice,
             z_radius,
         )
