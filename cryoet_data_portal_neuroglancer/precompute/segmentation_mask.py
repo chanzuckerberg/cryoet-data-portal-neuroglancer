@@ -3,7 +3,7 @@ import json
 import shutil
 import struct
 from pathlib import Path
-from typing import Any, Iterator, Optional
+from typing import Any, Iterator
 
 import dask.array as da
 import igneous.task_creation as tc
@@ -201,7 +201,7 @@ def create_segmentation_chunk(
     data: np.ndarray,
     dimensions: tuple[tuple[int, int, int], tuple[int, int, int]],
     block_size: tuple[int, int, int] = (8, 8, 8),
-    convert_non_zero_to: Optional[int] = 0,
+    convert_non_zero_to: int | None = 0,
 ) -> Chunk:
     """Convert data in a dask array to a neuroglancer segmentation chunk"""
     bz, by, bx = block_size
@@ -270,7 +270,7 @@ def _create_metadata(
 def create_segmentation(
     dask_data: da.Array,
     block_size: tuple[int, int, int],
-    convert_non_zero_to: Optional[int] = 0,
+    convert_non_zero_to: int | None = 0,
 ) -> Iterator[Chunk]:
     """Yield the neuroglancer segmentation format chunks"""
     to_iterate = iterate_chunks(dask_data)

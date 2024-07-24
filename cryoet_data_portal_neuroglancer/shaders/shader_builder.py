@@ -1,6 +1,6 @@
 """Create GLSL shaders for Neuroglancer."""
 
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable
 
 TAB = "  "
 
@@ -89,7 +89,7 @@ class ShaderBuilder:
         name: str,
         min_value: float = 0.0,
         max_value: float = 1.0,
-        default_value: Optional[float] = None,
+        default_value: float | None = None,
     ) -> str:
         if default_value is not None:
             self._shader_controls[name] = default_value

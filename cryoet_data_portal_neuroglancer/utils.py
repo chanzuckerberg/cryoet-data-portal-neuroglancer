@@ -1,6 +1,6 @@
 from functools import lru_cache
 from math import ceil
-from typing import Iterator, Optional
+from typing import Iterator
 
 import dask.array as da
 import numpy as np
@@ -141,12 +141,12 @@ def rotate_xyz_via_matrix(matrix: np.ndarray) -> np.ndarray:
 
 
 def rotate_and_translate_mesh(
-    mesh: "trimesh.Trimesh",
-    scene: "trimesh.Scene",
+    mesh: trimesh.Trimesh,
+    scene: trimesh.Scene,
     id_: str | int,
     rotation_matrix: np.ndarray,
     translation_vector: np.ndarray,
-) -> "trimesh.Trimesh":
+) -> trimesh.Scene:
     """
     Rotate and translate a mesh using a 3x3 or 4x4 rotation matrix
     and a 3D translation vector
@@ -192,8 +192,8 @@ def rotate_and_translate_mesh(
 
 def subsample_scene(
     scene: "trimesh.Scene",
-    num_elements: Optional[int] = None,
-    keys_to_sample: Optional[list] = None,
+    num_elements: int | None = None,
+    keys_to_sample: list | None = None,
     at_random: bool = False,
 ):
     """Subsample the scene to a smaller scene with a given number of elements or keys to sample
