@@ -122,14 +122,16 @@ def MultiResShardedMeshFromGlbTask(  # noqa
     spatial_index_db: str | None = None,
     min_chunk_size: tuple[int, int, int] = (128, 128, 128),
     progress: bool = False,
+    use_decimated_mesh: bool = False,
 ):
     cv = CloudVolume(cloudpath, spatial_index_db=spatial_index_db, cache=cache)
     cv.mip = cv.mesh.meta.mip
     if mesh_dir is None and "mesh" in cv.info:
         mesh_dir = cv.info["mesh"]
 
-    old_process_mesh = process_mesh
-    igneous.tasks.mesh.multires.process_mesh = process_decimated_mesh
+    if use_decimated_mesh:
+        old_process_mesh = process_mesh
+        igneous.tasks.mesh.multires.process_mesh = process_decimated_mesh
     fname, shard = create_mesh_shard(
         cv,
         labels,
@@ -139,7 +141,8 @@ def MultiResShardedMeshFromGlbTask(  # noqa
         shard_no,
         min_chunk_size,
     )
-    igneous.tasks.mesh.multires.process_mesh = old_process_mesh
+    if use_decimated_mesh:
+        igneous.tasks.mesh.multires.process_mesh = old_process_mesh
 
     if shard is None:
         return
@@ -169,6 +172,7 @@ def _create_sharded_multires_mesh_tasks_from_glb(
     cache: bool | None = False,
     min_chunk_size: tuple[int, int, int] = (256, 256, 256),
     max_labels_per_shard: int | None = None,
+    use_decimated_mesh: bool = False,
 ) -> Iterator[MultiResShardedMeshFromGlbTask]:
 
     mesh_info = configure_multires_info(cloudpath, vertex_quantization_bits, mesh_dir)
@@ -227,6 +231,7 @@ def _create_sharded_multires_mesh_tasks_from_glb(
             spatial_index_db=spatial_index_db,
             draco_compression_level=draco_compression_level,
             min_chunk_size=min_chunk_size,
+            use_decimated_mesh=use_decimated_mesh,
         )
         for shard_no in shard_labels
     ]
@@ -455,6 +460,7 @@ def generate_sharded_mesh_from_lods(
         mesh_dir="mesh",
         num_lod=num_lod,
         min_chunk_size=smallest_chunk_size,
+        use_decimated_mesh=True,
     )
     tq.insert(tasks)
     tq.execute(progress=False)
@@ -463,11 +469,10 @@ def generate_sharded_mesh_from_lods(
 def generate_standalone_sharded_multiresolution_mesh(
     glb: trimesh.Scene | str | Path,
     outfolder: str | Path,
+    max_lod: int = 2,
+    min_mesh_chunk_dim: int = 16,
     label: int = 1,
-    size: tuple[float, float, float] | None = None,
-    min_lod: int = 2,
-    max_lod: int = 5,
-    min_chunk_dim: int = 16,
+    bounding_box_size: tuple[float, float, float] | None = None,
 ):
     """
     Generate a standalone sharded multiresolution mesh from a glb file or scene
@@ -482,11 +487,9 @@ def generate_standalone_sharded_multiresolution_mesh(
         The label to use, by default 1
     size : tuple[float, float, float] | None, optional
         The size of the mesh bounding box, by default None
-    min_lod : int, optional
-        The minimum required level of detail, by default 2
-        This would give three levels of detail, 0, 1, and 2
     max_lod : int, optional
-        The maximum desired level of detail, by default 5
+        The maximum desired level of detail, by default 2
+        This would give 3 LODs, 0, 1, 2, high, medium, low
     min_chunk_dim : int, optional
         If the chunk size is smaller than this, it will be increased, by default 16
         This means that the chunk size will be at least 16x16x16
@@ -502,14 +505,13 @@ def generate_standalone_sharded_multiresolution_mesh(
         max_bound = np.ceil(bb2)
         return np.maximum(max_bound, np.full(3, 1))
 
-    size_x, size_y, size_z = size if size is not None else _compute_size()
+    size_x, size_y, size_z = bounding_box_size if bounding_box_size is not None else _compute_size()
 
     mesh_shape = _determine_mesh_shape(mesh)
     smallest_chunk_size = determine_chunk_size_for_lod(
         mesh_shape,
-        min_lod,
         max_lod,
-        min_chunk_dim,
+        min_mesh_chunk_dim,
     )
     min_chunk_size = np.array(smallest_chunk_size, dtype=int)
     computed_max_lod = int(max(np.min(np.log2(mesh_shape / min_chunk_size)), 0))
@@ -527,8 +529,9 @@ def generate_standalone_sharded_multiresolution_mesh(
         f"precomputed://file://{outfolder}",
         labels={label: mesh},
         mesh_dir="mesh",
-        num_lod=computed_max_lod,
+        num_lod=computed_max_lod + 1,
         min_chunk_size=smallest_chunk_size,
+        use_decimated_mesh=False,
     )
     tq.insert(tasks)
     tq.execute()
