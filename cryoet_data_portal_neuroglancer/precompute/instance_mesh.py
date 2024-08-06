@@ -5,7 +5,7 @@ import numpy as np
 import trimesh
 from tqdm import tqdm
 
-from cryoet_data_portal_neuroglancer.precompute.glb_meshes import decimate_mesh
+from cryoet_data_portal_neuroglancer.precompute.mesh import decimate_mesh
 from cryoet_data_portal_neuroglancer.utils import rotate_and_translate_mesh
 
 
