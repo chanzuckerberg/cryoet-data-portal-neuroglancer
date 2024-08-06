@@ -17,6 +17,7 @@ def encode_oriented_mesh(
     data: list[dict[str, Any]],
     num_lods: int = 3,
     max_faces_for_first_lod: int = 5_000_000,
+    decimation_aggressiveness: float = 5.0,
 ) -> list[trimesh.Scene]:
     """Turn a mesh into an oriented mesh with a list of orientations and translations
 
@@ -36,31 +37,15 @@ def encode_oriented_mesh(
         and LOD 1 has 3 million faces when copied to all the positions,
         and the maximum faces is 5 million, then LOD 1 is used as the first LOD.
         The remaining LODs are then generated starting from LOD 1
+    decimation_aggressiveness : float, optional
+        The aggressiveness of the decimation algorithm, by default 5.0
 
     Returns
     -------
     list[trimesh.Scene]
         The list of scenes containing the oriented meshes
     """
-    if isinstance(input_geometry, trimesh.Trimesh):
-        mesh = input_geometry
-    else:
-        geometry = input_geometry.geometry
-        if len(geometry) > 1:
-            raise ValueError("Scene has more than one mesh")
-        mesh: trimesh.Trimesh = next(v for v in geometry.values())
-    # The co-ordinate system of the mesh is in angstrom
-    # As such, one unit of the mesh is 0.1 nm
-    mesh_resolution = 0.1  # nm
-    # Since meshes are in angstrom, we need to scale it to nanometers
-    scaled = typing.cast(trimesh.Trimesh, mesh.copy().apply_scale(mesh_resolution))
-    # We don't need to scale to the real tomogram resolution, because we make
-    # the hard assumption that the resolution of the output mesh
-    # is 1.0 nm, and then we scale the mesh to the real resolution
-    # of the tomogram inside of the neuroglancer viewer
-    # instead of at the time of encoding the mesh
-
-    decimated_meshes = decimate_mesh(scaled, num_lods + 1, as_trimesh=True)
+    scaled, decimated_meshes = scale_and_decimate_mesh(input_geometry, num_lods, decimation_aggressiveness)
     num_faces_per_lod = np.array([len(mesh.faces) for mesh in decimated_meshes])
     total_number_of_points = len(data)
     total_faces_per_lod = num_faces_per_lod * total_number_of_points
@@ -71,7 +56,12 @@ def encode_oriented_mesh(
     first_lod = np.argmax(total_faces_per_lod <= max_faces_for_first_lod)
     # Now we have the first LOD that is less than the maximum faces, and redo the decimation
     num_total_lods = first_lod + num_lods
-    decimated_meshes = decimate_mesh(scaled, num_total_lods, as_trimesh=True)
+    decimated_meshes = decimate_mesh(
+        scaled,
+        num_total_lods,
+        as_trimesh=True,
+        aggressiveness=decimation_aggressiveness,
+    )
 
     LOGGER.info(
         "Using LOD %i as the first LOD, with %i faces, which is less than %i maximum faces. There are {max_lod - first_lod} LODs remaining in total.",
@@ -90,3 +80,36 @@ def encode_oriented_mesh(
         results.append(new_scene)
 
     return results
+
+
+# TODO stop early if the number of faces stays constant
+def scale_and_decimate_mesh(
+    input_geometry: trimesh.Scene | trimesh.Trimesh,
+    num_lods: int,
+    decimation_aggressiveness: float = 5.0,
+) -> tuple[trimesh.Trimesh, list[trimesh.Trimesh]]:
+    if isinstance(input_geometry, trimesh.Trimesh):
+        mesh = input_geometry
+    else:
+        geometry = input_geometry.geometry
+        if len(geometry) > 1:
+            raise ValueError("Scene has more than one mesh")
+        mesh: trimesh.Trimesh = next(v for v in geometry.values())
+    # The co-ordinate system of the mesh is in angstrom
+    # As such, one unit of the mesh is 0.1 nm
+    mesh_resolution = 0.1  # nm
+    # Since meshes are in angstrom, we need to scale it to nanometers
+    scaled = typing.cast(trimesh.Trimesh, mesh.copy().apply_scale(mesh_resolution))
+    # We don't need to scale to the real tomogram resolution, because we make
+    # the hard assumption that the resolution of the output mesh
+    # is 1.0 nm, and then we scale the mesh to the real resolution
+    # of the tomogram inside of the neuroglancer viewer
+    # instead of at the time of encoding the mesh
+
+    decimated_meshes = decimate_mesh(
+        scaled,
+        num_lods,
+        aggressiveness=decimation_aggressiveness,
+        as_trimesh=True,
+    )
+    return scaled, decimated_meshes
