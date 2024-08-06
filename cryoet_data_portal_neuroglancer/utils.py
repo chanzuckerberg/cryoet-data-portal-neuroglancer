@@ -246,3 +246,29 @@ def get_window_limits_from_contrast_limits(
     window_start = lower_contrast - (distance * distance_scale)
     window_end = higher_contrast + (distance * distance_scale)
     return window_start, window_end
+
+
+def determine_size_of_non_zero_bounding_box(
+    volume: np.ndarray,
+) -> tuple[tuple[int, int], tuple[int, int], tuple[int, int]]:
+    """
+    Determine the size of the non-zero bounding box of a volume.
+
+    The input volume is assumed in Z, Y, X order, and the output bounding box
+    is in X, Y, Z order for Neuroglancer.
+
+    Parameters
+    ----------
+    volume : np.ndarray
+        The volume to determine the bounding box of
+
+    Returns
+    -------
+    tuple[tuple[int, int], tuple[int, int], tuple[int, int]]
+        The bounding box as a tuple of tuples
+    """
+    non_zero_indices = np.nonzero(volume)
+    min_z, max_z = np.min(non_zero_indices[0]), np.max(non_zero_indices[0])
+    min_y, max_y = np.min(non_zero_indices[1]), np.max(non_zero_indices[1])
+    min_x, max_x = np.min(non_zero_indices[2]), np.max(non_zero_indices[2])
+    return max_x - min_x + 1, max_y - min_y + 1, max_z - min_z + 1

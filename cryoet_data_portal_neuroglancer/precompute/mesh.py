@@ -1,4 +1,5 @@
 import json
+import logging
 from functools import partial
 from pathlib import Path
 from typing import Iterator, cast
@@ -20,6 +21,8 @@ from igneous.task_creation.mesh import configure_multires_info
 from igneous.tasks.mesh.multires import create_mesh_shard, create_octree_level_from_mesh, generate_lods, process_mesh
 from taskqueue import LocalTaskQueue, queueable
 from tqdm import tqdm
+
+LOGGER = logging.getLogger(__name__)
 
 
 def process_decimated_mesh(
@@ -333,8 +336,8 @@ def _determine_mesh_shape(mesh: trimesh.Trimesh):
 
 def determine_chunk_size_for_lod(
     mesh_shape: tuple[int, int, int],
-    num_lod: int,
-    min_chunk_dim: int = 2,
+    max_lod: int,
+    min_chunk_dim: int = 16,
 ) -> tuple[int, int, int]:
     """
     Determine the chunk size for a given mesh shape and LOD levels
@@ -349,13 +352,14 @@ def determine_chunk_size_for_lod(
     ----------
     mesh_shape : tuple[int, int, int]
         The shape of the mesh
-    num_lod : int
-        The number of levels of detail to generate
+    max_lod: int
+        The max level of detail to generate, starting at 0
     min_chunk_dim : int, optional
         Any chunk dimension won't be smaller than this.
-        If the chunk size needs to be smaller than this to respect the LODs
-        then the total LODs will be reduced.
-        By default, this value is 2
+        If the chunk size needs to be smaller than this to respect the max
+        LODs then the total LODs will be reduced.
+        By default, this value is 16. This is needed because otherwise,
+        the decimated meshes are likely to have errors.
 
     Returns
     -------
@@ -367,15 +371,20 @@ def determine_chunk_size_for_lod(
     def _determine_chunk_shape_for_lod(lod_level):
         return 2 ** np.floor(np.log2(mesh_shape / 2**lod_level))
 
-    # Find a power of 2 chunk size such that the minimum LOD is at least min_lod
-    chunk_shape = _determine_chunk_shape_for_lod(num_lod)
-    print(f"Chunk shape for LOD {num_lod} is {chunk_shape}")
+    # Find a power of 2 chunk size to reach the max LOD
+    chunk_shape = _determine_chunk_shape_for_lod(max_lod)
 
     # If the chunk size is smaller than the minimum chunk dimension
-    # then we can't respect that min_lod and need to increase in size
+    # then we can't respect the max LOD and need to reduce the LODs
     if np.any(chunk_shape < min_chunk_dim):
-        num_available_lod = int(max(np.min(np.log2(mesh_shape / min_chunk_dim)), 0))
-        chunk_shape = _determine_chunk_shape_for_lod(num_available_lod)
+        max_lod = int(max(np.min(np.log2(mesh_shape / min_chunk_dim)), 0))
+        chunk_shape = _determine_chunk_shape_for_lod(max_lod)
+    final_lod = int(max(np.min(np.log2(mesh_shape / chunk_shape)), 0)) + 1
+    LOGGER.info(
+        "Will produce %i LODs for this mesh at chunk size %s",
+        final_lod,
+        chunk_shape,
+    )
     x, y, z = chunk_shape.astype(int)
     return (int(x), int(y), int(z))
 

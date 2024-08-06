@@ -1,5 +1,6 @@
 import functools
 import json
+import logging
 import shutil
 import struct
 from pathlib import Path
@@ -15,7 +16,9 @@ from tqdm import tqdm
 import cryoet_data_portal_neuroglancer.igneous_patch as igneous_patch
 from cryoet_data_portal_neuroglancer.io import load_omezarr_data
 from cryoet_data_portal_neuroglancer.models.chunk import Chunk
+from cryoet_data_portal_neuroglancer.precompute.mesh import determine_chunk_size_for_lod
 from cryoet_data_portal_neuroglancer.utils import (
+    determine_size_of_non_zero_bounding_box,
     get_grid_size_from_block_shape,
     iterate_chunks,
     number_of_encoding_bits,
@@ -24,6 +27,8 @@ from cryoet_data_portal_neuroglancer.utils import (
 
 # Patch igneous
 igneous_patch.patch()
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _get_buffer_position(buffer: bytearray) -> int:
@@ -314,7 +319,13 @@ def create_mesh(
     print(f"Wrote segmentation mesh to {mesh_path}")
 
 
-def generate_mesh(precomputed_segmentation_path: Path, mesh_directory: str, num_lod: int):
+def generate_mesh(
+    precomputed_segmentation_path: Path,
+    mesh_directory: str,
+    max_lod: int,
+    mesh_shape: tuple[int, int, int] | np.ndarray,
+    min_mesh_chunk_dim: int = 16,
+) -> None:
     """Generates the meshes for a segmentation stored as a precomputed Neuroglancer format.
 
     Parameters
@@ -323,8 +334,13 @@ def generate_mesh(precomputed_segmentation_path: Path, mesh_directory: str, num_
         The path towards the segmentation stored as a precomputed Neuroglancer format
     mesh_directory: str
         The name of the directory that will receive the mesh information
-    num_lod: int
-        The number maximal of lod that needs to be generated
+    max_lod: int
+        The maximal lod that needs to be generated, starting from 0
+        This may not be achieved if the mesh is too small
+    mesh_shape: tuple[int, int, int] | np.ndarray
+        The shape of the mesh - used in calculating the chunk size for LOD generation
+    min_mesh_chunk_dim: int
+        The minimal dimension of a chunk.
     """
     tq = LocalTaskQueue()
 
@@ -336,8 +352,17 @@ def generate_mesh(precomputed_segmentation_path: Path, mesh_directory: str, num_
     tasks = tc.create_mesh_manifest_tasks(path, mesh_dir=mesh_directory, magnitude=3)
     tq.insert(tasks)
     tq.execute()
-
-    tasks = tc.create_sharded_multires_mesh_tasks(path, mesh_dir=mesh_directory, num_lod=num_lod)
+    min_chunk_size = determine_chunk_size_for_lod(
+        mesh_shape,
+        max_lod,
+        min_mesh_chunk_dim,
+    )
+    tasks = tc.create_sharded_multires_mesh_tasks(
+        path,
+        mesh_dir=mesh_directory,
+        num_lod=max_lod,
+        min_chunk_size=min_chunk_size,
+    )
     tq.insert(tasks)
     tq.execute()
 
@@ -360,10 +385,55 @@ def encode_segmentation(
     convert_non_zero_to: int | None = 0,
     include_mesh: bool = False,
     mesh_directory: str = "mesh",
-    num_lod: int = 5,
+    max_lod: int = 2,
+    min_mesh_chunk_dim: int = 16,
 ) -> None:
-    """Convert the given OME-Zarr file to neuroglancer segmentation format with the given block size"""
-    print(f"Converting {filename} to neuroglancer compressed segmentation format")
+    """Convert the given OME-Zarr file to neuroglancer segmentation format with the given block size
+
+    Parameters
+    ----------
+    filename : str
+        The path to the OME-Zarr file
+    output_path : Path | str
+        The path to the output directory
+    resolution : tuple[float, float, float]
+        The resolution of the data in nm
+    block_size : tuple[int, int, int], optional
+        The size of the blocks to use, by default (64, 64, 64)
+        This determines the size of the chunks in the precomputed format
+        output
+    data_directory : str, optional
+        The name of the data directory, by default "data"
+        This is the directory that will contain the segmentation data
+    delete_existing : bool, optional
+        Whether to delete the existing output directory, by default False
+        If False and the output directory exists, the function will
+        return without doing anything
+    convert_non_zero_to : int | None, optional
+        The value to convert non-zero values to, by default 0, which
+        will leave non-zero values as they are. If None, non-zero
+        values will be left as they are also. This is useful for
+        representing multiple objects in the same segmentation
+    include_mesh : bool, optional
+        Whether to include mesh information in the output, by default False
+    mesh_directory : str, optional
+        The name of the mesh directory, by default "mesh"
+        This is the directory that will contain the mesh data
+    max_lod : int, optional
+        The maximum level of detail to generate meshes for, by default 2
+        This will produce a high resolution mesh at LOD 0, medium resolution
+        at LOD 1, and low resolution at LOD 2
+    min_mesh_chunk_dim : int, optional
+        The minimum dimension of a mesh chunk, by default 16
+        This is used in determining the chunk size for LOD generation
+        If the mesh is small, it means that we may not be able to achieve
+        the desired LOD unless we process the data in very small chunks.
+        Processing in very small chunks is inefficient, and error prone,
+        so we set a minimum chunk size to avoid this.
+        If you want to force the generation of LODs, you can set this to 1.
+
+    """
+    LOGGER.info("Converting %s to neuroglancer compressed segmentation format", filename)
     output_path = Path(output_path)
 
     dask_data = load_omezarr_data(filename)
@@ -375,12 +445,13 @@ def encode_segmentation(
                 f"Output directory {output_path!s} exists and contains non-conversion related files. {content_names}",
             )
         else:
-            print(
-                f"The output directory {output_path!s} exists from a previous run, deleting before starting conversion",
+            LOGGER.info(
+                "The output directory %s exists from a previous run, deleting before starting conversion",
+                output_path,
             )
             shutil.rmtree(output_path)
     elif not delete_existing and output_path.exists():
-        print(f"The output directory {output_path!s} already exists")
+        LOGGER.warning("The output directory %s already exists, skipping", output_path)
         return
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -401,7 +472,14 @@ def encode_segmentation(
     write_metadata(metadata, output_path)
 
     if include_mesh:
-        print(f"Converting {filename} to neuroglancer mesh format")
-        generate_mesh(output_path, mesh_directory, num_lod=num_lod)
+        LOGGER.info("Converting %s to neuroglancer mesh format", filename)
+        mesh_shape = determine_size_of_non_zero_bounding_box(dask_data.compute())
+        generate_mesh(
+            output_path,
+            mesh_directory,
+            max_lod=max_lod,
+            mesh_shape=mesh_shape,
+            min_mesh_chunk_dim=min_mesh_chunk_dim,
+        )
 
-    print(f"Wrote segmentation to {output_path}")
+    LOGGER.info("Wrote segmentation to %s", output_path)
