@@ -39,11 +39,14 @@ def process_decimated_mesh(
     if np.any(mesh_shape == 0):
         return (None, None)
 
-    max_lod = len(meshes)  # This is the number of LODs
+    num_lods = min(len(meshes), num_lod)  # This is the number of LODs
     lods = meshes
-    chunk_shape = np.ceil(mesh_shape / 2 ** (max_lod - 1))
-    print(
-        f"Processing data into {[int(c) for c in chunk_shape]} sized chunks for a {mesh_shape} size mesh grid with {max_lod} LODs",
+    chunk_shape = np.ceil(mesh_shape / 2 ** (num_lods - 1))
+    LOGGER.info(
+        "Processing data into %s sized chunks for a %s size mesh grid with %i LODs",
+        [int(c) for c in chunk_shape],
+        mesh_shape,
+        num_lods,
     )
 
     if np.any(chunk_shape == 0):
@@ -70,7 +73,7 @@ def process_decimated_mesh(
 
     vqb = int(cv.mesh.meta.info["vertex_quantization_bits"])
 
-    print(f"Encoding octree containing {len(lods)} LODs with Draco")
+    LOGGER.info("Encoding octree containing %i LODs with Draco", len(lods))
     mesh_binaries = []
     for lod, submeshes in enumerate(lods):
         for frag_no, submesh in enumerate(submeshes):
@@ -381,7 +384,7 @@ def determine_chunk_size_for_lod(
         chunk_shape = _determine_chunk_shape_for_lod(max_lod)
     final_lod = int(max(np.min(np.log2(mesh_shape / chunk_shape)), 0)) + 1
     LOGGER.info(
-        "Will produce %i LODs for this mesh at chunk size %s",
+        "Will produce %i LODs for this mesh at approx chunk size %s",
         final_lod,
         chunk_shape,
     )
@@ -392,9 +395,32 @@ def determine_chunk_size_for_lod(
 def generate_sharded_mesh_from_lods(
     lods: list[trimesh.Scene],
     outfolder: str | Path,
+    min_mesh_chunk_dim: int = 16,
     label: int = 1,
-    size: tuple[float, float, float] | None = None,
+    bounding_box_size: tuple[float, float, float] | None = None,
 ):
+    """
+    Generate a sharded mesh from a list of LODs
+
+    Parameters
+    ----------
+    lods : list[trimesh.Scene]
+        The list of LODs to generate the mesh from
+    outfolder : str | Path
+        The output folder
+    min_mesh_chunk_dim : int, optional
+        The minimum chunk dimension, by default 16. This is needed because
+        otherwise, the decimated meshes are likely to have errors.
+        This can result in a subset of the LODs generated being used.
+    label : int, optional
+        The label to use, by default 1
+    bounding_box_size : tuple[float, float, float] | None, optional
+        The bounding box size, by default None
+        When None, the bounding box size is determined from the mesh
+        This calculation is often not accurate, so it is recommended to
+        provide the bounding box size. Or turn off the bounding box in the
+        neuroglancer state.
+    """
     concatenated_lods: list[trimesh.Trimesh] = cast(list[trimesh.Trimesh], [lod.dump(concatenate=True) for lod in lods])
     num_lod = len(concatenated_lods)
     first_lod = 0
@@ -405,14 +431,13 @@ def generate_sharded_mesh_from_lods(
         max_bound = np.ceil(bbx)
         return np.maximum(max_bound, np.full(3, 1))
 
-    size_x, size_y, size_z = size if size is not None else _compute_size(bb2)
+    size_x, size_y, size_z = bounding_box_size if bounding_box_size is not None else _compute_size(bb2)
 
     mesh_shape = _determine_mesh_shape(mesh)
     smallest_chunk_size = determine_chunk_size_for_lod(
         mesh_shape,
-        num_lod,
-        num_lod,
-        1,
+        num_lod - 1,
+        min_chunk_dim=min_mesh_chunk_dim,
     )
 
     # The resolution is not handled here, but in the neuroglancer state

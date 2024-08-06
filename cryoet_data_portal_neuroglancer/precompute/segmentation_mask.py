@@ -295,7 +295,7 @@ def create_mesh(
     mesh_directory: str,
     resolution: tuple[float, float, float],
 ) -> None:
-    """Create the mesh for the given volume if a mesh directory is provided"""
+    """Create a single res mesh for the given volume if a mesh directory is provided"""
     mesh = np.dstack([np.array(dask_data).astype(np.uint8)])
     transposed_mesh = np.transpose(mesh, (2, 1, 0))
 
@@ -316,10 +316,10 @@ def create_mesh(
             mesh_file.write(mesh_data)
         with open(str(mesh_path / "".join((str(id), ":0"))), "w") as frag_file:
             frag_file.write(json_descriptor.format(id, id))
-    print(f"Wrote segmentation mesh to {mesh_path}")
+    LOGGER.info("Wrote segmentation mesh to %s", mesh_path)
 
 
-def generate_mesh(
+def generate_multires_mesh(
     precomputed_segmentation_path: Path,
     mesh_directory: str,
     max_lod: int,
@@ -474,7 +474,7 @@ def encode_segmentation(
     if include_mesh:
         LOGGER.info("Converting %s to neuroglancer mesh format", filename)
         mesh_shape = determine_size_of_non_zero_bounding_box(dask_data.compute())
-        generate_mesh(
+        generate_multires_mesh(
             output_path,
             mesh_directory,
             max_lod=max_lod,

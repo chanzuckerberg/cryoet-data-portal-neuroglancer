@@ -1,3 +1,4 @@
+import logging
 import typing
 from typing import Any
 
@@ -8,12 +9,14 @@ from tqdm import tqdm
 from cryoet_data_portal_neuroglancer.precompute.mesh import decimate_mesh
 from cryoet_data_portal_neuroglancer.utils import rotate_and_translate_mesh
 
+LOGGER = logging.getLogger(__name__)
+
 
 def encode_oriented_mesh(
     input_geometry: trimesh.Scene | trimesh.Trimesh,
     data: list[dict[str, Any]],
-    max_lod: int = 1,
-    max_faces: int = 5_000_000,
+    num_lods: int = 3,
+    max_faces_for_first_lod: int = 5_000_000,
 ) -> list[trimesh.Scene]:
     """Turn a mesh into an oriented mesh with a list of orientations and translations
 
@@ -23,11 +26,16 @@ def encode_oriented_mesh(
         The scene containing the mesh or the mesh itself
     data : list[dict[str, Any]]
         The list of orientations and translations
-    max_lod : int, optional
-        The max level of detail, by default 1. Starts at 0 for highest res.
+    num_lods: int, optional
+        The number of levels of detail to generate, by default 3
+        A high resolution, a medium resolution, and a low resolution
     max_faces : int, optional
         The maximum number of faces per mesh, by default 5million
-        This determines the minimum LOD
+        This determines the first LOD that is used.
+        For example, if LOD 0 has 6 million faces when copied to all the positions,
+        and LOD 1 has 3 million faces when copied to all the positions,
+        and the maximum faces is 5 million, then LOD 1 is used as the first LOD.
+        The remaining LODs are then generated starting from LOD 1
 
     Returns
     -------
@@ -52,17 +60,24 @@ def encode_oriented_mesh(
     # of the tomogram inside of the neuroglancer viewer
     # instead of at the time of encoding the mesh
 
-    decimated_meshes = decimate_mesh(scaled, max_lod + 1, as_trimesh=True)
+    decimated_meshes = decimate_mesh(scaled, num_lods + 1, as_trimesh=True)
     num_faces_per_lod = np.array([len(mesh.faces) for mesh in decimated_meshes])
     total_number_of_points = len(data)
     total_faces_per_lod = num_faces_per_lod * total_number_of_points
-    if np.all(total_faces_per_lod > max_faces):
+    if np.all(total_faces_per_lod > max_faces_for_first_lod):
         raise ValueError(
-            f"Total faces per LOD {total_faces_per_lod} are all greater than the maximum faces {max_faces}.",
+            f"Total faces per LOD {total_faces_per_lod} are all greater than the maximum faces {max_faces_for_first_lod}.",
         )
-    first_lod = np.argmax(total_faces_per_lod <= max_faces)
-    print(
-        f"Using LOD {first_lod} as the first LOD, with {total_faces_per_lod[first_lod]} faces, which is less than {max_faces} maximum faces. There are {max_lod - first_lod} LODs remaining in total.",
+    first_lod = np.argmax(total_faces_per_lod <= max_faces_for_first_lod)
+    # Now we have the first LOD that is less than the maximum faces, and redo the decimation
+    num_total_lods = first_lod + num_lods
+    decimated_meshes = decimate_mesh(scaled, num_total_lods, as_trimesh=True)
+
+    LOGGER.info(
+        "Using LOD %i as the first LOD, with %i faces, which is less than %i maximum faces. There are {max_lod - first_lod} LODs remaining in total.",
+        first_lod,
+        total_faces_per_lod[first_lod],
+        max_faces_for_first_lod,
     )
 
     results = []
