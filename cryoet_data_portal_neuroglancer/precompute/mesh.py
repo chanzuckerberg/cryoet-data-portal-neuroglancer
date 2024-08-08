@@ -25,7 +25,7 @@ from tqdm import tqdm
 LOGGER = logging.getLogger(__name__)
 
 
-def process_decimated_mesh(
+def _process_decimated_mesh(
     cv: CloudVolume,
     label: int,
     meshes: list[Mesh],
@@ -131,7 +131,7 @@ def MultiResShardedMeshFromGlbTask(  # noqa
 
     if use_decimated_mesh:
         old_process_mesh = process_mesh
-        igneous.tasks.mesh.multires.process_mesh = process_decimated_mesh
+        igneous.tasks.mesh.multires.process_mesh = _process_decimated_mesh
     fname, shard = create_mesh_shard(
         cv,
         labels,
@@ -237,7 +237,7 @@ def _create_sharded_multires_mesh_tasks_from_glb(
     ]
 
 
-def generate_standalone_mesh_info(
+def _generate_standalone_mesh_info(
     outfolder: str | Path,
     size: tuple[float, float, float] | float,
     mesh_dir: str = "mesh",
@@ -446,7 +446,7 @@ def generate_sharded_mesh_from_lods(
     )
 
     # The resolution is not handled here, but in the neuroglancer state
-    generate_standalone_mesh_info(
+    _generate_standalone_mesh_info(
         outfolder,
         size=(size_x, size_y, size_z),
         resolution=1.0,
@@ -517,7 +517,7 @@ def generate_standalone_sharded_multiresolution_mesh(
     computed_max_lod = int(max(np.min(np.log2(mesh_shape / min_chunk_size)), 0))
 
     # The resolution is not handled here, but in the neuroglancer state
-    generate_standalone_mesh_info(
+    _generate_standalone_mesh_info(
         outfolder,
         size=(size_x, size_y, size_z),
         resolution=1.0,
@@ -528,6 +528,77 @@ def generate_standalone_sharded_multiresolution_mesh(
     tasks = _create_sharded_multires_mesh_tasks_from_glb(
         f"precomputed://file://{outfolder}",
         labels={label: mesh},
+        mesh_dir="mesh",
+        num_lod=computed_max_lod + 1,
+        min_chunk_size=smallest_chunk_size,
+        use_decimated_mesh=False,
+    )
+    tq.insert(tasks)
+    tq.execute()
+
+
+def generate_multilabel_sharded_multiresolution_mesh(
+    label_dict: dict[int, trimesh.Scene | str | Path],
+    outfolder: str | Path,
+    max_lod: int = 2,
+    min_mesh_chunk_dim: int = 16,
+    bounding_box_size: tuple[float, float, float] | None = None,
+):
+    """
+    Generate a standalone sharded multiresolution mesh from a glb file or scene
+
+    Parameters
+    ----------
+    label_dict: dict[int, trimesh.Scene | str | Path]
+        The dictionary of label to glb file or scene to generate the mesh from
+    outfolder : str | Path
+        The output folder
+    size : tuple[float, float, float] | None, optional
+        The size of the mesh bounding box, by default None
+    max_lod : int, optional
+        The maximum desired level of detail, by default 2
+        This would give 3 LODs, 0, 1, 2, high, medium, low
+    min_chunk_dim : int, optional
+        If the chunk size is smaller than this, it will be increased, by default 16
+        This means that the chunk size will be at least 16x16x16
+        This can result in not actually reaching the desired min LOD levels
+    """
+    labels = {}
+    for k, v in label_dict.items():
+        scene: trimesh.Scene = cast(trimesh.Scene, trimesh.load(v, force="scene")) if isinstance(v, (str, Path)) else v
+        mesh: trimesh.Trimesh = scene.dump(concatenate=True)  # type: ignore
+        labels[k] = mesh
+
+    mesh = list(labels.values())[0]
+    _, bb2 = mesh.bounds  # type: ignore
+
+    def _compute_size():
+        max_bound = np.ceil(bb2)
+        return np.maximum(max_bound, np.full(3, 1))
+
+    size_x, size_y, size_z = bounding_box_size if bounding_box_size is not None else _compute_size()
+
+    mesh_shape = _determine_mesh_shape(mesh)
+    smallest_chunk_size = determine_chunk_size_for_lod(
+        mesh_shape,
+        max_lod,
+        min_mesh_chunk_dim,
+    )
+    min_chunk_size = np.array(smallest_chunk_size, dtype=int)
+    computed_max_lod = int(max(np.min(np.log2(mesh_shape / min_chunk_size)), 0))
+
+    # The resolution is not handled here, but in the neuroglancer state
+    _generate_standalone_mesh_info(
+        outfolder,
+        size=(size_x, size_y, size_z),
+        resolution=1.0,
+        mesh_chunk_size=smallest_chunk_size,
+    )
+
+    tq = LocalTaskQueue()
+    tasks = _create_sharded_multires_mesh_tasks_from_glb(
+        f"precomputed://file://{outfolder}",
+        labels=labels,
         mesh_dir="mesh",
         num_lod=computed_max_lod + 1,
         min_chunk_size=smallest_chunk_size,
