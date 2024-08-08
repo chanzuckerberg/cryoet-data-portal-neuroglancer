@@ -166,8 +166,8 @@ def rotate_and_translate_mesh(
 
     Returns
     -------
-    Trimesh.Mesh
-        The rotated and translated mesh
+    Trimesh.Scene
+        The scene with the rotated and translated mesh
     """
 
     def _convert_to_homogenous(rotation_matrix):
