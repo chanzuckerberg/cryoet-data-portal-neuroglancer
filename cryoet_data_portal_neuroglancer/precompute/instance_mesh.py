@@ -17,7 +17,7 @@ def encode_oriented_mesh(
     data: list[dict[str, Any]],
     num_lods: int = 3,
     max_faces_for_first_lod: int = 5_000_000,
-    decimation_aggressiveness: float = 5.0,
+    decimation_aggressiveness: float = 4.5,
 ) -> list[trimesh.Scene]:
     """Turn a mesh into an oriented mesh with a list of orientations and translations
 
@@ -113,11 +113,4 @@ def scale_and_decimate_mesh(
         as_trimesh=True,
     )
 
-    total_faces_per_lod = [len(mesh.faces) for mesh in decimated_meshes]
-    last_lod = len(decimated_meshes) - 1
-    for i in range(last_lod):
-        if total_faces_per_lod[i] == total_faces_per_lod[i + 1]:
-            last_lod = i
-            break
-
-    return scaled, decimated_meshes[: last_lod + 1]
+    return scaled, decimated_meshes

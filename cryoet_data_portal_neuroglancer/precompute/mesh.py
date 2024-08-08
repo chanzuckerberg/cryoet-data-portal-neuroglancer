@@ -39,7 +39,7 @@ def _process_decimated_mesh(
     if np.any(mesh_shape == 0):
         return (None, None)
 
-    num_lods = min(len(meshes), num_lod)  # This is the number of LODs
+    num_lods = num_lod
     lods = meshes
     chunk_shape = np.ceil(mesh_shape / 2 ** (num_lods - 1))
     LOGGER.info(
@@ -53,8 +53,8 @@ def _process_decimated_mesh(
         return (None, None)
 
     lods = [
-        create_octree_level_from_mesh(lods[lod], chunk_shape, lod, len(lods))
-        for lod in tqdm(range(len(lods)), desc="Processing LODs into octree")
+        create_octree_level_from_mesh(lods[lod], chunk_shape, lod, num_lods)
+        for lod in tqdm(range(num_lods), desc="Processing LODs into octree")
     ]
     fragment_positions = [nodes for submeshes, nodes in lods]
     lods = [submeshes for submeshes, nodes in lods]
@@ -248,6 +248,7 @@ def _generate_standalone_mesh_info(
     outfolder.mkdir(exist_ok=True, parents=True)
     resolution_conv = resolution if isinstance(resolution, tuple) else (resolution,) * 3
     mesh_chunk_size_conv = mesh_chunk_size if isinstance(mesh_chunk_size, tuple) else (mesh_chunk_size,) * 3
+    LOGGER.debug("Generating mesh info with chunk size %s", mesh_chunk_size_conv)
 
     # offset = bbox.transform[:, 3][:3].tolist()
     info = outfolder / "info"
@@ -321,17 +322,32 @@ def decimate_mesh(
     mesh : trimesh.Trimesh
         The mesh to decimate
     num_lods : int
-        The number of levels of detail to generate
+        The number of levels of detail after decimation
+        The number of generated LODs will be num_lods - 1
+    aggressiveness : float, optional
+        The aggressiveness of the decimation algorithm, by default 5.5
+    as_trimesh : bool, optional
+        Whether to return the mesh as a trimesh or a mesh, by default False
     """
     unused = 0
-    lods = generate_lods(unused, mesh, num_lods, aggressiveness=aggressiveness)  # type: ignore
+    # The num LODs here is the number of LODs to generate, not the number of LODs to use
+    # So that is why we subtract 1
+    lods = generate_lods(unused, mesh, num_lods - 1, aggressiveness=aggressiveness)  # type: ignore
+    total_faces_per_lod = [len(lod.faces) for lod in lods]
+    last_lod = len(lods) - 1
+    for i in range(last_lod):
+        if total_faces_per_lod[i] == total_faces_per_lod[i + 1]:
+            last_lod = i
+            break
+    LOGGER.debug("Decimated mesh has %i LODs, with %s faces", last_lod + 1, total_faces_per_lod[: last_lod + 1])
     if as_trimesh:
-        return [
-            trimesh.Trimesh(vertices=mesh.vertices, faces=mesh.faces)
-            for mesh in lods
-            if not isinstance(mesh, trimesh.Trimesh)
-        ]
-    return lods
+        result = []
+        for lod in lods[: last_lod + 1]:
+            if not isinstance(lod, trimesh.Trimesh):
+                lod = trimesh.Trimesh(vertices=lod.vertices, faces=lod.faces)
+            result.append(lod)
+        return result
+    return lods[: last_lod + 1]
 
 
 def _determine_mesh_shape(mesh: trimesh.Trimesh):
@@ -371,8 +387,8 @@ def determine_chunk_size_for_lod(
 
     Returns
     -------
-    tuple[int, int, int]
-        The chunk size
+    tuple[int, int, int], int
+        The chunk size, and the number of LODs that can be generated
     """
     mesh_shape = np.array(mesh_shape)
 
@@ -389,12 +405,12 @@ def determine_chunk_size_for_lod(
         chunk_shape = _determine_chunk_shape_for_lod(max_lod)
     final_lod = int(max(np.min(np.log2(mesh_shape / chunk_shape)), 0)) + 1
     LOGGER.info(
-        "Will produce %i LODs for this mesh at approx chunk size %s",
+        "Will produce %i LODs for this mesh at min size %s",
         final_lod,
         chunk_shape,
     )
     x, y, z = chunk_shape.astype(int)
-    return (int(x), int(y), int(z))
+    return (int(x), int(y), int(z)), final_lod
 
 
 def generate_sharded_mesh_from_lods(
@@ -439,18 +455,20 @@ def generate_sharded_mesh_from_lods(
     size_x, size_y, size_z = bounding_box_size if bounding_box_size is not None else _compute_size(bb2)
 
     mesh_shape = _determine_mesh_shape(mesh)
-    smallest_chunk_size = determine_chunk_size_for_lod(
+    smallest_chunk_size, calculated_num_lod = determine_chunk_size_for_lod(
         mesh_shape,
         num_lod - 1,
         min_chunk_dim=min_mesh_chunk_dim,
     )
+    # TODO get actual chunk shape in other places too
+    actual_chunk_shape = np.ceil(mesh_shape / 2 ** (calculated_num_lod - 1))
 
     # The resolution is not handled here, but in the neuroglancer state
     _generate_standalone_mesh_info(
         outfolder,
         size=(size_x, size_y, size_z),
         resolution=1.0,
-        mesh_chunk_size=smallest_chunk_size,
+        mesh_chunk_size=tuple([int(x) for x in actual_chunk_shape]),
     )
 
     tq = LocalTaskQueue(progress=False)
@@ -458,7 +476,7 @@ def generate_sharded_mesh_from_lods(
         f"precomputed://file://{outfolder}",
         labels={label: concatenated_lods[first_lod:]},
         mesh_dir="mesh",
-        num_lod=num_lod,
+        num_lod=calculated_num_lod,
         min_chunk_size=smallest_chunk_size,
         use_decimated_mesh=True,
     )
@@ -508,13 +526,11 @@ def generate_standalone_sharded_multiresolution_mesh(
     size_x, size_y, size_z = bounding_box_size if bounding_box_size is not None else _compute_size()
 
     mesh_shape = _determine_mesh_shape(mesh)
-    smallest_chunk_size = determine_chunk_size_for_lod(
+    smallest_chunk_size, computed_num_lod = determine_chunk_size_for_lod(
         mesh_shape,
         max_lod,
         min_mesh_chunk_dim,
     )
-    min_chunk_size = np.array(smallest_chunk_size, dtype=int)
-    computed_max_lod = int(max(np.min(np.log2(mesh_shape / min_chunk_size)), 0))
 
     # The resolution is not handled here, but in the neuroglancer state
     _generate_standalone_mesh_info(
@@ -529,7 +545,7 @@ def generate_standalone_sharded_multiresolution_mesh(
         f"precomputed://file://{outfolder}",
         labels={label: mesh},
         mesh_dir="mesh",
-        num_lod=computed_max_lod + 1,
+        num_lod=computed_num_lod,
         min_chunk_size=smallest_chunk_size,
         use_decimated_mesh=False,
     )
@@ -579,13 +595,11 @@ def generate_multilabel_sharded_multiresolution_mesh(
     size_x, size_y, size_z = bounding_box_size if bounding_box_size is not None else _compute_size()
 
     mesh_shape = _determine_mesh_shape(mesh)
-    smallest_chunk_size = determine_chunk_size_for_lod(
+    smallest_chunk_size, computed_num_lod = determine_chunk_size_for_lod(
         mesh_shape,
         max_lod,
         min_mesh_chunk_dim,
     )
-    min_chunk_size = np.array(smallest_chunk_size, dtype=int)
-    computed_max_lod = int(max(np.min(np.log2(mesh_shape / min_chunk_size)), 0))
 
     # The resolution is not handled here, but in the neuroglancer state
     _generate_standalone_mesh_info(
@@ -600,7 +614,7 @@ def generate_multilabel_sharded_multiresolution_mesh(
         f"precomputed://file://{outfolder}",
         labels=labels,
         mesh_dir="mesh",
-        num_lod=computed_max_lod + 1,
+        num_lod=computed_num_lod,
         min_chunk_size=smallest_chunk_size,
         use_decimated_mesh=False,
     )
