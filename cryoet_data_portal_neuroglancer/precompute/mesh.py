@@ -33,8 +33,7 @@ def _process_decimated_mesh(
     min_chunk_size: tuple[int, int, int] = (512, 512, 512),
     draco_compression_level: int = 7,
 ) -> tuple[MultiLevelPrecomputedMeshManifest, Mesh] | tuple[None, None]:
-    grid_origin = np.floor(np.min(meshes[0].vertices, axis=0))
-    mesh_shape = (np.max(meshes[0].vertices, axis=0) - grid_origin).astype(int)
+    grid_origin, mesh_shape = _determine_mesh_shape_from_lods(meshes)
 
     if np.any(mesh_shape == 0):
         return (None, None)
@@ -358,6 +357,15 @@ def _determine_mesh_shape(mesh: trimesh.Trimesh):
     return mesh_shape
 
 
+def _determine_mesh_shape_from_lods(lods: list[trimesh.Trimesh]):
+    mesh_starts = [np.min(lod.vertices, axis=0) for lod in lods]
+    mesh_ends = [np.max(lod.vertices, axis=0) for lod in lods]
+    grid_origin = np.floor(np.min(mesh_starts, axis=0))
+    grid_end = np.max(mesh_ends, axis=0)
+    mesh_shape = (grid_end - grid_origin).astype(int)
+    return grid_origin, mesh_shape
+
+
 def determine_chunk_size_for_lod(
     mesh_shape: tuple[int, int, int],
     max_lod: int,
@@ -445,7 +453,6 @@ def generate_sharded_mesh_from_lods(
     concatenated_lods: list[trimesh.Trimesh] = cast(list[trimesh.Trimesh], [lod.dump(concatenate=True) for lod in lods])
     num_lod = len(concatenated_lods)
     first_lod = 0
-    mesh = concatenated_lods[first_lod]
     _, bb2 = concatenated_lods[first_lod].bounds
 
     def _compute_size(bbx):
@@ -454,7 +461,7 @@ def generate_sharded_mesh_from_lods(
 
     size_x, size_y, size_z = bounding_box_size if bounding_box_size is not None else _compute_size(bb2)
 
-    mesh_shape = _determine_mesh_shape(mesh)
+    _, mesh_shape = _determine_mesh_shape_from_lods(concatenated_lods)
     smallest_chunk_size, calculated_num_lod = determine_chunk_size_for_lod(
         mesh_shape,
         num_lod - 1,
