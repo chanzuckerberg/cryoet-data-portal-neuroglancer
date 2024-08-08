@@ -45,7 +45,7 @@ def encode_oriented_mesh(
     list[trimesh.Scene]
         The list of scenes containing the oriented meshes
     """
-    scaled, decimated_meshes = scale_and_decimate_mesh(input_geometry, num_lods, decimation_aggressiveness)
+    scaled, decimated_meshes = scale_and_decimate_mesh(input_geometry, max(10, num_lods), decimation_aggressiveness)
     num_faces_per_lod = np.array([len(mesh.faces) for mesh in decimated_meshes])
     total_number_of_points = len(data)
     total_faces_per_lod = num_faces_per_lod * total_number_of_points
@@ -54,7 +54,7 @@ def encode_oriented_mesh(
             f"Total faces per LOD {total_faces_per_lod} are all greater than the maximum faces {max_faces_for_first_lod}.",
         )
     first_lod = np.argmax(total_faces_per_lod <= max_faces_for_first_lod)
-    # Now we have the first LOD that is less than the maximum faces, and redo the decimation
+    # Now we have the first LOD that is less than the maximum faces, and redo the decimation to ensure that we have the correct number of LODs
     num_total_lods = first_lod + num_lods
     decimated_meshes = decimate_mesh(
         scaled,
@@ -62,13 +62,12 @@ def encode_oriented_mesh(
         as_trimesh=True,
         aggressiveness=decimation_aggressiveness,
     )
-    last_lod = len(decimated_meshes) - 1
     LOGGER.info(
         "Using LOD %i as the first LOD, with %i faces, which is less than %i maximum faces. There are %i LODs remaining in total.",
         first_lod,
         total_faces_per_lod[first_lod],
         max_faces_for_first_lod,
-        last_lod - first_lod + 1,
+        len(decimated_meshes) - first_lod,
     )
 
     results = []
