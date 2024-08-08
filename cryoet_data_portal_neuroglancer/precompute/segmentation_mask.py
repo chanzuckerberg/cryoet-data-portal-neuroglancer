@@ -319,7 +319,7 @@ def create_mesh(
     LOGGER.info("Wrote segmentation mesh to %s", mesh_path)
 
 
-def generate_multires_mesh(
+def generate_multires_mesh_from_segmentation(
     precomputed_segmentation_path: Path,
     mesh_directory: str,
     max_lod: int,
@@ -474,7 +474,7 @@ def encode_segmentation(
     if include_mesh:
         LOGGER.info("Converting %s to neuroglancer mesh format", filename)
         mesh_shape = determine_size_of_non_zero_bounding_box(dask_data.compute())
-        generate_multires_mesh(
+        generate_multires_mesh_from_segmentation(
             output_path,
             mesh_directory,
             max_lod=max_lod,
