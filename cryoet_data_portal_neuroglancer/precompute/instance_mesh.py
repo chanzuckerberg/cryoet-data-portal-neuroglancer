@@ -62,12 +62,13 @@ def encode_oriented_mesh(
         as_trimesh=True,
         aggressiveness=decimation_aggressiveness,
     )
-
+    last_lod = len(decimated_meshes) - 1
     LOGGER.info(
-        "Using LOD %i as the first LOD, with %i faces, which is less than %i maximum faces. There are {max_lod - first_lod} LODs remaining in total.",
+        "Using LOD %i as the first LOD, with %i faces, which is less than %i maximum faces. There are %i LODs remaining in total.",
         first_lod,
         total_faces_per_lod[first_lod],
         max_faces_for_first_lod,
+        last_lod - first_lod + 1,
     )
 
     results = []
@@ -82,11 +83,10 @@ def encode_oriented_mesh(
     return results
 
 
-# TODO stop early if the number of faces stays constant
 def scale_and_decimate_mesh(
     input_geometry: trimesh.Scene | trimesh.Trimesh,
     num_lods: int,
-    decimation_aggressiveness: float = 5.0,
+    decimation_aggressiveness: float = 4.5,
 ) -> tuple[trimesh.Trimesh, list[trimesh.Trimesh]]:
     if isinstance(input_geometry, trimesh.Trimesh):
         mesh = input_geometry
@@ -112,4 +112,12 @@ def scale_and_decimate_mesh(
         aggressiveness=decimation_aggressiveness,
         as_trimesh=True,
     )
-    return scaled, decimated_meshes
+
+    total_faces_per_lod = [len(mesh.faces) for mesh in decimated_meshes]
+    last_lod = len(decimated_meshes) - 1
+    for i in range(last_lod):
+        if total_faces_per_lod[i] == total_faces_per_lod[i + 1]:
+            last_lod = i
+            break
+
+    return scaled, decimated_meshes[: last_lod + 1]
