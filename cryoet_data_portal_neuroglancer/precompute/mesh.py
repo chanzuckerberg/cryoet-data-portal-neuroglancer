@@ -51,6 +51,12 @@ def _process_decimated_mesh(
     if np.any(chunk_shape == 0):
         return (None, None)
 
+    # Igneous expects a Mesh object, but we have a trimesh object
+    # At the moment, Igneous only actually needs this for the final
+    # mesh - but for possible future compatibility, we convert all
+    # meshes to Mesh objects
+    lods = [Mesh(lod.vertices, lod.faces) for lod in lods]
+
     lods = [
         create_octree_level_from_mesh(lods[lod], chunk_shape, lod, num_lods)
         for lod in tqdm(range(num_lods), desc="Processing LODs into octree")
@@ -360,6 +366,7 @@ def _determine_mesh_shape(mesh: trimesh.Trimesh):
 def _determine_mesh_shape_from_lods(lods: list[trimesh.Trimesh]):
     mesh_starts = [np.min(lod.vertices, axis=0) for lod in lods]
     mesh_ends = [np.max(lod.vertices, axis=0) for lod in lods]
+    LOGGER.debug("LOD mesh origin points %s and end points %s", mesh_starts, mesh_ends,)
     grid_origin = np.floor(np.min(mesh_starts, axis=0))
     grid_end = np.max(mesh_ends, axis=0)
     mesh_shape = (grid_end - grid_origin).astype(int)
