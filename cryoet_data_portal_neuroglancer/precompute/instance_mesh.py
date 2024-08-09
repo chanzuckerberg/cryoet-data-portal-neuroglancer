@@ -15,7 +15,7 @@ LOGGER = logging.getLogger(__name__)
 def encode_oriented_mesh(
     input_geometry: trimesh.Scene | trimesh.Trimesh,
     data: list[dict[str, Any]],
-    num_lods: int = 3,
+    max_lod: int = 2,
     max_faces_for_first_lod: int = 5_000_000,
     decimation_aggressiveness: float = 4.5,
 ) -> list[trimesh.Scene]:
@@ -27,8 +27,8 @@ def encode_oriented_mesh(
         The scene containing the mesh or the mesh itself
     data : list[dict[str, Any]]
         The list of orientations and translations
-    num_lods: int, optional
-        The number of levels of detail to generate, by default 3
+    max_lod: int, optional
+        The maximum LOD to generate, by default 2. This would give 3 LODs:
         A high resolution, a medium resolution, and a low resolution
     max_faces : int, optional
         The maximum number of faces per mesh, by default 5million
@@ -45,6 +45,7 @@ def encode_oriented_mesh(
     list[trimesh.Scene]
         The list of scenes containing the oriented meshes
     """
+    num_lods = max_lod + 1
     scaled, decimated_meshes = scale_and_decimate_mesh(input_geometry, max(10, num_lods), decimation_aggressiveness)
     num_faces_per_lod = np.array([len(mesh.faces) for mesh in decimated_meshes])
     total_number_of_points = len(data)

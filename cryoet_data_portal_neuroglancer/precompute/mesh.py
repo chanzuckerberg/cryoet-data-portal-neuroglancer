@@ -498,7 +498,7 @@ def generate_sharded_mesh_from_lods(
     tq.execute(progress=False)
 
 
-def generate_standalone_sharded_multiresolution_mesh(
+def generate_multiresolution_mesh(
     glb: trimesh.Scene | str | Path,
     outfolder: str | Path,
     max_lod: int = 2,
@@ -567,7 +567,7 @@ def generate_standalone_sharded_multiresolution_mesh(
     tq.execute()
 
 
-def generate_multilabel_sharded_multiresolution_mesh(
+def generate_multilabel_multiresolution_mesh(
     label_dict: dict[int, trimesh.Scene | str | Path],
     outfolder: str | Path,
     max_lod: int = 2,
