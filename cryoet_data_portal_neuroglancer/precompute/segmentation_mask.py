@@ -13,7 +13,6 @@ import numpy as np
 from taskqueue import LocalTaskQueue
 from tqdm import tqdm
 
-import cryoet_data_portal_neuroglancer.igneous_patch as igneous_patch
 from cryoet_data_portal_neuroglancer.io import load_omezarr_data
 from cryoet_data_portal_neuroglancer.models.chunk import Chunk
 from cryoet_data_portal_neuroglancer.precompute.mesh import determine_chunk_size_for_lod
@@ -24,9 +23,6 @@ from cryoet_data_portal_neuroglancer.utils import (
     number_of_encoding_bits,
     pad_block,
 )
-
-# Patch igneous
-igneous_patch.patch()
 
 LOGGER = logging.getLogger(__name__)
 

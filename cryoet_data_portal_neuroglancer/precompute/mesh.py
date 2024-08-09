@@ -366,7 +366,11 @@ def _determine_mesh_shape(mesh: trimesh.Trimesh):
 def _determine_mesh_shape_from_lods(lods: list[trimesh.Trimesh]):
     mesh_starts = [np.min(lod.vertices, axis=0) for lod in lods]
     mesh_ends = [np.max(lod.vertices, axis=0) for lod in lods]
-    LOGGER.debug("LOD mesh origin points %s and end points %s", mesh_starts, mesh_ends,)
+    LOGGER.debug(
+        "LOD mesh origin points %s and end points %s",
+        mesh_starts,
+        mesh_ends,
+    )
     grid_origin = np.floor(np.min(mesh_starts, axis=0))
     grid_end = np.max(mesh_ends, axis=0)
     mesh_shape = (grid_end - grid_origin).astype(int)
