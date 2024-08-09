@@ -432,7 +432,7 @@ def determine_chunk_size_for_lod(
     return (int(x), int(y), int(z)), final_lod
 
 
-def generate_sharded_mesh_from_lods(
+def generate_mesh_from_lods(
     lods: list[trimesh.Scene],
     outfolder: str | Path,
     min_mesh_chunk_dim: int = 16,
@@ -507,8 +507,8 @@ def generate_multiresolution_mesh(
     outfolder: str | Path,
     max_lod: int = 2,
     min_mesh_chunk_dim: int = 16,
-    label: int = 1,
     bounding_box_size: tuple[float, float, float] | None = None,
+    label: int = 1,
 ):
     """
     Generate a standalone sharded multiresolution mesh from a glb file or scene
