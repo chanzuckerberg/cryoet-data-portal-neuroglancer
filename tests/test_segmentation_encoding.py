@@ -199,7 +199,36 @@ def test__create_segmentation_chunk():
             [1, 1, 1, 1],
         ],
     ]
-    chunk: Chunk = create_segmentation_chunk(np.array(array), dimensions=((0, 0, 0), (8, 8, 4)), block_size=(8, 8, 4))
+    real_data = np.array(array)
+    chunk: Chunk = create_segmentation_chunk(real_data, dimensions=((0, 0, 0), (8, 8, 4)), block_size=(8, 8, 4))
 
     assert chunk.dimensions == ((0, 0, 0), (8, 8, 4))
-    # TODO expand me!
+    byte_array = chunk.buffer
+    data_start_offset = 20  # header of 8 bytes + 12 bytes of info
+    data = np.frombuffer(byte_array, dtype=np.uint32, offset=data_start_offset)
+    # The data is symmetric, so each 32-bit integer should be the same
+    assert len(data) == 8  # 8 * 8 * 4 / 32
+    assert np.all(np.diff(data) == 0)
+
+    # If we chunk in larger blocks, it should still work with padding
+    chunk: Chunk = create_segmentation_chunk(real_data, dimensions=((0, 0, 0), (8, 8, 4)), block_size=(8, 8, 8))
+
+    assert chunk.dimensions == ((0, 0, 0), (8, 8, 4))
+    byte_array = chunk.buffer
+    data_start_offset = 20
+    data = np.frombuffer(byte_array, dtype=np.uint32, offset=data_start_offset)
+    # The data is symmetric, so each 32-bit integer should be the same
+    assert len(data) == 16  # 8 * 8 * 8 / 32
+    assert np.all(np.diff(data) == 0)
+
+    # With smaller blocks, there should be more of them
+    chunk: Chunk = create_segmentation_chunk(real_data, dimensions=((0, 0, 0), (8, 8, 4)), block_size=(4, 4, 4))
+
+    assert chunk.dimensions == ((0, 0, 0), (8, 8, 4))
+    byte_array = chunk.buffer
+    data_start_offset = 20
+    data = np.frombuffer(byte_array, dtype=np.uint32)
+
+    # In this case, there should be four block headers (32 bits) - followed by the 3 32-bit info bytes, and then all the data is the same in one block of 8 32-bit integers
+    assert len(data) == 8 + 3 + 8
+    assert np.all(np.diff(data[11:]) == 0)
