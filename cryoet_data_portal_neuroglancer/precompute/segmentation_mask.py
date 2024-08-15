@@ -341,14 +341,21 @@ def generate_multiresolution_mesh_from_segmentation(
     tq = LocalTaskQueue()
 
     path = f"precomputed://file://{precomputed_segmentation_path}"
-    tasks = tc.create_meshing_tasks(path, mip=0, mesh_dir=mesh_directory, sharded=True)
+    tasks = tc.create_meshing_tasks(
+        path,
+        mip=0,
+        mesh_dir=mesh_directory,
+        sharded=True,
+        fill_missing=True,
+        simplification=False,
+    )
     tq.insert(tasks)
     tq.execute()
 
     tasks = tc.create_mesh_manifest_tasks(path, mesh_dir=mesh_directory, magnitude=3)
     tq.insert(tasks)
     tq.execute()
-    min_chunk_size = determine_chunk_size_for_lod(
+    min_chunk_size, num_lods = determine_chunk_size_for_lod(
         mesh_shape,
         max_lod,
         min_mesh_chunk_dim,
