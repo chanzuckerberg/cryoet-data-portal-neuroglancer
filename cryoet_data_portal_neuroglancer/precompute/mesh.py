@@ -381,7 +381,7 @@ def determine_chunk_size_for_lod(
     mesh_shape: tuple[int, int, int],
     max_lod: int,
     min_chunk_dim: int = 16,
-) -> tuple[int, int, int]:
+) -> tuple[tuple[int, int, int], int]:
     """
     Determine the chunk size for a given mesh shape and LOD levels
 
