@@ -432,6 +432,25 @@ def determine_chunk_size_for_lod(
     return (int(x), int(y), int(z)), final_lod
 
 
+def clean_mesh_folder(output_path: str | Path, mesh_directory: str = "mesh"):
+    """Remove unnecessary files from the mesh folder
+
+    The conversion produces extra unnecessary files, so we clean up
+    The only needed files are the info file, and any file that ends with .shard
+    However, if the sharding fails, we may have other files, so we only delete
+    If there is at least one shard file
+    """
+    output_path = Path(output_path)
+    mesh_dir = output_path / mesh_directory
+    if mesh_dir.exists() and any(f.name.endswith(".shard") for f in mesh_dir.iterdir()):
+        LOGGER.debug("Cleaning up the mesh directory")
+        for f in mesh_dir.iterdir():
+            if f.is_file() and not (f.name == "info" or f.name.endswith(".shard")):
+                f.unlink()
+    else:
+        LOGGER.warning("No shard files found, not cleaning up the mesh directory")
+
+
 def generate_mesh_from_lods(
     lods: list[trimesh.Scene],
     outfolder: str | Path,

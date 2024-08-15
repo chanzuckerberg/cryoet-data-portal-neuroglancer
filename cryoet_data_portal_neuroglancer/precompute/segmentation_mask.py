@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 from cryoet_data_portal_neuroglancer.io import load_omezarr_data
 from cryoet_data_portal_neuroglancer.models.chunk import Chunk
-from cryoet_data_portal_neuroglancer.precompute.mesh import determine_chunk_size_for_lod
+from cryoet_data_portal_neuroglancer.precompute.mesh import clean_mesh_folder, determine_chunk_size_for_lod
 from cryoet_data_portal_neuroglancer.utils import (
     determine_size_of_non_zero_bounding_box,
     get_grid_size_from_block_shape,
@@ -405,6 +405,7 @@ def encode_segmentation(
         The size of the blocks to use, by default (64, 64, 64)
         This determines the size of the chunks in the precomputed format
         output
+        Order is Z, Y, X
     data_directory : str, optional
         The name of the data directory, by default "data"
         This is the directory that will contain the segmentation data
@@ -484,5 +485,6 @@ def encode_segmentation(
             mesh_shape=mesh_shape,
             min_mesh_chunk_dim=min_mesh_chunk_dim,
         )
+        clean_mesh_folder(output_path, mesh_directory)
 
     LOGGER.info("Wrote segmentation to %s", output_path)
