@@ -253,7 +253,7 @@ def _create_metadata(
         "num_channels": 1,
         "scales": [
             {
-                "chunk_sizes": [chunk_size],
+                "chunk_sizes": [chunk_size[::-1]], # reverse the chunk size to pass from Z-Y-X to X-Y-Z
                 "encoding": "compressed_segmentation",
                 "compressed_segmentation_block_size": block_size,
                 "resolution": resolution,
