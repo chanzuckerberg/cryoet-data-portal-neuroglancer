@@ -213,9 +213,9 @@ def create_segmentation_chunk(
     # data = np.moveaxis(data, (0, 1, 2), (2, 1, 0))
     for z, y, x in np.ndindex((gz, gy, gx)):
         block = data[z * bz : (z + 1) * bz, y * by : (y + 1) * by, x * bx : (x + 1) * bx]
-        unique_values, encoded_values = np.unique(block, return_inverse=True)
         if block.shape != block_size:
             block = pad_block(block, block_size)
+        unique_values, encoded_values = np.unique(block, return_inverse=True)
 
         lookup_table_offset, encoded_bits = _create_lookup_table(buffer, stored_lookup_tables, unique_values)
         encoded_values_offset = _create_encoded_values(buffer, encoded_values, encoded_bits)
@@ -246,7 +246,7 @@ def _create_metadata(
         "num_channels": 1,
         "scales": [
             {
-                "chunk_sizes": [chunk_size],
+                "chunk_sizes": [chunk_size[::-1]],  # reverse the chunk size to pass from Z-Y-X to X-Y-Z
                 "encoding": "compressed_segmentation",
                 "compressed_segmentation_block_size": block_size,
                 "resolution": resolution,
@@ -318,17 +318,45 @@ def write_metadata(metadata: dict[str, Any], output_directory: Path) -> None:
 
 def encode_segmentation(
     filename: str,
-    output_path: Path,
+    output_path: Path | str,
     resolution: tuple[float, float, float],
     block_size: tuple[int, int, int] = (64, 64, 64),
     data_directory: str = "data",
     delete_existing: bool = False,
-    convert_non_zero_to: Optional[int] = 0,
+    convert_non_zero_to: int | None = 0,
     include_mesh: bool = False,
     mesh_directory: str = "mesh",
 ) -> None:
-    """Convert the given OME-Zarr file to neuroglancer segmentation format with the given block size"""
+    """Convert the given OME-Zarr file to neuroglancer segmentation format with the given block size.
+
+    Parameters
+    ----------
+    filename : str
+        The path to the OME-Zarr file
+    output_path : Path | str
+        The path to the output directory
+    resolution : tuple[float, float, float]
+        The resolution of the data in nm
+    block_size : tuple[int, int, int], optional
+        The size of the blocks to use, by default (64, 64, 64)
+        This determines the size of the chunks in the precomputed format
+        output
+        Order is Z, Y, X
+    data_directory : str, optional
+        The name of the data directory, by default "data"
+        This is the directory that will contain the segmentation data
+    delete_existing : bool, optional
+        Whether to delete the existing output directory, by default False
+        If False and the output directory exists, the function will
+        return without doing anything
+    convert_non_zero_to : int | None, optional
+        The value to convert non-zero values to, by default 0, which
+        will leave non-zero values as they are. If None, non-zero
+        values will be left as they are also. This is useful for
+        representing multiple objects in the same segmentation
+    """
     print(f"Converting {filename} to neuroglancer compressed segmentation format")
+    output_path = Path(output_path)
     dask_data = load_omezarr_data(filename)
     if delete_existing and output_path.exists():
         contents = list(output_path.iterdir())
