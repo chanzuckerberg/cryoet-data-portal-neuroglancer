@@ -213,9 +213,9 @@ def create_segmentation_chunk(
     # data = np.moveaxis(data, (0, 1, 2), (2, 1, 0))
     for z, y, x in np.ndindex((gz, gy, gx)):
         block = data[z * bz : (z + 1) * bz, y * by : (y + 1) * by, x * bx : (x + 1) * bx]
-        unique_values, encoded_values = np.unique(block, return_inverse=True)
         if block.shape != block_size:
             block = pad_block(block, block_size)
+        unique_values, encoded_values = np.unique(block, return_inverse=True)
 
         lookup_table_offset, encoded_bits = _create_lookup_table(buffer, stored_lookup_tables, unique_values)
         encoded_values_offset = _create_encoded_values(buffer, encoded_values, encoded_bits)
@@ -246,7 +246,7 @@ def _create_metadata(
         "num_channels": 1,
         "scales": [
             {
-                "chunk_sizes": [chunk_size],
+                "chunk_sizes": [chunk_size[::-1]],  # reverse the chunk size to pass from Z-Y-X to X-Y-Z
                 "encoding": "compressed_segmentation",
                 "compressed_segmentation_block_size": block_size,
                 "resolution": resolution,
