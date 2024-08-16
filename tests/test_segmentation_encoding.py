@@ -204,10 +204,10 @@ def test__create_segmentation_chunk():
 
     assert chunk.dimensions == ((0, 0, 0), (8, 8, 4))
     byte_array = chunk.buffer
-    data_start_offset = 20 # header of 8 bytes + 12 bytes of info
+    data_start_offset = 20  # header of 8 bytes + 12 bytes of info
     data = np.frombuffer(byte_array, dtype=np.uint32, offset=data_start_offset)
     # The data is symmetric, so each 32-bit integer should be the same
-    assert len(data) == 8 # 8 * 8 * 4 / 32
+    assert len(data) == 8  # 8 * 8 * 4 / 32
     assert np.all(np.diff(data) == 0)
 
     # If we chunk in larger blocks, it should still work with padding
@@ -218,7 +218,7 @@ def test__create_segmentation_chunk():
     data_start_offset = 20
     data = np.frombuffer(byte_array, dtype=np.uint32, offset=data_start_offset)
     # The data is symmetric, so each 32-bit integer should be the same
-    assert len(data) == 16 # 8 * 8 * 8 / 32
+    assert len(data) == 16  # 8 * 8 * 8 / 32
     assert np.all(np.diff(data) == 0)
 
     # With smaller blocks, there should be more of them
