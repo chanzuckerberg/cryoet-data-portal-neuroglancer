@@ -13,11 +13,11 @@ from cryoet_data_portal_neuroglancer.precompute.mesh import (
 from cryoet_data_portal_neuroglancer.precompute.segmentation_mask import encode_segmentation
 from cryoet_data_portal_neuroglancer.utils import determine_size_of_non_zero_bounding_box
 
-logging.basicConfig(level=logging.DEBUG, force=True)
+#logging.basicConfig(level=logging.DEBUG, force=True)
 
 zarr_path = "102-membrane-1.0_segmentationmask.zarr"
 output_path = "102-membrane-1.0_segmentationmask_encoded"
-resolution = 1.0  # Non 1.0 is a harder test
+resolution = 1.1  # Non 1.0 is a harder test
 
 
 def grab_annotation():
@@ -41,6 +41,7 @@ def make_precomputed_segmentation():
 
 def make_multi_res_mesh():
     dask_data = load_omezarr_data(zarr_path)
+    max_simplification_error = 10 * max(1, int(resolution))
     mesh_shape = determine_size_of_non_zero_bounding_box(dask_data)
     del dask_data
     generate_multiresolution_mesh_from_segmentation(
@@ -48,7 +49,7 @@ def make_multi_res_mesh():
         "mesh",
         max_lod=2,
         mesh_shape=mesh_shape,
-        max_simplification_error=0,
+        max_simplification_error=max_simplification_error,
     )
     clean_mesh_folder(output_path, "mesh")
 
