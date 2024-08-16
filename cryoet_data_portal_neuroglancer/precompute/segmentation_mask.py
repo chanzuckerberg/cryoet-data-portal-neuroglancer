@@ -305,6 +305,8 @@ def encode_segmentation(
     mesh_directory: str = "mesh",
     max_lod: int = 2,
     min_mesh_chunk_dim: int = 16,
+    fast_bounding_box: bool = False,
+    max_simplification_error_in_voxels: int = 2,
 ) -> None:
     """Convert the given OME-Zarr file to neuroglancer segmentation format with the given block size
 
@@ -350,7 +352,18 @@ def encode_segmentation(
         Processing in very small chunks is inefficient, and error prone,
         so we set a minimum chunk size to avoid this.
         If you want to force the generation of LODs, you can set this to 1.
-
+    fast_bounding_box : bool, optional
+        Whether to use a fast method to determine the bounding box of the
+        non-zero values in the data, by default False
+        The default calculation accurately determines the bounding box
+        by checking each chunk for non-zero values. This is slow for
+        large datasets, so the fast method uses the shape of the data.
+        Not recommended for datasets with large empty regions.
+    max_simplification_error_in_voxels : int, optional
+        For memory consumption reasons, the mesh from the segmentation is
+        simplified. This parameter sets the maximum error in voxels for
+        the simplification, by default 2.
+        For large meshes, this can be increased to reduce memory consumption.
     """
     LOGGER.info("Converting %s to neuroglancer compressed segmentation format", filename)
     output_path = Path(output_path)
@@ -392,13 +405,15 @@ def encode_segmentation(
 
     if include_mesh:
         LOGGER.info("Converting %s to neuroglancer mesh format", filename)
-        mesh_shape = determine_size_of_non_zero_bounding_box(dask_data)
+        mesh_shape = dask_data.shape[::-1] if fast_bounding_box else determine_size_of_non_zero_bounding_box(dask_data)
+        max_simplification_error = max_simplification_error_in_voxels * max(1, int(max(resolution)))
         generate_multiresolution_mesh_from_segmentation(
             output_path,
             mesh_directory,
             max_lod=max_lod,
             mesh_shape=mesh_shape,
             min_mesh_chunk_dim=min_mesh_chunk_dim,
+            max_simplification_error=max_simplification_error,
         )
         clean_mesh_folder(output_path, mesh_directory)
 
