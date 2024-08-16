@@ -4,8 +4,11 @@ from functools import partial
 from pathlib import Path
 from typing import Iterator, cast
 
+import dask.array as da
 import DracoPy
+import igneous.task_creation as tc
 import igneous.tasks.mesh.multires
+import neuroglancer
 import numpy as np
 import shardcomputer
 import trimesh
@@ -657,3 +660,101 @@ def generate_multilabel_multiresolution_mesh(
     )
     tq.insert(tasks)
     tq.execute()
+
+
+def generate_multiresolution_mesh_from_segmentation(
+    precomputed_segmentation_path: Path,
+    mesh_directory: str,
+    max_lod: int,
+    mesh_shape: tuple[int, int, int] | np.ndarray,
+    min_mesh_chunk_dim: int = 16,
+    max_simplification_error: int = 10,
+) -> None:
+    """Generates the meshes for a segmentation stored as a precomputed Neuroglancer format.
+
+    Parameters
+    ----------
+    precomputed_segmentation_path: Path
+        The path towards the segmentation stored as a precomputed Neuroglancer format
+    mesh_directory: str
+        The name of the directory that will receive the mesh information
+    max_lod: int
+        The maximal lod that needs to be generated, starting from 0
+        This may not be achieved if the mesh is too small
+    mesh_shape: tuple[int, int, int] | np.ndarray
+        The shape of the mesh - used in calculating the chunk size for LOD generation
+    min_mesh_chunk_dim: int
+        The minimal dimension of a chunk.
+    max_simplification_error: int
+        The maximal simplification error allowed for the mesh generation from the
+        segmentation. This is used to simplify the mesh and reduce the number of
+        vertices and faces in the mesh. The error is in the same unit as the data.
+    """
+    tq = LocalTaskQueue()
+
+    path = f"precomputed://file://{precomputed_segmentation_path}"
+    LOGGER.info("Generating mesh for %s", path)
+    LOGGER.debug("Meshing with zmesher and %i max simplification error", max_simplification_error)
+    simplification = max_simplification_error != 0
+    tasks = tc.create_meshing_tasks(
+        path,
+        mip=0,
+        mesh_dir=mesh_directory,
+        sharded=True,
+        fill_missing=True,
+        max_simplification_error=max_simplification_error,
+        simplification=simplification,
+    )
+    tq.insert(tasks)
+    tq.execute()
+
+    LOGGER.debug("Creating mesh manifest")
+    tasks = tc.create_mesh_manifest_tasks(path, mesh_dir=mesh_directory, magnitude=3)
+    tq.insert(tasks)
+    tq.execute()
+
+    LOGGER.debug("Creating multi-resolution mesh with max %i LOD", max_lod)
+    min_chunk_size, num_lods = determine_chunk_size_for_lod(
+        mesh_shape,
+        max_lod,
+        min_mesh_chunk_dim,
+    )
+    LOGGER.info("Generating %i LODs for the mesh", num_lods)
+    tasks = tc.create_sharded_multires_mesh_tasks(
+        path,
+        mesh_dir=mesh_directory,
+        num_lod=max_lod,
+        min_chunk_size=min_chunk_size,
+    )
+    tq.insert(tasks)
+    tq.execute()
+
+
+def generate_single_resolution_mesh(
+    dask_data: da.Array,
+    output_path: Path,
+    mesh_directory: str,
+    resolution: tuple[float, float, float],
+) -> None:
+    """Create a single res mesh for the given volume if a mesh directory is provided"""
+    mesh = np.dstack([np.array(dask_data).astype(np.uint8)])
+    transposed_mesh = np.transpose(mesh, (2, 1, 0))
+
+    ids = [int(i) for i in np.unique(transposed_mesh[:])]
+    coordinate_space = neuroglancer.CoordinateSpace(
+        names=("x", "y", "z"),
+        units=("m",) * 3,
+        scales=resolution,
+    )
+    vol = neuroglancer.LocalVolume(data=transposed_mesh, dimensions=coordinate_space)
+
+    mesh_path = output_path / mesh_directory
+    mesh_path.mkdir(exist_ok=True, parents=True)
+    json_descriptor = '{{"fragments": ["mesh.{}.{}"]}}'
+    for id in ids[1:]:
+        mesh_data = vol.get_object_mesh(id)
+        with open(str(mesh_path / ".".join(("mesh", str(id), str(id)))), "wb") as mesh_file:
+            mesh_file.write(mesh_data)
+        with open(str(mesh_path / "".join((str(id), ":0"))), "w") as frag_file:
+            frag_file.write(json_descriptor.format(id, id))
+    LOGGER.info("Wrote segmentation mesh to %s", mesh_path)

@@ -1,10 +1,16 @@
+import logging
 from functools import lru_cache
 from math import ceil
-from typing import Iterator
+from typing import TYPE_CHECKING, Iterator
 
 import dask.array as da
 import numpy as np
 import trimesh
+
+if TYPE_CHECKING:
+    import dask.array as da
+
+LOGGER = logging.getLogger(__name__)
 
 
 def get_scale(
@@ -249,7 +255,7 @@ def get_window_limits_from_contrast_limits(
 
 
 def determine_size_of_non_zero_bounding_box(
-    volume: np.ndarray,
+    data: "da.Array",
 ) -> tuple[tuple[int, int], tuple[int, int], tuple[int, int]]:
     """
     Determine the size of the non-zero bounding box of a volume.
@@ -267,8 +273,23 @@ def determine_size_of_non_zero_bounding_box(
     tuple[tuple[int, int], tuple[int, int], tuple[int, int]]
         The bounding box as a tuple of tuples
     """
-    non_zero_indices = np.nonzero(volume)
-    min_z, max_z = np.min(non_zero_indices[0]), np.max(non_zero_indices[0])
-    min_y, max_y = np.min(non_zero_indices[1]), np.max(non_zero_indices[1])
-    min_x, max_x = np.min(non_zero_indices[2]), np.max(non_zero_indices[2])
+    LOGGER.debug("Determining size of non-zero bounding box")
+    min_z, max_z = np.inf, 0
+    min_y, max_y = np.inf, 0
+    min_x, max_x = np.inf, 0
+    # Process the data in chunks
+    for chunk, _ in iterate_chunks(data):
+        non_zero_indices = chunk.nonzero()
+        non_zero_indices[0].compute_chunk_sizes()
+        if len(non_zero_indices[0]) == 0:
+            continue
+        min_z = min(min_z, np.min(non_zero_indices[0]))
+        max_z = max(max_z, np.max(non_zero_indices[0]))
+        min_y = min(min_y, np.min(non_zero_indices[1]))
+        max_y = max(max_y, np.max(non_zero_indices[1]))
+        min_x = min(min_x, np.min(non_zero_indices[2]))
+        max_x = max(max_x, np.max(non_zero_indices[2]))
+
+    if min_z == np.inf:
+        min_z = min_y = min_x = 0
     return max_x - min_x + 1, max_y - min_y + 1, max_z - min_z + 1

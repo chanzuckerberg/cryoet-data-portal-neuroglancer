@@ -7,15 +7,15 @@ from pathlib import Path
 from typing import Any, Iterator
 
 import dask.array as da
-import igneous.task_creation as tc
-import neuroglancer
 import numpy as np
-from taskqueue import LocalTaskQueue
 from tqdm import tqdm
 
 from cryoet_data_portal_neuroglancer.io import load_omezarr_data
 from cryoet_data_portal_neuroglancer.models.chunk import Chunk
-from cryoet_data_portal_neuroglancer.precompute.mesh import clean_mesh_folder, determine_chunk_size_for_lod
+from cryoet_data_portal_neuroglancer.precompute.mesh import (
+    clean_mesh_folder,
+    generate_multiresolution_mesh_from_segmentation,
+)
 from cryoet_data_portal_neuroglancer.utils import (
     determine_size_of_non_zero_bounding_box,
     get_grid_size_from_block_shape,
@@ -285,91 +285,6 @@ def create_segmentation(
         )
 
 
-def create_mesh(
-    dask_data: da.Array,
-    output_path: Path,
-    mesh_directory: str,
-    resolution: tuple[float, float, float],
-) -> None:
-    """Create a single res mesh for the given volume if a mesh directory is provided"""
-    mesh = np.dstack([np.array(dask_data).astype(np.uint8)])
-    transposed_mesh = np.transpose(mesh, (2, 1, 0))
-
-    ids = [int(i) for i in np.unique(transposed_mesh[:])]
-    coordinate_space = neuroglancer.CoordinateSpace(
-        names=("x", "y", "z"),
-        units=("m",) * 3,
-        scales=resolution,
-    )
-    vol = neuroglancer.LocalVolume(data=transposed_mesh, dimensions=coordinate_space)
-
-    mesh_path = output_path / mesh_directory
-    mesh_path.mkdir(exist_ok=True, parents=True)
-    json_descriptor = '{{"fragments": ["mesh.{}.{}"]}}'
-    for id in ids[1:]:
-        mesh_data = vol.get_object_mesh(id)
-        with open(str(mesh_path / ".".join(("mesh", str(id), str(id)))), "wb") as mesh_file:
-            mesh_file.write(mesh_data)
-        with open(str(mesh_path / "".join((str(id), ":0"))), "w") as frag_file:
-            frag_file.write(json_descriptor.format(id, id))
-    LOGGER.info("Wrote segmentation mesh to %s", mesh_path)
-
-
-def generate_multiresolution_mesh_from_segmentation(
-    precomputed_segmentation_path: Path,
-    mesh_directory: str,
-    max_lod: int,
-    mesh_shape: tuple[int, int, int] | np.ndarray,
-    min_mesh_chunk_dim: int = 16,
-) -> None:
-    """Generates the meshes for a segmentation stored as a precomputed Neuroglancer format.
-
-    Parameters
-    ----------
-    precomputed_segmentation_path: Path
-        The path towards the segmentation stored as a precomputed Neuroglancer format
-    mesh_directory: str
-        The name of the directory that will receive the mesh information
-    max_lod: int
-        The maximal lod that needs to be generated, starting from 0
-        This may not be achieved if the mesh is too small
-    mesh_shape: tuple[int, int, int] | np.ndarray
-        The shape of the mesh - used in calculating the chunk size for LOD generation
-    min_mesh_chunk_dim: int
-        The minimal dimension of a chunk.
-    """
-    tq = LocalTaskQueue()
-
-    path = f"precomputed://file://{precomputed_segmentation_path}"
-    tasks = tc.create_meshing_tasks(
-        path,
-        mip=0,
-        mesh_dir=mesh_directory,
-        sharded=True,
-        fill_missing=True,
-        simplification=False,
-    )
-    tq.insert(tasks)
-    tq.execute()
-
-    tasks = tc.create_mesh_manifest_tasks(path, mesh_dir=mesh_directory, magnitude=3)
-    tq.insert(tasks)
-    tq.execute()
-    min_chunk_size, num_lods = determine_chunk_size_for_lod(
-        mesh_shape,
-        max_lod,
-        min_mesh_chunk_dim,
-    )
-    tasks = tc.create_sharded_multires_mesh_tasks(
-        path,
-        mesh_dir=mesh_directory,
-        num_lod=max_lod,
-        min_chunk_size=min_chunk_size,
-    )
-    tq.insert(tasks)
-    tq.execute()
-
-
 def write_metadata(metadata: dict[str, Any], output_directory: Path) -> None:
     """Write the segmentation to the given directory"""
     metadata_path = output_directory / "info"
@@ -477,7 +392,7 @@ def encode_segmentation(
 
     if include_mesh:
         LOGGER.info("Converting %s to neuroglancer mesh format", filename)
-        mesh_shape = determine_size_of_non_zero_bounding_box(dask_data.compute())
+        mesh_shape = determine_size_of_non_zero_bounding_box(dask_data)
         generate_multiresolution_mesh_from_segmentation(
             output_path,
             mesh_directory,
