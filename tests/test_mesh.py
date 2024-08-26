@@ -22,16 +22,19 @@ from cryoet_data_portal_neuroglancer.precompute.segmentation_mask import encode_
 @pytest.mark.parametrize(
     "mesh_shape, max_lod, min_chunk_dim, expected_result, expected_lods",
     [
-        ((256, 128, 512), 3, 1, (256 / 8, 128 / 8, 512 / 8), 4),  # Result: (32, 16, 64)
-        ((120, 20, 42), 4, 64, (64, 16, 32), 1),  # Can't respect num_lod or min_chunk_dim
-        ((60, 40, 139), 4, 16, (16, 16, 64), 2),  # Can't respect num_lod
-        ((512, 345, 415), 4, 4, (32, 16, 16), 5),  # Can respect all
-        ((256, 256, 256), 3, 256, (256, 256, 256), 1),  # Can respect min_chunk_dim only
+        ((256, 128, 512), 3, 1, ((32, 16, 64), (256 // 8, 128 // 8, 512 // 8)), 4),  # Result: (32, 16, 64)
+        ((120, 20, 42), 4, 64, ((120, 20, 42), (64, 16, 32)), 1),  # Can't respect num_lod or min_chunk_dim
+        ((60, 40, 139), 4, 16, ((30, 20, 70), (16, 16, 64)), 2),  # Can't respect num_lod
+        ((512, 345, 415), 4, 4, ((32, 22, 26), (32, 16, 16)), 5),  # Can respect all
+        ((256, 256, 256), 3, 256, ((256, 256, 256), (256, 256, 256)), 1),  # Can respect min_chunk_dim only
     ],
 )
 def test_determine_chunk_size_for_lod(mesh_shape, max_lod, min_chunk_dim, expected_result, expected_lods):
-    chunk_size, num_lods = determine_chunk_size_for_lod(mesh_shape, max_lod, min_chunk_dim)
-    assert chunk_size == expected_result
+    actual_expected_result, min_expected_result = expected_result
+    (actual_chunk_size, min_chunk_size), num_lods = determine_chunk_size_for_lod(mesh_shape, max_lod, min_chunk_dim)
+
+    assert actual_chunk_size == actual_expected_result
+    assert min_chunk_size == min_expected_result
     assert num_lods == expected_lods
 
 
@@ -128,7 +131,7 @@ def test_mesh_from_segmentation(segmentation_shape, tmp_path):
     print(os.listdir(output_path / "mesh"))
 
     # A mesh shouuld be created
-    #generic_mesh_checks(output_path, num_files=4)
+    # generic_mesh_checks(output_path, num_files=4)
 
 
 if __name__ == "__main__":
