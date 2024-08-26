@@ -381,10 +381,10 @@ def _determine_mesh_shape_from_lods(lods: list[trimesh.Trimesh]):
 
 
 def determine_chunk_size_for_lod(
-    mesh_shape: tuple[int, int, int],
+    mesh_shape: tuple[int, int, int] | np.ndarray,  # type: ignore
     max_lod: int,
     min_chunk_dim: int = 16,
-) -> tuple[tuple[int, int, int], int]:
+) -> tuple[tuple[tuple[int, int, int], tuple[int, int, int]], int]:
     """
     Determine the chunk size for a given mesh shape and LOD levels
 
@@ -409,22 +409,22 @@ def determine_chunk_size_for_lod(
 
     Returns
     -------
-    tuple[int, int, int], int
-        The chunk size, and the number of LODs that can be generated
+    tuple[tuple[int, int, int], tuple[int, int, int]], int
+        The actual chunk size, the min chunk size, and the number of LODs that can be generated
     """
-    mesh_shape = np.array(mesh_shape)
+    mesh_shape: np.ndarray = np.array(mesh_shape)  # type: ignore
 
-    def _determine_chunk_shape_for_lod(lod_level):
+    def _determine_chunk_shape_for_lod(mesh_shape, lod_level):
         return 2 ** np.floor(np.log2(mesh_shape / 2**lod_level))
 
     # Find a power of 2 chunk size to reach the max LOD
-    chunk_shape = _determine_chunk_shape_for_lod(max_lod)
+    chunk_shape = _determine_chunk_shape_for_lod(mesh_shape, max_lod)
 
     # If the chunk size is smaller than the minimum chunk dimension
     # then we can't respect the max LOD and need to reduce the LODs
     if np.any(chunk_shape < min_chunk_dim):
         max_lod = int(max(np.min(np.log2(mesh_shape / min_chunk_dim)), 0))
-        chunk_shape = _determine_chunk_shape_for_lod(max_lod)
+        chunk_shape = _determine_chunk_shape_for_lod(mesh_shape, max_lod)
     final_lod = int(max(np.min(np.log2(mesh_shape / chunk_shape)), 0)) + 1
     LOGGER.info(
         "Will produce %i LODs for this mesh at min size %s",
@@ -432,7 +432,11 @@ def determine_chunk_size_for_lod(
         chunk_shape,
     )
     x, y, z = chunk_shape.astype(int)
-    return (int(x), int(y), int(z)), final_lod
+
+    # Compute the Actual Chunk Size (ACS)
+    acs_x, acs_y, acs_z = np.ceil(mesh_shape / 2 ** (final_lod - 1))
+
+    return (((int(acs_x), int(acs_y), int(acs_z)), (int(x), int(y), int(z))), final_lod)
 
 
 def clean_mesh_folder(output_path: str | Path, mesh_directory: str = "mesh"):
@@ -495,20 +499,18 @@ def generate_mesh_from_lods(
     size_x, size_y, size_z = bounding_box_size if bounding_box_size is not None else _compute_size(bb2)
 
     _, mesh_shape = _determine_mesh_shape_from_lods(concatenated_lods)
-    smallest_chunk_size, calculated_num_lod = determine_chunk_size_for_lod(
+    (actual_chunk_shape, smallest_chunk_size), calculated_num_lod = determine_chunk_size_for_lod(
         mesh_shape,
         num_lod - 1,
         min_chunk_dim=min_mesh_chunk_dim,
     )
-    # TODO get actual chunk shape in other places too
-    actual_chunk_shape = np.ceil(mesh_shape / 2 ** (calculated_num_lod - 1))
 
     # The resolution is not handled here, but in the neuroglancer state
     _generate_standalone_mesh_info(
         outfolder,
         size=(size_x, size_y, size_z),
         resolution=1.0,
-        mesh_chunk_size=tuple([int(x) for x in actual_chunk_shape]),
+        mesh_chunk_size=actual_chunk_shape,
     )
 
     tq = LocalTaskQueue(progress=False)
@@ -566,7 +568,7 @@ def generate_multiresolution_mesh(
     size_x, size_y, size_z = bounding_box_size if bounding_box_size is not None else _compute_size()
 
     mesh_shape = _determine_mesh_shape(mesh)
-    smallest_chunk_size, computed_num_lod = determine_chunk_size_for_lod(
+    (actual_chunk_shape, smallest_chunk_size), computed_num_lod = determine_chunk_size_for_lod(
         mesh_shape,
         max_lod,
         min_mesh_chunk_dim,
@@ -577,7 +579,7 @@ def generate_multiresolution_mesh(
         outfolder,
         size=(size_x, size_y, size_z),
         resolution=1.0,
-        mesh_chunk_size=smallest_chunk_size,
+        mesh_chunk_size=actual_chunk_shape,
     )
 
     tq = LocalTaskQueue()
@@ -635,7 +637,7 @@ def generate_multilabel_multiresolution_mesh(
     size_x, size_y, size_z = bounding_box_size if bounding_box_size is not None else _compute_size()
 
     mesh_shape = _determine_mesh_shape(mesh)
-    smallest_chunk_size, computed_num_lod = determine_chunk_size_for_lod(
+    (actual_chunk_size, smallest_chunk_size), computed_num_lod = determine_chunk_size_for_lod(
         mesh_shape,
         max_lod,
         min_mesh_chunk_dim,
@@ -646,7 +648,7 @@ def generate_multilabel_multiresolution_mesh(
         outfolder,
         size=(size_x, size_y, size_z),
         resolution=1.0,
-        mesh_chunk_size=smallest_chunk_size,
+        mesh_chunk_size=actual_chunk_size,
     )
 
     tq = LocalTaskQueue()
@@ -714,7 +716,7 @@ def generate_multiresolution_mesh_from_segmentation(
     tq.execute()
 
     LOGGER.debug("Creating multi-resolution mesh with max %i LOD", max_lod)
-    min_chunk_size, num_lods = determine_chunk_size_for_lod(
+    (_, min_chunk_size), num_lods = determine_chunk_size_for_lod(
         mesh_shape,
         max_lod,
         min_mesh_chunk_dim,
