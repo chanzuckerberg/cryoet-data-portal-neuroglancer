@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cryoet-data-portal-neuroglancer"
-version = "0.1.0"
+version = "1.0.0"
 description = "Utility package for working with Neuroglancer data in the CZI Cryo-ET Data Portal"
 authors = [
     "CZI Imaging Team <cryoetdataportal@chanzuckerberg.com>",
@@ -23,14 +23,12 @@ classifiers = [
 packages = [
     { include = "cryoet_data_portal_neuroglancer", from = "." },
 ]
+repository = "https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer"
 
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
-
-[project.urls]
-repository = "https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer"
 
 [tool.poetry.dependencies]
 python = "^3.11"
