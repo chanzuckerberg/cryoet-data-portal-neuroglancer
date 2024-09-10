@@ -1,3 +1,4 @@
+import functools
 import os
 import re
 from collections import defaultdict
@@ -6,10 +7,12 @@ from typing import Dict, List
 import fastremap
 import numpy as np
 import simdjson
+import trimesh
 import zmesh
 from cloudfiles import CloudFiles
-from cloudvolume import CloudVolume
+from cloudvolume import CloudVolume, Mesh
 from cloudvolume.lib import Bbox, Vec, toiter
+from igneous.tasks.mesh.multires import cmp_zorder
 from mapbuffer import MapBuffer
 
 
@@ -141,12 +144,179 @@ def patched_file_locations_per_label_json(self, labels, allow_missing=False):
     return locations
 
 
+def process_mesh_into_octree_submeshes(
+    mesh: trimesh.Trimesh,
+    grid_origin: "Vec",
+    grid_shape: "Vec",
+    grid_scale: "Vec",
+):
+    nx, ny, nz = np.eye(3)
+    ox, oy, oz = grid_origin * np.eye(3)
+    submeshes = []
+    nodes = []
+
+    for x in range(0, grid_shape.x):
+        # list(...) required b/c it doesn't like Vec classes
+        mesh_x = trimesh.intersections.slice_mesh_plane(
+            mesh,
+            plane_normal=nx,
+            plane_origin=list(nx * x * grid_scale.x + ox),
+            cap=False,
+        )
+        mesh_x = trimesh.intersections.slice_mesh_plane(
+            mesh_x,
+            plane_normal=-nx,
+            plane_origin=list(nx * (x + 1) * grid_scale.x + ox),
+            cap=False,
+        )
+        for y in range(0, grid_shape.y):
+            mesh_y = trimesh.intersections.slice_mesh_plane(
+                mesh_x,
+                plane_normal=ny,
+                plane_origin=list(ny * y * grid_scale.y + oy),
+                cap=False,
+            )
+            mesh_y = trimesh.intersections.slice_mesh_plane(
+                mesh_y,
+                plane_normal=-ny,
+                plane_origin=list(ny * (y + 1) * grid_scale.y + oy),
+                cap=False,
+            )
+            for z in range(0, grid_shape.z):
+                mesh_z = trimesh.intersections.slice_mesh_plane(
+                    mesh_y,
+                    plane_normal=nz,
+                    plane_origin=list(nz * z * grid_scale.z + oz),
+                    cap=False,
+                )
+                mesh_z = trimesh.intersections.slice_mesh_plane(
+                    mesh_z,
+                    plane_normal=-nz,
+                    plane_origin=list(nz * (z + 1) * grid_scale.z + oz),
+                    cap=False,
+                )
+
+                if len(mesh_z.vertices) == 0:
+                    continue
+
+                # test for totally degenerate meshes by checking if
+                # all of two axes match, meaning the mesh must be a
+                # point or a line.
+                if np.sum([np.all(mesh_z.vertices[:, i] == mesh_z.vertices[0, i]) for i in range(3)]) >= 2:
+                    continue
+
+                submeshes.append(mesh_z)
+                nodes.append((x, y, z))
+
+    # Sort in Z-curve order
+    submeshes, nodes = zip(
+        *sorted(
+            zip(submeshes, nodes, strict=True),
+            key=functools.cmp_to_key(lambda x, y: cmp_zorder(x[1], y[1])),
+        ),
+        strict=True,
+    )
+    # convert back from trimesh to CV Mesh class
+    submeshes = [Mesh(m.vertices, m.faces) for m in submeshes]
+
+    return (submeshes, nodes)
+
+
+def retriangulate_mesh(mesh: trimesh.Trimesh, grid_origin: "Vec", grid_shape: "Vec", grid_scale: "Vec"):
+    """
+    Retriangulate the input mesh to avoid any cases where the boundaries of a triangle are split across the boundaries of the submeshes
+    """
+    nx, ny, nz = np.eye(3)
+    ox, oy, oz = grid_origin * np.eye(3)
+    new_mesh = trimesh.Trimesh()
+
+    for x in range(0, grid_shape.x):
+        # list(...) required b/c it doesn't like Vec classes
+        mesh_x = trimesh.intersections.slice_mesh_plane(
+            mesh,
+            plane_normal=nx,
+            plane_origin=list(nx * x * grid_scale.x + ox),
+            cap=False,
+        )
+        mesh_x = trimesh.intersections.slice_mesh_plane(
+            mesh_x,
+            plane_normal=-nx,
+            plane_origin=list(nx * (x + 1) * grid_scale.x + ox),
+            cap=False,
+        )
+        for y in range(0, grid_shape.y):
+            mesh_y = trimesh.intersections.slice_mesh_plane(
+                mesh_x,
+                plane_normal=ny,
+                plane_origin=list(ny * y * grid_scale.y + oy),
+                cap=False,
+            )
+            mesh_y = trimesh.intersections.slice_mesh_plane(
+                mesh_y,
+                plane_normal=-ny,
+                plane_origin=list(ny * (y + 1) * grid_scale.y + oy),
+                cap=False,
+            )
+            for z in range(0, grid_shape.z):
+                mesh_z = trimesh.intersections.slice_mesh_plane(
+                    mesh_y,
+                    plane_normal=nz,
+                    plane_origin=list(nz * z * grid_scale.z + oz),
+                    cap=False,
+                )
+                mesh_z = trimesh.intersections.slice_mesh_plane(
+                    mesh_z,
+                    plane_normal=-nz,
+                    plane_origin=list(nz * (z + 1) * grid_scale.z + oz),
+                    cap=False,
+                )
+
+                if len(mesh_z.vertices) == 0:
+                    continue
+
+                # test for totally degenerate meshes by checking if
+                # all of two axes match, meaning the mesh must be a
+                # point or a line.
+                if np.sum([np.all(mesh_z.vertices[:, i] == mesh_z.vertices[0, i]) for i in range(3)]) >= 2:
+                    continue
+
+                new_mesh = trimesh.util.concatenate(new_mesh, mesh_z)
+    return new_mesh
+
+
+def patched_create_octree_level_from_mesh(mesh, chunk_shape, lod, num_lods):
+    """
+    Create submeshes by slicing the orignal mesh to produce smaller chunks
+    by slicing them from x,y,z dimensions.
+
+    This creates (2^lod)^3 submeshes.
+    """
+
+    grid_origin = Vec(*np.floor(mesh.vertices.min(axis=0)))
+    grid_length = mesh.vertices.max(axis=0) - grid_origin
+    grid_scale = Vec(*(np.array(chunk_shape) * (2**lod)))
+    grid_shape = Vec(*(np.ceil(grid_length / grid_scale)), dtype=int)
+    print(f"grid_origin: {grid_origin}, grid_length: {grid_length}, grid_scale: {grid_scale}, grid_shape: {grid_shape}")
+    mesh = trimesh.Trimesh(vertices=mesh.vertices, faces=mesh.faces)
+
+    # If not LOD 0 need to retriangulate the input mush to avoid any cases where
+    # the boundaries of a triangle are split across the boundaries of the submeshes
+    # at the higher level of the octree
+    if lod > 0:
+        upper_grid_scale = Vec(*(np.array(chunk_shape) * (2 ** (lod - 1))))
+        upper_grid_shape = Vec(*(grid_length / upper_grid_scale), dtype=int)
+        mesh = retriangulate_mesh(mesh, grid_origin, upper_grid_shape, upper_grid_scale)
+
+    return process_mesh_into_octree_submeshes(mesh, grid_origin, grid_shape, grid_scale)
+
+
 def patch():
     import cloudvolume.datasource.precomputed.spatial_index
     import igneous.tasks.mesh.mesh
     import igneous.tasks.mesh.multires
 
     igneous.tasks.mesh.multires.locations_for_labels = patched_locations_for_labels
+    igneous.tasks.mesh.multires.create_octree_level_from_mesh = patched_create_octree_level_from_mesh
     igneous.tasks.mesh.mesh.MeshTask.execute = PatchedMeshTask_execute
     igneous.tasks.mesh.mesh.MeshTask._upload_batch = PatchedMeshTask_upload_batch
     cloudvolume.datasource.precomputed.spatial_index.SpatialIndex.file_locations_per_label_json = (
