@@ -296,7 +296,7 @@ def patched_create_octree_level_from_mesh(mesh, chunk_shape, lod, num_lods):
     grid_length = mesh.vertices.max(axis=0) - grid_origin
     grid_scale = Vec(*(np.array(chunk_shape) * (2**lod)))
     grid_shape = Vec(*(np.ceil(grid_length / grid_scale)), dtype=int)
-    print(f"grid_origin: {grid_origin}, grid_length: {grid_length}, grid_scale: {grid_scale}, grid_shape: {grid_shape}")
+    print(f"grid_origin: {grid_origin}, grid_scale: {grid_scale}, grid_shape: {grid_shape}")
     mesh = trimesh.Trimesh(vertices=mesh.vertices, faces=mesh.faces)
 
     # If not LOD 0 need to retriangulate the input mush to avoid any cases where
@@ -304,10 +304,12 @@ def patched_create_octree_level_from_mesh(mesh, chunk_shape, lod, num_lods):
     # at the higher level of the octree
     if lod > 0:
         upper_grid_scale = Vec(*(np.array(chunk_shape) * (2 ** (lod - 1))))
-        upper_grid_shape = Vec(*(grid_length / upper_grid_scale), dtype=int)
+        upper_grid_shape = Vec(*np.ceil(grid_length / upper_grid_scale), dtype=int)
         mesh = retriangulate_mesh(mesh, grid_origin, upper_grid_shape, upper_grid_scale)
 
-    return process_mesh_into_octree_submeshes(mesh, grid_origin, grid_shape, grid_scale)
+    if lod != num_lods - 1:
+        return process_mesh_into_octree_submeshes(mesh, grid_origin, grid_shape, grid_scale)
+    return ([Mesh(mesh.vertices, mesh.faces)], ((0, 0, 0),))
 
 
 def patch():
