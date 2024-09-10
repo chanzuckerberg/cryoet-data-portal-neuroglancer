@@ -21,11 +21,11 @@ from cloudvolume.datasource.precomputed.mesh.multilod import (
 from cloudvolume.datasource.precomputed.sharding import ShardingSpecification
 from igneous.task_creation.common import compute_shard_params_for_hashed
 from igneous.task_creation.mesh import configure_multires_info
-from igneous.tasks.mesh.multires import create_mesh_shard, create_octree_level_from_mesh, generate_lods
+from igneous.tasks.mesh.multires import create_mesh_shard, generate_lods
 from taskqueue import LocalTaskQueue, queueable
 from tqdm import tqdm
 
-from cryoet_data_portal_neuroglancer.igneous_patch import patched_process_mesh
+from cryoet_data_portal_neuroglancer.igneous_patch import patched_create_octree_level_from_mesh, patched_process_mesh
 from cryoet_data_portal_neuroglancer.utils import determine_mesh_shape_from_lods
 
 LOGGER = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ def _process_decimated_mesh(
     lods = [Mesh(lod.vertices, lod.faces) for lod in lods]
 
     lods = [
-        create_octree_level_from_mesh(lods[lod], chunk_shape, lod, num_lods)
+        patched_create_octree_level_from_mesh(lods[lod], chunk_shape, lod, num_lods, grid_origin, mesh_shape)
         for lod in tqdm(range(num_lods), desc="Processing LODs into octree")
     ]
     fragment_positions = [nodes for submeshes, nodes in lods]
