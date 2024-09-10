@@ -4,6 +4,7 @@ import re
 from collections import defaultdict
 from typing import Dict, List
 
+import DracoPy
 import fastremap
 import numpy as np
 import simdjson
@@ -11,9 +12,15 @@ import trimesh
 import zmesh
 from cloudfiles import CloudFiles
 from cloudvolume import CloudVolume, Mesh
+from cloudvolume.datasource.precomputed.mesh.multilod import (
+    MultiLevelPrecomputedMeshManifest,
+    to_stored_model_space,
+)
 from cloudvolume.lib import Bbox, Vec, toiter
-from igneous.tasks.mesh.multires import cmp_zorder
+from igneous.tasks.mesh.multires import cmp_zorder, generate_lods
 from mapbuffer import MapBuffer
+
+from cryoet_data_portal_neuroglancer.utils import determine_mesh_shape_from_lods
 
 
 def PatchedMeshTask_execute(self):  # noqa
@@ -284,7 +291,7 @@ def retriangulate_mesh(mesh: trimesh.Trimesh, grid_origin: "Vec", grid_shape: "V
     return new_mesh
 
 
-def patched_create_octree_level_from_mesh(mesh, chunk_shape, lod, num_lods):
+def patched_create_octree_level_from_mesh(mesh, chunk_shape, lod, num_lods, grid_origin, grid_length):
     """
     Create submeshes by slicing the orignal mesh to produce smaller chunks
     by slicing them from x,y,z dimensions.
@@ -292,11 +299,9 @@ def patched_create_octree_level_from_mesh(mesh, chunk_shape, lod, num_lods):
     This creates (2^lod)^3 submeshes.
     """
 
-    grid_origin = Vec(*np.floor(mesh.vertices.min(axis=0)))
-    grid_length = mesh.vertices.max(axis=0) - grid_origin
     grid_scale = Vec(*(np.array(chunk_shape) * (2**lod)))
     grid_shape = Vec(*(np.ceil(grid_length / grid_scale)), dtype=int)
-    print(f"grid_origin: {grid_origin}, grid_scale: {grid_scale}, grid_shape: {grid_shape}")
+    #print(f"grid_origin: {grid_origin}, grid_scale: {grid_scale}, grid_shape: {grid_shape}")
     mesh = trimesh.Trimesh(vertices=mesh.vertices, faces=mesh.faces)
 
     # If not LOD 0 need to retriangulate the input mush to avoid any cases where
@@ -312,13 +317,96 @@ def patched_create_octree_level_from_mesh(mesh, chunk_shape, lod, num_lods):
     return ([Mesh(mesh.vertices, mesh.faces)], ((0, 0, 0),))
 
 
+def patched_process_mesh(
+    cv: CloudVolume,
+    label: int,
+    mesh: Mesh,
+    num_lod: int,
+    min_chunk_size=(512, 512, 512),
+    draco_compression_level: int = 7,
+):
+    mesh.vertices /= cv.meta.resolution(cv.mesh.meta.mip)
+    grid_origin = np.floor(np.min(mesh.vertices, axis=0))
+    mesh_shape = (np.max(mesh.vertices, axis=0) - grid_origin).astype(int)
+
+    if np.any(mesh_shape == 0):
+        return (None, None)
+
+    min_chunk_size = np.array(min_chunk_size, dtype=int)
+    max_lod = int(max(np.min(np.log2(mesh_shape / min_chunk_size)), 0))
+    max_lod = min(max_lod, num_lod)
+
+    lods = generate_lods(label, mesh, max_lod)
+    grid_origin, mesh_shape = determine_mesh_shape_from_lods(lods)
+    chunk_shape = np.ceil(mesh_shape / (2 ** (len(lods) - 1)))
+
+    if np.any(chunk_shape == 0):
+        return (None, None)
+
+    lods = [
+        patched_create_octree_level_from_mesh(lods[lod], chunk_shape, lod, len(lods), grid_origin, mesh_shape)
+        for lod in range(len(lods))
+    ]
+    fragment_positions = [nodes for submeshes, nodes in lods]
+    lods = [submeshes for submeshes, nodes in lods]
+
+    manifest = MultiLevelPrecomputedMeshManifest(
+        segment_id=label,
+        chunk_shape=chunk_shape,
+        grid_origin=grid_origin,
+        num_lods=len(lods),
+        lod_scales=[2**i for i in range(len(lods))],
+        vertex_offsets=[[0, 0, 0]] * len(lods),
+        num_fragments_per_lod=[len(lods[lod]) for lod in range(len(lods))],
+        fragment_positions=fragment_positions,
+        fragment_offsets=[],  # needs to be set when we have the final value
+    )
+
+    vqb = int(cv.mesh.meta.info["vertex_quantization_bits"])
+
+    mesh_binaries = []
+    for lod, submeshes in enumerate(lods):
+        for frag_no, submesh in enumerate(submeshes):
+            submesh.vertices = to_stored_model_space(
+                submesh.vertices,
+                manifest,
+                lod=lod,
+                vertex_quantization_bits=vqb,
+                frag=frag_no,
+            )
+
+            minpt = np.min(submesh.vertices, axis=0)
+            quantization_range = np.max(submesh.vertices, axis=0) - minpt
+            quantization_range = np.max(quantization_range)
+
+            # mesh.vertices must be integer type or mesh will display
+            # distorted in neuroglancer.
+            try:
+                submesh = DracoPy.encode(
+                    submesh.vertices,
+                    submesh.faces,
+                    quantization_bits=vqb,
+                    compression_level=draco_compression_level,
+                    quantization_range=quantization_range,
+                    quantization_origin=minpt,
+                    create_metadata=True,
+                )
+            except DracoPy.EncodingFailedException:
+                submesh = b""
+
+            manifest.fragment_offsets.append(len(submesh))
+            mesh_binaries.append(submesh)
+
+    return (manifest, b"".join(mesh_binaries))
+
+
 def patch():
     import cloudvolume.datasource.precomputed.spatial_index
     import igneous.tasks.mesh.mesh
     import igneous.tasks.mesh.multires
 
     igneous.tasks.mesh.multires.locations_for_labels = patched_locations_for_labels
-    igneous.tasks.mesh.multires.create_octree_level_from_mesh = patched_create_octree_level_from_mesh
+    igneous.tasks.mesh.multires.process_mesh = patched_process_mesh
     igneous.tasks.mesh.mesh.MeshTask.execute = PatchedMeshTask_execute
     igneous.tasks.mesh.mesh.MeshTask._upload_batch = PatchedMeshTask_upload_batch
     cloudvolume.datasource.precomputed.spatial_index.SpatialIndex.file_locations_per_label_json = (

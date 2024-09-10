@@ -21,9 +21,12 @@ from cloudvolume.datasource.precomputed.mesh.multilod import (
 from cloudvolume.datasource.precomputed.sharding import ShardingSpecification
 from igneous.task_creation.common import compute_shard_params_for_hashed
 from igneous.task_creation.mesh import configure_multires_info
-from igneous.tasks.mesh.multires import create_mesh_shard, create_octree_level_from_mesh, generate_lods, process_mesh
+from igneous.tasks.mesh.multires import create_mesh_shard, create_octree_level_from_mesh, generate_lods
 from taskqueue import LocalTaskQueue, queueable
 from tqdm import tqdm
+
+from cryoet_data_portal_neuroglancer.igneous_patch import patched_process_mesh
+from cryoet_data_portal_neuroglancer.utils import determine_mesh_shape_from_lods
 
 LOGGER = logging.getLogger(__name__)
 
@@ -36,7 +39,7 @@ def _process_decimated_mesh(
     min_chunk_size: tuple[int, int, int] = (512, 512, 512),
     draco_compression_level: int = 7,
 ) -> tuple[MultiLevelPrecomputedMeshManifest, Mesh] | tuple[None, None]:
-    grid_origin, mesh_shape = _determine_mesh_shape_from_lods(meshes)
+    grid_origin, mesh_shape = determine_mesh_shape_from_lods(meshes)
 
     if np.any(mesh_shape == 0):
         return (None, None)
@@ -138,7 +141,6 @@ def MultiResShardedMeshFromGlbTask(  # noqa
         mesh_dir = cv.info["mesh"]
 
     if use_decimated_mesh:
-        old_process_mesh = process_mesh
         igneous.tasks.mesh.multires.process_mesh = _process_decimated_mesh
     fname, shard = create_mesh_shard(
         cv,
@@ -150,7 +152,7 @@ def MultiResShardedMeshFromGlbTask(  # noqa
         min_chunk_size,
     )
     if use_decimated_mesh:
-        igneous.tasks.mesh.multires.process_mesh = old_process_mesh
+        igneous.tasks.mesh.multires.process_mesh = patched_process_mesh
 
     if shard is None:
         return
@@ -366,20 +368,6 @@ def _determine_mesh_shape(mesh: trimesh.Trimesh):
     return mesh_shape
 
 
-def _determine_mesh_shape_from_lods(lods: list[trimesh.Trimesh]):
-    mesh_starts = [np.min(lod.vertices, axis=0) for lod in lods]
-    mesh_ends = [np.max(lod.vertices, axis=0) for lod in lods]
-    LOGGER.debug(
-        "LOD mesh origin points %s and end points %s",
-        mesh_starts,
-        mesh_ends,
-    )
-    grid_origin = np.floor(np.min(mesh_starts, axis=0))
-    grid_end = np.max(mesh_ends, axis=0)
-    mesh_shape = (grid_end - grid_origin).astype(int)
-    return grid_origin, mesh_shape
-
-
 def determine_chunk_size_for_lod(
     mesh_shape: tuple[int, int, int] | np.ndarray,  # type: ignore
     max_lod: int,
@@ -498,7 +486,7 @@ def generate_mesh_from_lods(
 
     size_x, size_y, size_z = bounding_box_size if bounding_box_size is not None else _compute_size(bb2)
 
-    _, mesh_shape = _determine_mesh_shape_from_lods(concatenated_lods)
+    _, mesh_shape = determine_mesh_shape_from_lods(concatenated_lods)
     (actual_chunk_shape, smallest_chunk_size), calculated_num_lod = determine_chunk_size_for_lod(
         mesh_shape,
         num_lod - 1,
@@ -701,9 +689,10 @@ def generate_multiresolution_mesh_from_segmentation(
     tasks = tc.create_meshing_tasks(
         path,
         mip=0,
+        shape=(256, 256, 256),
         mesh_dir=mesh_directory,
         sharded=True,
-        fill_missing=True,
+        fill_missing=False,
         max_simplification_error=max_simplification_error,
         simplification=simplification,
     )
