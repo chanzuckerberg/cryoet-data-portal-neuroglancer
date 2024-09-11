@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 from pathlib import Path
 
@@ -19,11 +20,11 @@ logging.basicConfig(level=logging.INFO, force=True)
 OUTPUT_FOLDER = "/media/starfish/LargeSSD/data/cryoET/data/FromAPI"
 
 id_to_path_map = {
-    630: "630-TS_045.zarr",
+    1000: "1000/16.zarr",
 }
 
 id_to_human_contrast_limits = {
-    630: {
+    1000: {
         "slice": [-0.2, 0.15],
         "volume": [-0.035, 0.009],
         "gain": -7.6,
@@ -34,8 +35,9 @@ id_to_human_contrast_limits = {
 def grab_tomogram(id_: int, zarr_path: Path):
     client = Client()
     if not zarr_path.exists():
+        zarr_path.mkdir(parents=True, exist_ok=True)
         tomogram = Tomogram.get_by_id(client, id_)
-        tomogram.download_omezarr(str(zarr_path))
+        tomogram.download_omezarr(str(zarr_path.parent.resolve()))
 
 
 def run_all_contrast_limit_calculations(id_, input_data_path, output_path):
@@ -71,8 +73,9 @@ def run_all_contrast_limit_calculations(id_, input_data_path, output_path):
     limits_dict["cdf"] = limits
     cdf_calculator.plot_cdf(output_path / "cdf.png")
 
+    print(limits_dict)
     with open(output_path / "contrast_limits.json", "w") as f:
-        f.write(limits_dict)
+        json.dump(limits_dict, f)
 
     human_contrast = id_to_human_contrast_limits[id_]
     volume_limit = human_contrast["volume"]
