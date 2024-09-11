@@ -1,5 +1,6 @@
 """Methods for computing contrast limits for Neuroglancer image layers."""
 
+import logging
 from pathlib import Path
 from typing import Optional
 
@@ -9,7 +10,24 @@ from scipy.signal import find_peaks
 from sklearn.cluster import KMeans
 from sklearn.mixture import GaussianMixture
 
+LOGGER = logging.getLogger(__name__)
 
+
+def compute_with_timer(func):
+    def wrapper(*args, **kwargs):
+        import time
+
+        start_time = time.time()
+        LOGGER.info(f"Running function {func.__name__}.")
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        LOGGER.info(f"Function {func.__name__} took {end_time - start_time} seconds.")
+        return result
+
+    return wrapper
+
+
+# TODO fix this to work with dask data, see the mesh changes for reference
 def _restrict_volume_around_central_z_slice(
     volume: "np.ndarray",
     central_z_slice: Optional[int] = None,
@@ -110,6 +128,7 @@ class ContrastLimitCalculator:
             z_radius,
         )
 
+    @compute_with_timer
     def contrast_limits_from_percentiles(
         self,
         low_percentile: float = 1.0,
@@ -129,11 +148,12 @@ class ContrastLimitCalculator:
             tuple[float, float]
                 The calculated contrast limits.
         """
-        low_value = np.percentile(self.volume, low_percentile)
-        high_value = np.percentile(self.volume, high_percentile)
+        low_value = np.percentile(self.volume.flatten(), low_percentile)
+        high_value = np.percentile(self.volume.flatten(), high_percentile)
 
         return low_value, high_value
 
+    @compute_with_timer
     def contrast_limits_from_mean(
         self,
         multipler: float = 3.0,
@@ -177,10 +197,12 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
         self.gmm_estimator = GaussianMixture(
             n_components=num_components,
             covariance_type="full",
-            max_iter=200,
+            max_iter=20,
             random_state=0,
+            init_params="k-means++",
         )
 
+    @compute_with_timer
     def contrast_limits_from_gmm(self) -> tuple[float, float]:
         """Calculate the contrast limits using Gaussian Mixture Model.
 
@@ -196,6 +218,18 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
         covariances = self.gmm_estimator.covariances_.flatten()
 
         return means[1] - 2 * covariances[1], means[1] + 2 * covariances[1]
+
+    def plot_gmm_clusters(self, output_filename: Optional[str | Path] = None) -> None:
+        """Plot the GMM clusters."""
+        fig, ax = plt.subplots()
+
+        # TODO improve this plot with std
+        ax.plot(self.gmm_estimator.means_)
+        if output_filename:
+            fig.savefig(output_filename)
+        else:
+            plt.show()
+        plt.close(fig)
 
 
 class KMeansContrastLimitCalculator(ContrastLimitCalculator):
@@ -219,14 +253,14 @@ class KMeansContrastLimitCalculator(ContrastLimitCalculator):
         """Plot the KMeans clusters."""
         fig, ax = plt.subplots()
 
-        ax.hist(self.volume.flatten(), bins=100, alpha=0.5)
-        ax.hist(self.kmeans_estimator.cluster_centers_, bins=100, alpha=0.5)
+        ax.plot(self.kmeans_estimator.cluster_centers_)
         if output_filename:
             fig.savefig(output_filename)
         else:
             plt.show()
         plt.close(fig)
 
+    @compute_with_timer
     def contrast_limits_from_kmeans(self) -> tuple[float, float]:
         """Calculate the contrast limits using KMeans clustering.
 
@@ -241,12 +275,74 @@ class KMeansContrastLimitCalculator(ContrastLimitCalculator):
             tuple[float, float]
                 The calculated contrast limits.
         """
+        LOGGER.info("Calculating contrast limits from KMeans.")
         self.kmeans_estimator.fit(self.volume.reshape(-1, 1))
 
         cluster_centers = self.kmeans_estimator.cluster_centers_
         cluster_centers.sort()
 
         return cluster_centers[0], cluster_centers[-1]
+
+
+class CDFContrastLimitCalculator(ContrastLimitCalculator):
+
+    def __init__(self, volume: Optional["np.ndarray"] = None):
+        """Initialize the contrast limit calculator.
+
+        Parameters
+        ----------
+            volume: np.ndarray or None, optional.
+                Input volume for calculating contrast limits.
+        """
+        super().__init__(volume)
+        self.cdf = None
+        self.limits = None
+
+    @compute_with_timer
+    def contrast_limits_from_cdf(self) -> tuple[float, float]:
+        """Calculate the contrast limits using the Cumulative Distribution Function.
+
+        Returns
+        -------
+            tuple[float, float]
+                The calculated contrast limits.
+        """
+        # Calculate the histogram of the volume
+        min_value = np.min(self.volume.flatten())
+        max_value = np.max(self.volume.flatten())
+        hist, bin_edges = np.histogram(self.volume.flatten(), bins=1000, range=[min_value, max_value])
+
+        # Calculate the CDF of the histogram
+        cdf = np.cumsum(hist) / np.sum(hist)
+        gradient = np.gradient(cdf)
+
+        # Find the biggest positive peak
+        peaks = find_peaks(gradient, prominence=0.1)
+        biggest_peak = np.argmax(gradient[peaks])
+
+        # Find where the function starts to become flat after the peak
+        second_derivative = np.gradient(gradient)
+        flat_points = np.where(second_derivative[biggest_peak:] < 0.0001)[0]
+        # TODO improve error handling
+
+        self.cdf = cdf
+        self.limits = bin_edges[biggest_peak], bin_edges[biggest_peak + flat_points[0]]
+
+        return self.limits
+
+    def plot_cdf_and_limits(self, output_filename: Optional[str | Path] = None) -> None:
+        """Plot the CDF and the calculated limits."""
+        fig, ax = plt.subplots()
+
+        ax.plot(self.cdf)
+        ax.axvline(self.limits[0], color="r")
+        ax.axvline(self.limits[1], color="r")
+
+        if output_filename:
+            fig.savefig(output_filename)
+        else:
+            plt.show()
+        plt.close(fig)
 
 
 # Other possibility is to take the derivative of the histogram and find the peaks
