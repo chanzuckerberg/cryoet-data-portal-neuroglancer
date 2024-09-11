@@ -89,6 +89,8 @@ def generate_segmentation_mask_layer(
     color: str = "#FFFFFF",
     scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
     is_visible: bool = True,
+    display_bounding_box: bool = False,
+    display_mesh: bool = True,
 ) -> dict[str, Any]:
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     _validate_color(color)
@@ -98,6 +100,8 @@ def generate_segmentation_mask_layer(
         color=color,
         scale=scale,
         is_visible=is_visible,
+        display_bounding_box=display_bounding_box,
+        display_mesh=display_mesh,
     ).to_json()
 
 
