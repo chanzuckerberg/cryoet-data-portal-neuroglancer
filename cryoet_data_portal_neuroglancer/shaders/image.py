@@ -39,7 +39,7 @@ class ImageShaderBuilder(ShaderBuilder):
         super().__init__()
         self._contrast_limits = contrast_limits
         self._window_limits = (
-            window_limits if window_limits is not None else get_window_limits_from_contrast_limits(contrast_limits)
+            window_limits if window_limits is not None else get_window_limits_from_contrast_limits(contrast_limits, 0.2)
         )
         self._contrast_name = contrast_name
 
@@ -109,7 +109,7 @@ class ImageWithVolumeRenderingShaderBuilder(ImageShaderBuilder):
         self._threedee_window_limits = (
             threedee_window_limits
             if threedee_window_limits is not None
-            else get_window_limits_from_contrast_limits(threedee_contrast_limits)
+            else get_window_limits_from_contrast_limits(threedee_contrast_limits, 3.0)
         )
         self._threedee_contrast_name = threedee_contrast_name
 
