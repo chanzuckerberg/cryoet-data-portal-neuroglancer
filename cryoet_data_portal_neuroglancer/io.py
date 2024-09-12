@@ -3,7 +3,11 @@ from ome_zarr.io import parse_url
 from ome_zarr.reader import Reader
 
 
-def load_omezarr_data(input_filepath: str, resolution_level: int = 0) -> da.Array:
+def load_omezarr_data(
+    input_filepath: str,
+    resolution_level: int = 0,
+    persist: bool = True,
+) -> da.Array:
     """Load the OME-Zarr data and return a dask array
 
     Parameters
@@ -13,6 +17,14 @@ def load_omezarr_data(input_filepath: str, resolution_level: int = 0) -> da.Arra
         resolution_level: int, optional
             Resolution level to load.
             By default 0 - the highest resolution.
+        persist: bool, optional
+            Whether to persist the dask array.
+            By default True.
+
+    Returns
+    -------
+        dask.array.Array
+            The loaded OME-Zarr data as a dask array.
     """
     url = parse_url(input_filepath)
     if not url:
@@ -21,4 +33,4 @@ def load_omezarr_data(input_filepath: str, resolution_level: int = 0) -> da.Arra
     nodes = list(reader())
     image_node = nodes[0]
     dask_data = image_node.data[resolution_level]
-    return dask_data.persist()
+    return dask_data.persist() if persist else dask_data
