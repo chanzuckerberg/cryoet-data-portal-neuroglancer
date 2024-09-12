@@ -3,8 +3,8 @@ import json
 import logging
 from pathlib import Path
 
-from cloudvolume import CloudVolume
 from cryoet_data_portal import Client, Tomogram
+from scipy.spatial.transform import Rotation
 
 from cryoet_data_portal_neuroglancer.io import load_omezarr_data
 from cryoet_data_portal_neuroglancer.precompute.contrast_limits import (
@@ -13,6 +13,7 @@ from cryoet_data_portal_neuroglancer.precompute.contrast_limits import (
     GMMContrastLimitCalculator,
     KMeansContrastLimitCalculator,
 )
+from cryoet_data_portal_neuroglancer.state_generator import combine_json_layers, generate_image_layer
 
 # Set up logging - level is info
 logging.basicConfig(level=logging.INFO, force=True)
@@ -55,6 +56,13 @@ id_to_human_contrast_limits = {
     },
 }
 
+id_to_source_map = {
+    1000: (
+        "https://files.cryoetdataportal.cziscience.com/10008/16/Tomograms/VoxelSpacing14.080/CanonicalTomogram/16.zarr",
+        (1.408e-9, 1.408e-9, 1.408e-9),
+    ),
+}
+
 
 def grab_tomogram(id_: int, zarr_path: Path):
     client = Client()
@@ -69,6 +77,8 @@ def run_all_contrast_limit_calculations(id_, input_data_path, output_path):
     # First, percentile contrast limits
     limits_dict = {}
     data = load_omezarr_data(input_data_path)
+    data_shape = data.shape
+    data_size_dict = {"z": data_shape[0], "y": data_shape[1], "x": data_shape[2]}
 
     calculator = ContrastLimitCalculator(data)
 
@@ -98,39 +108,83 @@ def run_all_contrast_limit_calculations(id_, input_data_path, output_path):
     limits_dict["cdf"] = limits
     cdf_calculator.plot_cdf(output_path / "cdf.png")
 
+    # 2D contrast limits
+    limits = calculator.contrast_limits_from_percentiles(1.0, 99.0)
+    limits_dict["2d"] = limits
+
     with open(output_path / "contrast_limits.json", "w") as f:
         json.dump(limits_dict, f)
 
     human_contrast = id_to_human_contrast_limits[id_]
     volume_limit = human_contrast["volume"]
     # Check which method is closest to the human contrast limits
-    closest_method = min(
-        limits_dict.keys(),
-        key=lambda x: abs(limits_dict[x][0] - volume_limit[0]) + abs(limits_dict[x][1] - volume_limit[1]),
-    )
+    closeness_ordering = {
+        k: abs(limits_dict[k][0] - volume_limit[0]) + abs(limits_dict[k][1] - volume_limit[1]) for k in limits_dict
+    }
+
+    closest_method = min(limits_dict.keys(), key=closeness_ordering.get)
+    limits_dict = {k: limits_dict[k] for k in sorted(limits_dict, key=closeness_ordering.get)}
+    limits_dict["size"] = data_size_dict
     print(
-        f"Closest method to human contrast limits: {closest_method}, {limits_dict[closest_method]}, human: {volume_limit}. Details saved to {output_path}.",
+        f"Closest method to human contrast limits: {closest_method}, {limits_dict[closest_method]}, human: {volume_limit}. 2D: {limits_dict['2d']}, human {human_contrast['slice']}, Details saved to {output_path}.",
     )
+    limits_dict["closest_method"] = closest_method
+    limits_dict["distance_to_human"] = closeness_ordering
 
     return limits_dict
 
 
-def serve_files(output_path="output.zarr"):
-    # Multi res mesh
-    cv = CloudVolume(f"file://{output_path}")
-    cv.viewer(port=1337)
+def create_state(id_, contrast_limit_dict, output_folder):
+    source, scale = id_to_source_map[id_]
+    # One state layer for each contrast limit method
+    layers_list = []
+    ignored_keys = ["size", "closest_method", "distance_to_human", "2d"]
+
+    contrast_limit_dict["human"] = id_to_human_contrast_limits[id_]["volume"]
+
+    # set the most promising contrast limits as visible, rest not
+    for key, limits in contrast_limit_dict.items():
+        if key in ignored_keys:
+            continue
+        visible = key == contrast_limit_dict["closest_method"]
+        closeness = contrast_limit_dict["distance_to_human"].get(key, 0)
+        gain = id_to_human_contrast_limits[id_]["gain"] if key == "human" else -7.8
+        twodee_limits = contrast_limit_dict["2d"] if key != "human" else id_to_human_contrast_limits[id_]["slice"]
+        rounded_closeness = round(closeness, 2)
+        layer_info = generate_image_layer(
+            source=source,
+            scale=scale,
+            size=contrast_limit_dict["size"],
+            name=f"{id_}_{key}_{rounded_closeness}",
+            twodee_contrast_limits=twodee_limits,
+            threedee_contrast_limits=limits,
+            has_volume_rendering_shader=True,
+            volume_rendering_is_visible=True,
+            is_visible=visible,
+            volume_rendering_gain=gain,
+        )
+        layers_list.append(layer_info)
+    json_state = combine_json_layers(
+        layers_list,
+        scale,
+        projection_quaternion=Rotation.from_euler(seq="xyz", angles=(0, 0, 0), degrees=True).as_quat(),
+    )
+    with open(output_folder / f"{id_}_state.json", "w") as f:
+        json.dump(json_state, f, indent=4)
+    print(f"State file saved to {output_folder / f'{id_}_state.json'}")
 
 
 def main(output_folder):
     for id_, path in id_to_path_map.items():
         path = Path(output_folder) / path
         grab_tomogram(id_, path)
-        run_all_contrast_limit_calculations(
+        limits = run_all_contrast_limit_calculations(
             id_,
             path,
             Path(output_folder) / f"results_{id_}",
         )
-    # serve_files()
+        create_state(id_, limits, Path(output_folder))
+        break
 
 
 if __name__ == "__main__":
