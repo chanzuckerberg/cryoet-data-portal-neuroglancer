@@ -21,6 +21,10 @@ OUTPUT_FOLDER = "/media/starfish/LargeSSD/data/cryoET/data/FromAPI"
 
 id_to_path_map = {
     1000: "1000/16.zarr",
+    706: "706/Position_161.zarr",
+    800: "800/0105.zarr",
+    10845: "10845/ay18112021_grid2_lamella3_position7.zarr",
+    4279: "4279/dga2018-08-27-600",
 }
 
 id_to_human_contrast_limits = {
@@ -28,6 +32,26 @@ id_to_human_contrast_limits = {
         "slice": [-0.2, 0.15],
         "volume": [-0.035, 0.009],
         "gain": -7.6,
+    },
+    706: {
+        "slice": [-44499.8, 83143],
+        "volume": [-20221.2, 18767.6],
+        "gain": -7.7,
+    },
+    800: {
+        "slice:": [0.0000748111, 0.00189353],
+        "volume": [0.000705811, 0.00152511],
+        "gain": -8.6,
+    },
+    10845: {
+        "slice": [-29.5498, 47.7521],
+        "volume": [-11.0534, 20.0755],
+        "gain": -7.9,
+    },
+    4279: {
+        "slice": [0.580756, 31.9362],
+        "volume": [15.5439, 22.0607],
+        "gain": -7.5,
     },
 }
 
@@ -49,10 +73,11 @@ def run_all_contrast_limit_calculations(id_, input_data_path, output_path):
     calculator = ContrastLimitCalculator(data)
 
     # For now, we will trim the volume around the central z-slice
-    calculator.trim_volume_around_central_zslice()
+    calculator.trim_volume_around_central_zslice(z_radius=5)
+    calculator.take_random_samples_from_volume(20000)
 
     # Percentile contrast limits
-    limits = calculator.contrast_limits_from_percentiles(5.0, 80.0)
+    limits = calculator.contrast_limits_from_percentiles(5.0, 60.0)
     limits_dict["percentile"] = limits
 
     # K means contrast limits
@@ -73,7 +98,6 @@ def run_all_contrast_limit_calculations(id_, input_data_path, output_path):
     limits_dict["cdf"] = limits
     cdf_calculator.plot_cdf(output_path / "cdf.png")
 
-    print(limits_dict)
     with open(output_path / "contrast_limits.json", "w") as f:
         json.dump(limits_dict, f)
 
