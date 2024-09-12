@@ -1,4 +1,3 @@
-import logging
 import os
 
 from cloudvolume import CloudVolume
@@ -13,7 +12,7 @@ from cryoet_data_portal_neuroglancer.precompute.mesh import (
 from cryoet_data_portal_neuroglancer.precompute.segmentation_mask import encode_segmentation
 from cryoet_data_portal_neuroglancer.utils import determine_size_of_non_zero_bounding_box
 
-#logging.basicConfig(level=logging.DEBUG, force=True)
+# logging.basicConfig(level=logging.DEBUG, force=True)
 
 zarr_path = "102-membrane-1.0_segmentationmask.zarr"
 output_path = "102-membrane-1.0_segmentationmask_encoded"

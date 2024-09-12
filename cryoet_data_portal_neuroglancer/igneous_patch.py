@@ -301,7 +301,7 @@ def patched_create_octree_level_from_mesh(mesh, chunk_shape, lod, num_lods, grid
 
     grid_scale = Vec(*(np.array(chunk_shape) * (2**lod)))
     grid_shape = Vec(*(np.ceil(grid_length / grid_scale)), dtype=int)
-    #print(f"grid_origin: {grid_origin}, grid_scale: {grid_scale}, grid_shape: {grid_shape}")
+    # print(f"grid_origin: {grid_origin}, grid_scale: {grid_scale}, grid_shape: {grid_shape}")
     mesh = trimesh.Trimesh(vertices=mesh.vertices, faces=mesh.faces)
 
     # If not LOD 0 need to retriangulate the input mush to avoid any cases where
