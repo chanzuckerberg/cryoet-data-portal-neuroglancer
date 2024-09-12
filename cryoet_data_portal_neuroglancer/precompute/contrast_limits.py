@@ -129,6 +129,27 @@ class ContrastLimitCalculator:
             z_radius,
         )
 
+    def take_random_samples_from_volume(self, num_samples: int = 100_000) -> None:
+        """Take random samples from the volume.
+
+        Parameters
+        ----------
+            num_samples: int
+                The number of samples to take.
+
+        Returns
+        -------
+            np.ndarray
+                The random samples.
+        """
+        generator = np.random.default_rng(0)
+        if len(self.volume.flatten()) > num_samples:
+            self.volume = generator.choice(
+                self.volume.flatten(),
+                num_samples,
+                replace=False,
+            )
+
     @compute_with_timer
     def contrast_limits_from_percentiles(
         self,
@@ -152,7 +173,10 @@ class ContrastLimitCalculator:
         low_value = np.percentile(self.volume.flatten(), low_percentile)
         high_value = np.percentile(self.volume.flatten(), high_percentile)
 
-        return low_value.compute()[0], high_value.compute()[0]
+        try:
+            return low_value.compute()[0], high_value.compute()[0]
+        except AttributeError:
+            return low_value, high_value
 
     @compute_with_timer
     def contrast_limits_from_mean(
@@ -212,7 +236,8 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
             tuple[float, float]
                 The calculated contrast limits.
         """
-        self.gmm_estimator.fit(self.volume.reshape(-1, 1))
+        sample_data = self.volume.flatten()
+        self.gmm_estimator.fit(sample_data.reshape(-1, 1))
 
         # Get the stats for the gaussian which sits in the middle
         means = self.gmm_estimator.means_.flatten()
@@ -285,7 +310,8 @@ class KMeansContrastLimitCalculator(ContrastLimitCalculator):
                 The calculated contrast limits.
         """
         LOGGER.info("Calculating contrast limits from KMeans.")
-        self.kmeans_estimator.fit(self.volume.reshape(-1, 1))
+        sample_data = self.volume.flatten()
+        self.kmeans_estimator.fit(sample_data.reshape(-1, 1))
 
         cluster_centers = self.kmeans_estimator.cluster_centers_
         cluster_centers.sort()
@@ -332,7 +358,10 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
         cdf = np.cumsum(hist) / np.sum(hist)
 
         # Find where the function starts to flatten
-        gradient = np.gradient(cdf.compute())
+        try:
+            gradient = np.gradient(cdf.compute())
+        except AttributeError:
+            gradient = np.gradient(cdf)
         second_derivative = np.gradient(gradient)
         peaks, _ = find_peaks(second_derivative, prominence=0.01)
 
@@ -348,8 +377,18 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
 
         x = np.linspace(min_value, max_value, 400)
         self.cdf = [x, cdf]
-        self.limits = (bin_edges[biggest_peak].compute(), bin_edges[smallest_negative_peak].compute())
+        try:
+            self.limits = (
+                bin_edges[biggest_peak].compute(),
+                bin_edges[smallest_negative_peak].compute(),
+            )
+        except AttributeError:
+            self.limits = (bin_edges[biggest_peak], bin_edges[smallest_negative_peak])
         self.second_derivative = second_derivative
+
+        # Shrink the limits a bit
+        limit_width = self.limits[1] - self.limits[0]
+        self.limits = (self.limits[0] + 0.1 * limit_width, self.limits[1] - 0.3 * limit_width)
 
         return self.limits
 
