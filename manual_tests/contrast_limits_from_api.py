@@ -16,7 +16,7 @@ from cryoet_data_portal_neuroglancer.precompute.contrast_limits import (
 from cryoet_data_portal_neuroglancer.state_generator import combine_json_layers, generate_image_layer
 
 # Set up logging - level is info
-logging.basicConfig(level=logging.INFO, force=True)
+# logging.basicConfig(level=logging.INFO, force=True)
 
 OUTPUT_FOLDER = "/media/starfish/LargeSSD/data/cryoET/data/FromAPI"
 
@@ -25,7 +25,7 @@ id_to_path_map = {
     706: "706/Position_161.zarr",
     800: "800/0105.zarr",
     10845: "10845/ay18112021_grid2_lamella3_position7.zarr",
-    4279: "4279/dga2018-08-27-600",
+    4279: "4279/dga2018-08-27-600.zarr",
 }
 
 id_to_human_contrast_limits = {
@@ -40,7 +40,7 @@ id_to_human_contrast_limits = {
         "gain": -7.7,
     },
     800: {
-        "slice:": [0.0000748111, 0.00189353],
+        "slice": [0.0000748111, 0.00189353],
         "volume": [0.000705811, 0.00152511],
         "gain": -8.6,
     },
@@ -61,6 +61,22 @@ id_to_source_map = {
         "https://files.cryoetdataportal.cziscience.com/10008/16/Tomograms/VoxelSpacing14.080/CanonicalTomogram/16.zarr",
         (1.408e-9, 1.408e-9, 1.408e-9),
     ),
+    706: (
+        "zarr://https://files.cryoetdataportal.cziscience.com/10004/Position_161/Tomograms/VoxelSpacing7.560/CanonicalTomogram/Position_161.zarr",
+        (7.56e-10, 7.56e-10, 7.56e-10),
+    ),
+    800: (
+        "zarr://https://files.cryoetdataportal.cziscience.com/10005/0105/Tomograms/VoxelSpacing5.224/CanonicalTomogram/0105.zarr",
+        (5.224e-10, 5.224e-10, 5.224e-10),
+    ),
+    10845: (
+        "zarr://https://files.cryoetdataportal.cziscience.com/10007/ay18112021_grid2_lamella3_position7/Tomograms/VoxelSpacing7.840/CanonicalTomogram/ay18112021_grid2_lamella3_position7.zarr",
+        (7.84e-10, 7.84e-10, 7.84e-10),
+    ),
+    4279: (
+        "zarr://https://files.cryoetdataportal.cziscience.com/10059/dga2018-08-27-600/Tomograms/VoxelSpacing16.800/CanonicalTomogram/dga2018-08-27-600.zarr",
+        (1.68e-9, 1.68e-9, 1.68e-9),
+    ),
 }
 
 
@@ -76,7 +92,7 @@ def run_all_contrast_limit_calculations(id_, input_data_path, output_path):
     output_path.mkdir(parents=True, exist_ok=True)
     # First, percentile contrast limits
     limits_dict = {}
-    data = load_omezarr_data(input_data_path)
+    data = load_omezarr_data(input_data_path, resolution_level=-1, persist=False)
     data_shape = data.shape
     data_size_dict = {"z": data_shape[0], "y": data_shape[1], "x": data_shape[2]}
 
@@ -183,8 +199,7 @@ def main(output_folder):
             path,
             Path(output_folder) / f"results_{id_}",
         )
-        create_state(id_, limits, Path(output_folder))
-        break
+        create_state(id_, limits, Path(output_folder) / f"results_{id_}")
 
 
 if __name__ == "__main__":
