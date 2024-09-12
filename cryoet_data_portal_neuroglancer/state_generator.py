@@ -112,7 +112,18 @@ def generate_image_layer(
     rms: float = None,
     is_visible: bool = True,
     has_volume_rendering_shader: bool = False,
+    twodee_contrast_limits: tuple[float, float] | None = None,
+    threedee_contrast_limits: tuple[float, float] | None = None,
+    volume_rendering_is_visible: bool = False,
+    volume_rendering_gain: float = -7.8,
 ) -> dict[str, Any]:
+    """Generates JSON for an image layer with optional contrast limits.
+
+    Note, if twodee_contrast_limits are not provided, the contrast limits will be calculated using the mean and rms values. If threedee_contrast_limits are not provided, the contrast limits will be the same as the twodee_contrast_limits.
+    """
+    # If volume rendering is visible, set the flag to True for the relevant shader
+    if not has_volume_rendering_shader and volume_rendering_is_visible:
+        has_volume_rendering_shader = True
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     return ImageJSONGenerator(
         source=source,
@@ -124,6 +135,10 @@ def generate_image_layer(
         rms=rms,
         is_visible=is_visible,
         has_volume_rendering_shader=has_volume_rendering_shader,
+        contrast_limits=twodee_contrast_limits,
+        threedee_contrast_limits=threedee_contrast_limits,
+        volume_rendering_is_visible=volume_rendering_is_visible,
+        volume_rendering_gain=volume_rendering_gain,
     ).to_json()
 
 
@@ -153,8 +168,13 @@ def combine_json_layers(
     scale: tuple[float, float, float] | list[float] | float,
     units: str = "m",
     projection_quaternion: list[float] = None,
+    set_slices_visible_in_3d: bool | None = None,
 ) -> dict[str, Any]:
+    """Note, if set_slices_visible_in_3d is not provided, it will be set to False if there are any image layers in the list with volume rendering."""
     image_layers = [layer for layer in layers if layer["type"] == "image"]
+    if set_slices_visible_in_3d is None:
+        set_slices_visible_in_3d = not any(layer["volumeRendering"] == "on" for layer in image_layers)
+
     scale = get_scale(scale)
     if not projection_quaternion:
         projection_quaternion = Rotation.from_euler(seq="xyz", angles=(45, 0, 0), degrees=True).as_quat()
@@ -169,6 +189,7 @@ def combine_json_layers(
         },
         "crossSectionBackgroundColor": "#000000",
         "layout": "4panel",
+        "showSlices": set_slices_visible_in_3d,
     }
     if len(image_layers) > 0 and "_position" in image_layers[0]:
         combined_json["position"] = image_layers[0]["_position"]

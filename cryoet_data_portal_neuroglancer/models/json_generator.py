@@ -78,13 +78,16 @@ class ImageJSONGenerator(RenderingJSONGenerator):
     """Generates JSON Neuroglancer config for Image volume."""
 
     size: dict[str, float]
-    contrast_limits: tuple[float, float] = (-64, 64)
+    contrast_limits: tuple[float, float] | None = None
+    threedee_contrast_limits: tuple[float, float] | None = None
     start: dict[str, float] = None
     mean: float = None
     rms: float = None
     is_visible: bool = True
     has_volume_rendering_shader: bool = False
     volume_rendering_depth_samples: int = 256  # Ideally, this should be a power of 2
+    volume_rendering_is_visible: bool = False
+    volume_rendering_gain: float = 0.0
 
     def __post_init__(self):
         self._type = RenderingTypes.IMAGE
@@ -96,18 +99,19 @@ class ImageJSONGenerator(RenderingJSONGenerator):
         return (self.mean - width, self.mean + width)
 
     def _create_shader_and_controls(self) -> dict[str, Any]:
-        contrast_limits = self._compute_contrast_limits()
+        if self.contrast_limits is None:
+            self.contrast_limits = self._compute_contrast_limits()
+        if self.threedee_contrast_limits is None:
+            self.threedee_contrast_limits = self.contrast_limits
+        self.threedee_contrast_limits = self.threedee_contrast_limits[1], self.threedee_contrast_limits[0]
         if self.has_volume_rendering_shader:
-            # At the moment these are the same limits,
-            # but in the future the calculation might change for 3D rendering
-            threedee_contrast_limits = contrast_limits
             shader_builder = ImageWithVolumeRenderingShaderBuilder(
-                contrast_limits=contrast_limits,
-                threedee_contrast_limits=threedee_contrast_limits,
+                contrast_limits=self.contrast_limits,
+                threedee_contrast_limits=self.threedee_contrast_limits,
             )
         else:
             shader_builder = ImageShaderBuilder(
-                contrast_limits=contrast_limits,
+                contrast_limits=self.contrast_limits,
             )
         return shader_builder.build()
 
@@ -129,6 +133,8 @@ class ImageJSONGenerator(RenderingJSONGenerator):
             "opacity": 0.51,
             "tab": "rendering",
             "visible": self.is_visible,
+            "volumeRendering": "on" if self.volume_rendering_is_visible else "off",
+            "volumeRenderingGain": self.volume_rendering_gain,
         }
         if self.has_volume_rendering_shader:
             config["volumeRenderingDepthSamples"] = self.volume_rendering_depth_samples
