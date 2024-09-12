@@ -144,12 +144,14 @@ def get_window_limits_from_contrast_limits(
     distance_scale: float = 0.1,
 ) -> tuple[float, float]:
     """
-    Create default window limits from contrast limits, 10% padding
+    Create default window limits from contrast limits, distance_scale * 10% padding
 
     Parameters
     ----------
     contrast_limits : tuple[float, float]
         The contrast limits
+    distance_scale : float, optional
+        How much to bump the contrast limits to get the window limits, by default 0.1
 
     Returns
     -------
