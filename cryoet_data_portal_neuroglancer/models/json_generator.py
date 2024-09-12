@@ -236,8 +236,7 @@ class MeshJSONGenerator(RenderingJSONGenerator):
             "type": self.layer_type,
             "name": f"{self.name}",
             "source": {
-                # **create_source(f"precomputed://{self.source}", self.scale, self.scale),
-                "url": f"precomputed://{self.source}",
+                **create_source(f"precomputed://{self.source}", self.scale, self.scale),
                 "subsources": {
                     "default": True,
                     "mesh": self.display_mesh,

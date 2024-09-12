@@ -65,11 +65,11 @@ def generate_oriented_point_layer(
     color: str = "#FFFFFF",
     point_size_multiplier: float = 1.0,
     line_width: float = 1.0,
-    # scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
     is_visible: bool = True,
     is_instance_segmentation: bool = False,
 ) -> dict[str, Any]:
-    source, name, url, _, scale = _setup_creation(source, name, url, scale=1.0)
+    source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     _validate_color(color)
     return OrientedPointAnnotationGenerator(
         source=source,
@@ -77,7 +77,7 @@ def generate_oriented_point_layer(
         color=color,
         point_size_multiplier=point_size_multiplier,
         line_width=line_width,
-        scale=(1.0, 1.0, 1.0),
+        scale=scale,
         is_visible=is_visible,
         is_instance_segmentation=is_instance_segmentation,
     ).to_json()
