@@ -144,7 +144,6 @@ def generate_oriented_point_mesh_layer(
     display_mesh: bool = True,
     highlight_on_hover: bool = False,
 ) -> dict[str, Any]:
-    print("source", source, name, url, color, scale)
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     _validate_color(color)
     return MeshJSONGenerator(
