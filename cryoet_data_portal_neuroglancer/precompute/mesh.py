@@ -591,7 +591,12 @@ def generate_multilabel_multiresolution_mesh(
     bounding_box_size: tuple[float, float, float] | None = None,
 ):
     """
-    Generate a standalone sharded multiresolution mesh from a glb file or scene
+    Generate standalone sharded multiresolution meshes from a mapping of labels to glb files or scenes.
+
+    The multilabel version allows for multiple mesh labels to be stored in the same
+    segmentation file. This can be useful if multiple meshes are desired to be stored
+    but all of them are part of the same segmentation - so they are in one neuroglancer
+    layer.
 
     Parameters
     ----------
@@ -727,7 +732,13 @@ def generate_single_resolution_mesh(
     mesh_directory: str,
     resolution: tuple[float, float, float],
 ) -> None:
-    """Create a single res mesh for the given volume if a mesh directory is provided"""
+    """
+    Create a single res mesh for the given volume if a mesh directory is provided
+
+    This uses the neuroglancer local volume to create the mesh. This can be a challenge
+    for large volumes, as the mesh is created in memory. For this reason, it is recommended to instead use the multi-resolution mesh generation, but set the number of LODs to 1.
+    This method is useful for small volumes or for testing purposes, or to compare the mesh generation with the multi-resolution mesh generation.
+    """
     mesh = np.dstack([np.array(dask_data).astype(np.uint8)])
     transposed_mesh = np.transpose(mesh, (2, 1, 0))
 
