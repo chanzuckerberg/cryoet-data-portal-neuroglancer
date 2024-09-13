@@ -188,6 +188,9 @@ class SegmentationJSONGenerator(RenderingJSONGenerator):
 
     color: str
     is_visible: bool = True
+    display_mesh: bool = True
+    display_bounding_box: bool = False
+    highlight_on_hover: bool = False
 
     def __post_init__(self):
         self._type = RenderingTypes.SEGMENTATION
@@ -196,10 +199,53 @@ class SegmentationJSONGenerator(RenderingJSONGenerator):
         return {
             "type": self.layer_type,
             "name": f"{self.name}",
-            "source": create_source(f"precomputed://{self.source}", self.scale, self.scale),
+            "source": {
+                **create_source(f"precomputed://{self.source}", self.scale, self.scale),
+                "subsources": {
+                    "default": True,
+                    "mesh": self.display_mesh,
+                },
+                "enableDefaultSubsources": self.display_bounding_box,
+            },
             "tab": "rendering",
             "selectedAlpha": 1,
-            "hoverHighlight": False,
+            "hoverHighlight": self.highlight_on_hover,
+            "segments": [
+                1,
+            ],
+            "segmentDefaultColor": self.color,
+            "visible": self.is_visible,
+        }
+
+
+@dataclass
+class MeshJSONGenerator(RenderingJSONGenerator):
+    """Generates JSON Neuroglancer config for mesh that are alone (without any segmentation)."""
+
+    color: str
+    is_visible: bool = True
+    display_mesh: bool = True
+    display_bounding_box: bool = False
+    highlight_on_hover: bool = False
+
+    def __post_init__(self):
+        self._type = RenderingTypes.SEGMENTATION
+
+    def generate_json(self) -> dict:
+        return {
+            "type": self.layer_type,
+            "name": f"{self.name}",
+            "source": {
+                **create_source(f"precomputed://{self.source}", self.scale, self.scale),
+                "subsources": {
+                    "default": True,
+                    "mesh": self.display_mesh,
+                },
+                "enableDefaultSubsources": self.display_bounding_box,
+            },
+            "tab": "rendering",
+            "selectedAlpha": 1,
+            "hoverHighlight": self.highlight_on_hover,
             "segments": [
                 1,
             ],

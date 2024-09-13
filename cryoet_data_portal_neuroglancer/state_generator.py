@@ -8,6 +8,7 @@ from cryoet_data_portal_neuroglancer.models.json_generator import (
     AnnotationJSONGenerator,
     ImageJSONGenerator,
     ImageVolumeJSONGenerator,
+    MeshJSONGenerator,
     OrientedPointAnnotationGenerator,
     SegmentationJSONGenerator,
 )
@@ -89,6 +90,9 @@ def generate_segmentation_mask_layer(
     color: str = "#FFFFFF",
     scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
     is_visible: bool = True,
+    display_bounding_box: bool = False,
+    display_mesh: bool = True,
+    highlight_on_hover: bool = False,
 ) -> dict[str, Any]:
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     _validate_color(color)
@@ -98,6 +102,59 @@ def generate_segmentation_mask_layer(
         color=color,
         scale=scale,
         is_visible=is_visible,
+        display_bounding_box=display_bounding_box,
+        display_mesh=display_mesh,
+        highlight_on_hover=highlight_on_hover,
+    ).to_json()
+
+
+def generate_mesh_layer(
+    source: str,
+    name: str | None = None,
+    url: str | None = None,
+    color: str = "#FFFFFF",
+    scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    is_visible: bool = True,
+    display_bounding_box: bool = False,
+    display_mesh: bool = True,
+    highlight_on_hover: bool = False,
+) -> dict[str, Any]:
+    source, name, url, _, _ = _setup_creation(source, name, url, scale=scale)
+    _validate_color(color)
+    return MeshJSONGenerator(
+        source=source,
+        name=name,
+        color=color,
+        scale=scale,
+        is_visible=is_visible,
+        display_bounding_box=display_bounding_box,
+        display_mesh=display_mesh,
+        highlight_on_hover=highlight_on_hover,
+    ).to_json()
+
+
+def generate_oriented_point_mesh_layer(
+    source: str,
+    name: str | None = None,
+    url: str | None = None,
+    color: str = "#FFFFFF",
+    scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    is_visible: bool = True,
+    display_bounding_box: bool = False,
+    display_mesh: bool = True,
+    highlight_on_hover: bool = False,
+) -> dict[str, Any]:
+    source, name, url, _, _ = _setup_creation(source, name, url, scale=scale)
+    _validate_color(color)
+    return MeshJSONGenerator(
+        source=source,
+        name=name,
+        color=color,
+        scale=scale,
+        is_visible=is_visible,
+        display_bounding_box=display_bounding_box,
+        display_mesh=display_mesh,
+        highlight_on_hover=highlight_on_hover,
     ).to_json()
 
 
