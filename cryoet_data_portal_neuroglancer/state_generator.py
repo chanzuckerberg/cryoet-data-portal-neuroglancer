@@ -20,7 +20,7 @@ def _setup_creation(
     name: str | None = None,
     url: str | None = None,
     zarr_path: str | None = None,
-    scale: float | tuple[float, float, float] = 1.0,
+    scale: tuple[float, float, float] | list[float] | float = 1.0,
 ) -> tuple[str, str, str, str, tuple[float, float, float]]:
     name = Path(source).stem if name is None else name
     url = url if url is not None else ""
@@ -41,7 +41,7 @@ def generate_point_layer(
     url: str | None = None,
     color: str = "#FFFFFF",
     point_size_multiplier: float = 1.0,
-    scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    scale: float | tuple[float, float, float] = (1.0, 1.0, 1.0),
     is_visible: bool = True,
     is_instance_segmentation: bool = False,
 ) -> dict[str, Any]:
@@ -65,7 +65,7 @@ def generate_oriented_point_layer(
     color: str = "#FFFFFF",
     point_size_multiplier: float = 1.0,
     line_width: float = 1.0,
-    scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    scale: float | tuple[float, float, float] = (1.0, 1.0, 1.0),
     is_visible: bool = True,
     is_instance_segmentation: bool = False,
 ) -> dict[str, Any]:
@@ -88,7 +88,7 @@ def generate_segmentation_mask_layer(
     name: str | None = None,
     url: str | None = None,
     color: str = "#FFFFFF",
-    scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    scale: float | tuple[float, float, float] = (1.0, 1.0, 1.0),
     is_visible: bool = True,
     display_bounding_box: bool = False,
     display_mesh: bool = True,
@@ -113,13 +113,13 @@ def generate_mesh_layer(
     name: str | None = None,
     url: str | None = None,
     color: str = "#FFFFFF",
-    scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    scale: float | tuple[float, float, float] = (1.0, 1.0, 1.0),
     is_visible: bool = True,
     display_bounding_box: bool = False,
     display_mesh: bool = True,
     highlight_on_hover: bool = False,
 ) -> dict[str, Any]:
-    source, name, url, _, _ = _setup_creation(source, name, url, scale=scale)
+    source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     _validate_color(color)
     return MeshJSONGenerator(
         source=source,
@@ -138,13 +138,14 @@ def generate_oriented_point_mesh_layer(
     name: str | None = None,
     url: str | None = None,
     color: str = "#FFFFFF",
-    scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    scale: float | tuple[float, float, float] = (1.0, 1.0, 1.0),
     is_visible: bool = True,
     display_bounding_box: bool = False,
     display_mesh: bool = True,
     highlight_on_hover: bool = False,
 ) -> dict[str, Any]:
-    source, name, url, _, _ = _setup_creation(source, name, url, scale=scale)
+    print("source", source, name, url, color, scale)
+    source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     _validate_color(color)
     return MeshJSONGenerator(
         source=source,
@@ -160,7 +161,7 @@ def generate_oriented_point_mesh_layer(
 
 def generate_image_layer(
     source: str,
-    scale: tuple[float, float, float],
+    scale: float | tuple[float, float, float],
     size: dict[str, float],
     name: str | None = None,
     url: str | None = None,
@@ -189,7 +190,7 @@ def generate_image_volume_layer(
     name: str | None = None,
     url: str | None = None,
     color: str = "#FFFFFF",
-    scale: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    scale: tuple[float, float, float] | list[float] | float = (1.0, 1.0, 1.0),
     is_visible: bool = True,
     rendering_depth: int = 1024,
 ) -> dict[str, Any]:
