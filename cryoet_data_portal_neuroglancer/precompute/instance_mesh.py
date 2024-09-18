@@ -57,11 +57,14 @@ def encode_oriented_mesh(
     first_lod = np.argmax(total_faces_per_lod <= max_faces_for_first_lod)
     # Now we have the first LOD that is less than the maximum faces, and redo the decimation to ensure that we have the correct number of LODs
     num_total_lods = first_lod + num_lods
-    decimated_meshes = decimate_mesh(
-        scaled,
-        num_total_lods,
-        as_trimesh=True,
-        aggressiveness=decimation_aggressiveness,
+    decimated_meshes = typing.cast(
+        list[trimesh.Trimesh],
+        decimate_mesh(
+            scaled,
+            typing.cast(int, num_total_lods),
+            as_trimesh=True,
+            aggressiveness=decimation_aggressiveness,
+        ),
     )
     LOGGER.info(
         "Using LOD %i as the first LOD, with %i faces, which is less than %i maximum faces. There are %i LODs remaining in total.",
@@ -106,11 +109,14 @@ def scale_and_decimate_mesh(
     # of the tomogram inside of the neuroglancer viewer
     # instead of at the time of encoding the mesh
 
-    decimated_meshes = decimate_mesh(
-        scaled,
-        num_lods,
-        aggressiveness=decimation_aggressiveness,
-        as_trimesh=True,
+    decimated_meshes = typing.cast(
+        list[trimesh.Trimesh],
+        decimate_mesh(
+            scaled,
+            num_lods,
+            aggressiveness=decimation_aggressiveness,
+            as_trimesh=True,
+        ),
     )
 
     return scaled, decimated_meshes

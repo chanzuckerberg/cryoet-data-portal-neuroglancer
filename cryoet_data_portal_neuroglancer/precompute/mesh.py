@@ -543,44 +543,51 @@ def generate_multiresolution_mesh(
         This means that the chunk size will be at least 16x16x16
         This can result in not actually reaching the desired min LOD levels
     """
-    scene: trimesh.Scene = (
-        cast(trimesh.Scene, trimesh.load(glb, force="scene")) if isinstance(glb, (str, Path)) else glb
+    generate_multilabel_multiresolution_mesh(
+        outfolder=outfolder,
+        max_lod=max_lod,
+        min_mesh_chunk_dim=min_mesh_chunk_dim,
+        bounding_box_size=bounding_box_size,
+        label_dict={label: glb},
     )
-    mesh: trimesh.Trimesh = scene.dump(concatenate=True)  # type: ignore
-    _, bb2 = mesh.bounds  # type: ignore
+    # scene: trimesh.Scene = (
+    #     cast(trimesh.Scene, trimesh.load(glb, force="scene")) if isinstance(glb, (str, Path)) else glb
+    # )
+    # mesh: trimesh.Trimesh = scene.dump(concatenate=True)  # type: ignore
+    # _, bb2 = mesh.bounds  # type: ignore
 
-    def _compute_size():
-        max_bound = np.ceil(bb2)
-        return np.maximum(max_bound, np.full(3, 1))
+    # def _compute_size():
+    #     max_bound = np.ceil(bb2)
+    #     return np.maximum(max_bound, np.full(3, 1))
 
-    size_x, size_y, size_z = bounding_box_size if bounding_box_size is not None else _compute_size()
+    # size_x, size_y, size_z = bounding_box_size if bounding_box_size is not None else _compute_size()
 
-    mesh_shape = _determine_mesh_shape(mesh)
-    (actual_chunk_shape, smallest_chunk_size), computed_num_lod = determine_chunk_size_for_lod(
-        mesh_shape,
-        max_lod,
-        min_mesh_chunk_dim,
-    )
+    # mesh_shape = _determine_mesh_shape(mesh)
+    # (actual_chunk_shape, smallest_chunk_size), computed_num_lod = determine_chunk_size_for_lod(
+    #     mesh_shape,
+    #     max_lod,
+    #     min_mesh_chunk_dim,
+    # )
 
-    # The resolution is not handled here, but in the neuroglancer state
-    _generate_standalone_mesh_info(
-        outfolder,
-        size=(size_x, size_y, size_z),
-        resolution=1.0,
-        mesh_chunk_size=actual_chunk_shape,
-    )
+    # # The resolution is not handled here, but in the neuroglancer state
+    # _generate_standalone_mesh_info(
+    #     outfolder,
+    #     size=(size_x, size_y, size_z),
+    #     resolution=1.0,
+    #     mesh_chunk_size=actual_chunk_shape,
+    # )
 
-    tq = LocalTaskQueue()
-    tasks = _create_sharded_multires_mesh_tasks_from_glb(
-        f"precomputed://file://{outfolder}",
-        labels={label: mesh},
-        mesh_dir="mesh",
-        num_lod=computed_num_lod,
-        min_chunk_size=smallest_chunk_size,
-        use_decimated_mesh=False,
-    )
-    tq.insert(tasks)
-    tq.execute()
+    # tq = LocalTaskQueue()
+    # tasks = _create_sharded_multires_mesh_tasks_from_glb(
+    #     f"precomputed://file://{outfolder}",
+    #     labels={label: mesh},
+    #     mesh_dir="mesh",
+    #     num_lod=computed_num_lod,
+    #     min_chunk_size=smallest_chunk_size,
+    #     use_decimated_mesh=False,
+    # )
+    # tq.insert(tasks)
+    # tq.execute()
 
 
 def generate_multilabel_multiresolution_mesh(
@@ -733,6 +740,7 @@ def generate_single_resolution_mesh(
     resolution: tuple[float, float, float],
 ) -> None:
     """
+    ! This function is deprecated, please use "generate_multiresolution_mesh_from_segmentation" instead !
     Create a single res mesh for the given volume if a mesh directory is provided
 
     This uses the neuroglancer local volume to create the mesh. This can be a challenge
