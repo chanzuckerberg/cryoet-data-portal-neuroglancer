@@ -87,12 +87,14 @@ def generate_segmentation_mask_layer(
     source: str,
     name: str | None = None,
     url: str | None = None,
-    color: str = "#FFFFFF",
+    color: str | None = "#FFFFFF",
     scale: float | tuple[float, float, float] = (1.0, 1.0, 1.0),
     is_visible: bool = True,
     display_bounding_box: bool = False,
     display_mesh: bool = True,
     highlight_on_hover: bool = False,
+    mesh_render_scale: float = 2.0,
+    visible_segments: tuple[int, ...] = (1,),
 ) -> dict[str, Any]:
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     _validate_color(color)
@@ -105,6 +107,8 @@ def generate_segmentation_mask_layer(
         display_bounding_box=display_bounding_box,
         display_mesh=display_mesh,
         highlight_on_hover=highlight_on_hover,
+        mesh_render_scale=mesh_render_scale,
+        visible_segments=visible_segments,
     ).to_json()
 
 
@@ -118,6 +122,8 @@ def generate_mesh_layer(
     display_bounding_box: bool = False,
     display_mesh: bool = True,
     highlight_on_hover: bool = False,
+    mesh_render_scale: float = 2.0,
+    visible_segments: tuple[int, ...] = (1,),
 ) -> dict[str, Any]:
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     _validate_color(color)
@@ -130,6 +136,8 @@ def generate_mesh_layer(
         display_bounding_box=display_bounding_box,
         display_mesh=display_mesh,
         highlight_on_hover=highlight_on_hover,
+        mesh_render_scale=mesh_render_scale,
+        visible_segments=visible_segments,
     ).to_json()
 
 
@@ -143,19 +151,22 @@ def generate_oriented_point_mesh_layer(
     display_bounding_box: bool = False,
     display_mesh: bool = True,
     highlight_on_hover: bool = False,
+    mesh_render_scale: float = 4.0,
+    visible_segments: tuple[int, ...] = (1,),
 ) -> dict[str, Any]:
-    source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
-    _validate_color(color)
-    return MeshJSONGenerator(
+    return generate_mesh_layer(
         source=source,
         name=name,
+        url=url,
         color=color,
         scale=scale,
         is_visible=is_visible,
         display_bounding_box=display_bounding_box,
         display_mesh=display_mesh,
         highlight_on_hover=highlight_on_hover,
-    ).to_json()
+        mesh_render_scale=mesh_render_scale,
+        visible_segments=visible_segments,
+    )
 
 
 def generate_image_layer(

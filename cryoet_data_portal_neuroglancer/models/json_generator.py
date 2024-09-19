@@ -186,17 +186,19 @@ class OrientedPointAnnotationJSONGenerator(AnnotationJSONGenerator):
 class SegmentationJSONGenerator(RenderingJSONGenerator):
     """Generates JSON Neuroglancer config for segmentation mask."""
 
-    color: str
+    color: str | None = None
     is_visible: bool = True
     display_mesh: bool = True
     display_bounding_box: bool = False
     highlight_on_hover: bool = False
+    mesh_render_scale: float = 1.0
+    visible_segments: tuple[int, ...] = (1,)
 
     def __post_init__(self):
         self._type = RenderingTypes.SEGMENTATION
 
     def generate_json(self) -> dict:
-        return {
+        state = {
             "type": self.layer_type,
             "name": f"{self.name}",
             "source": {
@@ -210,48 +212,19 @@ class SegmentationJSONGenerator(RenderingJSONGenerator):
             "tab": "rendering",
             "selectedAlpha": 1,
             "hoverHighlight": self.highlight_on_hover,
-            "segments": [
-                1,
-            ],
-            "segmentDefaultColor": self.color,
+            "segments": sorted((self.visible_segments)),
             "visible": self.is_visible,
+            "meshRenderScale": self.mesh_render_scale,
         }
+        # self.color === None means that the color will be random
+        # This is useful for multiple segmentations
+        if self.color is not None:
+            state["segmentDefaultColor"] = self.color
+        return state
 
 
-@dataclass
-class MeshJSONGenerator(RenderingJSONGenerator):
-    """Generates JSON Neuroglancer config for mesh that are alone (without any segmentation)."""
-
-    color: str
-    is_visible: bool = True
-    display_mesh: bool = True
-    display_bounding_box: bool = False
-    highlight_on_hover: bool = False
-
-    def __post_init__(self):
-        self._type = RenderingTypes.SEGMENTATION
-
-    def generate_json(self) -> dict:
-        return {
-            "type": self.layer_type,
-            "name": f"{self.name}",
-            "source": {
-                **create_source(f"precomputed://{self.source}", self.scale, self.scale),
-                "subsources": {
-                    "default": True,
-                    "mesh": self.display_mesh,
-                },
-                "enableDefaultSubsources": self.display_bounding_box,
-            },
-            "tab": "rendering",
-            "selectedAlpha": 1,
-            "hoverHighlight": self.highlight_on_hover,
-            "segments": [
-                1,
-            ],
-            "segmentDefaultColor": self.color,
-            "visible": self.is_visible,
-        }
+# Alias for SegmentationJSONGenerator - for future compatibility
+MeshJSONGenerator = SegmentationJSONGenerator
 
 
 @dataclass
