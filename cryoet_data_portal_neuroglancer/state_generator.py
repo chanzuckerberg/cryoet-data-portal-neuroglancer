@@ -9,7 +9,7 @@ from cryoet_data_portal_neuroglancer.models.json_generator import (
     ImageJSONGenerator,
     ImageVolumeJSONGenerator,
     MeshJSONGenerator,
-    OrientedPointAnnotationJSONGenerator
+    OrientedPointAnnotationJSONGenerator,
     SegmentationJSONGenerator,
 )
 from cryoet_data_portal_neuroglancer.utils import get_scale
