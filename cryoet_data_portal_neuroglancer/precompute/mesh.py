@@ -550,44 +550,6 @@ def generate_multiresolution_mesh(
         bounding_box_size=bounding_box_size,
         label_dict={label: glb},
     )
-    # scene: trimesh.Scene = (
-    #     cast(trimesh.Scene, trimesh.load(glb, force="scene")) if isinstance(glb, (str, Path)) else glb
-    # )
-    # mesh: trimesh.Trimesh = scene.dump(concatenate=True)  # type: ignore
-    # _, bb2 = mesh.bounds  # type: ignore
-
-    # def _compute_size():
-    #     max_bound = np.ceil(bb2)
-    #     return np.maximum(max_bound, np.full(3, 1))
-
-    # size_x, size_y, size_z = bounding_box_size if bounding_box_size is not None else _compute_size()
-
-    # mesh_shape = _determine_mesh_shape(mesh)
-    # (actual_chunk_shape, smallest_chunk_size), computed_num_lod = determine_chunk_size_for_lod(
-    #     mesh_shape,
-    #     max_lod,
-    #     min_mesh_chunk_dim,
-    # )
-
-    # # The resolution is not handled here, but in the neuroglancer state
-    # _generate_standalone_mesh_info(
-    #     outfolder,
-    #     size=(size_x, size_y, size_z),
-    #     resolution=1.0,
-    #     mesh_chunk_size=actual_chunk_shape,
-    # )
-
-    # tq = LocalTaskQueue()
-    # tasks = _create_sharded_multires_mesh_tasks_from_glb(
-    #     f"precomputed://file://{outfolder}",
-    #     labels={label: mesh},
-    #     mesh_dir="mesh",
-    #     num_lod=computed_num_lod,
-    #     min_chunk_size=smallest_chunk_size,
-    #     use_decimated_mesh=False,
-    # )
-    # tq.insert(tasks)
-    # tq.execute()
 
 
 def generate_multilabel_multiresolution_mesh(
@@ -627,7 +589,7 @@ def generate_multilabel_multiresolution_mesh(
         mesh: trimesh.Trimesh = scene.dump(concatenate=True)  # type: ignore
         labels[k] = mesh
 
-    mesh = list(labels.values())[0]
+    mesh = next(iter(labels.values()))
     _, bb2 = mesh.bounds  # type: ignore
 
     def _compute_size():
@@ -636,12 +598,21 @@ def generate_multilabel_multiresolution_mesh(
 
     size_x, size_y, size_z = bounding_box_size if bounding_box_size is not None else _compute_size()
 
-    mesh_shape = _determine_mesh_shape(mesh)
-    (actual_chunk_size, smallest_chunk_size), computed_num_lod = determine_chunk_size_for_lod(
-        mesh_shape,
-        max_lod,
-        min_mesh_chunk_dim,
-    )
+    # get the biggest smallest_chunk_size for all mesh
+    # we take an arbitrary high value to setup the minimum search
+    smallest_chunk_sizes = (((0, 0, 0), (0, 0, 0)), (0, 0, 0))
+    for mesh in labels.values():
+        mesh_shape = _determine_mesh_shape(mesh)
+        # (actual_chunk_size, smallest_chunk_size), computed_num_lod is returned
+        chunk_sizes, computed_num_lod = determine_chunk_size_for_lod(
+            mesh_shape,
+            max_lod,
+            min_mesh_chunk_dim,
+        )
+        print("Checking", chunk_sizes[1], "with", smallest_chunk_sizes[0][1])
+        if chunk_sizes[1] > smallest_chunk_sizes[0][1]:
+            smallest_chunk_sizes = (chunk_sizes, computed_num_lod)
+    (actual_chunk_size, smallest_chunk_size), computed_num_lod = smallest_chunk_sizes
 
     # The resolution is not handled here, but in the neuroglancer state
     _generate_standalone_mesh_info(
