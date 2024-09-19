@@ -599,8 +599,8 @@ def generate_multilabel_multiresolution_mesh(
     size_x, size_y, size_z = bounding_box_size if bounding_box_size is not None else _compute_size()
 
     # get the biggest smallest_chunk_size for all mesh
-    # we take an arbitrary high value to setup the minimum search
-    smallest_chunk_sizes = (((0, 0, 0), (0, 0, 0)), (0, 0, 0))
+    # we take the lowest possible value to setup the max search
+    smallest_chunk_sizes = (((0, 0, 0), (0, 0, 0)), 0)
     for mesh in labels.values():
         mesh_shape = _determine_mesh_shape(mesh)
         # (actual_chunk_size, smallest_chunk_size), computed_num_lod is returned
@@ -609,8 +609,14 @@ def generate_multilabel_multiresolution_mesh(
             max_lod,
             min_mesh_chunk_dim,
         )
-        print("Checking", chunk_sizes[1], "with", smallest_chunk_sizes[0][1])
-        if chunk_sizes[1] > smallest_chunk_sizes[0][1]:
+        is_larger = chunk_sizes[1] > smallest_chunk_sizes[0][1]
+        LOGGER.debug(
+            "Comparing new %s with old %s for larger chunk. New chunk is larger? %s",
+            chunk_sizes[1],
+            smallest_chunk_sizes[0][1],
+            is_larger,
+        )
+        if is_larger:
             smallest_chunk_sizes = (chunk_sizes, computed_num_lod)
     (actual_chunk_size, smallest_chunk_size), computed_num_lod = smallest_chunk_sizes
 
