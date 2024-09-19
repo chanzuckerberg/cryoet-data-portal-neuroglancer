@@ -167,7 +167,7 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
 
 
 @dataclass
-class OrientedPointAnnotationGenerator(AnnotationJSONGenerator):
+class OrientedPointAnnotationJSONGenerator(AnnotationJSONGenerator):
     """Generates JSON Neuroglancer config for oriented point annotation."""
 
     line_width: float = 1.0
