@@ -49,6 +49,33 @@ class RenderingTypes(Enum):
 
 
 @dataclass
+class SegmentPropertyJSONGenerator:
+    """Generates a JSON file for segmentation properties.
+
+    Supports a subset of the properties that can be set in Neuroglancer.
+    See https://github.com/google/neuroglancer/blob/3efc90465e702453916d2b03d472c16378848132/src/datasource/precomputed/segment_properties.md
+    """
+
+    ids: list[int]
+    labels: list[str]
+
+    def generate_json(self) -> dict:
+        return {
+            "inline": {
+                "ids": [str(val) for val in self.ids],
+                "properties": [
+                    {
+                        "values": self.labels,
+                        "type": "label",
+                        "id": "label",
+                    },
+                ],
+            },
+            "@type": "neuroglancer_segment_properties",
+        }
+
+
+@dataclass
 class RenderingJSONGenerator:
     """Generates a JSON file for Neuroglancer to read."""
 
