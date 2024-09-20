@@ -32,9 +32,11 @@ def make_precomputed_segmentation():
         zarr_path,
         output_path,
         (resolution, resolution, resolution),
-        include_mesh=False,
+        include_mesh=True,
         convert_non_zero_to=1,
-        delete_existing=False,
+        delete_existing=True,
+        fast_bounding_box=True,
+        labels_dict={1: "membrane"},
     )
 
 
@@ -49,6 +51,7 @@ def make_multi_res_mesh():
         max_lod=2,
         mesh_shape=mesh_shape,
         max_simplification_error=max_simplification_error,
+        labels_dict={1: "membrane"},
     )
     clean_mesh_folder(output_path, "mesh")
 
@@ -77,7 +80,7 @@ def serve_files():
 def main():
     grab_annotation()
     make_precomputed_segmentation()
-    make_multi_res_mesh()
+    # make_multi_res_mesh()
     # make_single_res_mesh()
     serve_files()
 
