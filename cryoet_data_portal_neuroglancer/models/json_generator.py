@@ -85,7 +85,7 @@ class ImageJSONGenerator(RenderingJSONGenerator):
     rms: float = None
     is_visible: bool = True
     has_volume_rendering_shader: bool = False
-    volume_rendering_depth_samples: int = 256  # Ideally, this should be a power of 2
+    volume_rendering_depth_samples: int = 128  # Ideally, this should be a power of 2
     volume_rendering_is_visible: bool = False
     volume_rendering_gain: float = 0.0
 
@@ -103,7 +103,7 @@ class ImageJSONGenerator(RenderingJSONGenerator):
             self.contrast_limits = self._compute_contrast_limits()
         if self.threedee_contrast_limits is None:
             self.threedee_contrast_limits = self.contrast_limits
-        self.threedee_contrast_limits = self.threedee_contrast_limits[1], self.threedee_contrast_limits[0]
+        self.threedee_contrast_limits = self.threedee_contrast_limits
         if self.has_volume_rendering_shader:
             shader_builder = ImageWithVolumeRenderingShaderBuilder(
                 contrast_limits=self.contrast_limits,

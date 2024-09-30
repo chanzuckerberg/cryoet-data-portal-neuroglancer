@@ -122,6 +122,7 @@ class ImageWithVolumeRenderingShaderBuilder(ImageShaderBuilder):
                 self._threedee_contrast_name,
                 self._threedee_contrast_limits,
                 self._threedee_window_limits,
+                checked_by_default=True,
             ),
         )
 

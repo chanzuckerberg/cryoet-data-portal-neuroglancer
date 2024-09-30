@@ -69,7 +69,6 @@ def _restrict_volume_around_central_z_slice(
     else:
         z_min = max(0, int(np.ceil(central_z_slice - z_radius)))
         z_max = min(volume.shape[0], int(np.floor(central_z_slice + z_radius) + 1))
-    print(f"Z min: {z_min}, Z max: {z_max}")
     return volume[z_min:z_max]
 
 

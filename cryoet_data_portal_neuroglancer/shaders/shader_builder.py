@@ -70,6 +70,7 @@ class ShaderBuilder:
         name: str,
         contrast_limits: tuple[float, float],
         window_limits: tuple[float, float],
+        checked_by_default: bool = False,
     ) -> list[str]:
         invlerp_component = self.make_invlerp_component(name, contrast_limits, window_limits)
         checkbox_part = f"#uicontrol bool invert_{name} checkbox"
@@ -78,6 +79,7 @@ class ShaderBuilder:
             f"{TAB}return invert_{name} ? 1.0 - {name}() : {name}();",
             "}",
         ]
+        self._shader_controls[f"invert_{name}"] = checked_by_default
         return [invlerp_component, checkbox_part, *data_value_getter]
 
     def make_slider_component(
