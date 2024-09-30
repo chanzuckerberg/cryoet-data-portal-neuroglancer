@@ -16,6 +16,7 @@ from cryoet_data_portal_neuroglancer.precompute.mesh import (
     clean_mesh_folder,
     generate_multiresolution_mesh_from_segmentation,
 )
+from cryoet_data_portal_neuroglancer.precompute.segmentation_properties import write_segment_properties
 from cryoet_data_portal_neuroglancer.utils import (
     determine_size_of_non_zero_bounding_box,
     get_grid_size_from_block_shape,
@@ -245,6 +246,7 @@ def _create_metadata(
     data_directory: str,
     resolution: tuple[float, float, float] = (1.0, 1.0, 1.0),
     mesh_directory: str | None = None,
+    has_segment_properties: bool = False,
 ) -> dict[str, Any]:
     """Create the metadata for the segmentation"""
     metadata = {
@@ -263,6 +265,8 @@ def _create_metadata(
         ],
         "type": "segmentation",
     }
+    if has_segment_properties:
+        metadata["segment_properties"] = "segment_properties"
     if mesh_directory:
         metadata["mesh"] = mesh_directory
     return metadata
@@ -307,6 +311,7 @@ def encode_segmentation(
     min_mesh_chunk_dim: int = 16,
     fast_bounding_box: bool = False,
     max_simplification_error_in_voxels: int = 2,
+    labels_dict: dict[int, str] | None = None,
 ) -> None:
     """Convert the given OME-Zarr file to neuroglancer segmentation format with the given block size
 
@@ -364,6 +369,10 @@ def encode_segmentation(
         simplified. This parameter sets the maximum error in voxels for
         the simplification, by default 2.
         For large meshes, this can be increased to reduce memory consumption.
+    labels_dict : dict[int, str] | None, optional
+        A dictionary mapping the integer labels in the segmentation to
+        human-readable names, by default None
+        This is useful for generating a legend in the viewer
     """
     LOGGER.info("Converting %s to neuroglancer compressed segmentation format", filename)
     output_path = Path(output_path)
@@ -400,8 +409,15 @@ def encode_segmentation(
         data_directory,
         resolution,
         mesh_directory=mesh_directory if include_mesh else None,
+        has_segment_properties=labels_dict is not None,
     )
     write_metadata(metadata, output_path)
+    if labels_dict is not None:
+        write_segment_properties(
+            output_path,
+            list(labels_dict.keys()),
+            list(labels_dict.values()),
+        )
 
     if include_mesh:
         LOGGER.info("Converting %s to neuroglancer mesh format", filename)

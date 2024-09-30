@@ -26,6 +26,7 @@ from taskqueue import LocalTaskQueue, queueable
 from tqdm import tqdm
 
 from cryoet_data_portal_neuroglancer.igneous_patch import patched_create_octree_level_from_mesh, patched_process_mesh
+from cryoet_data_portal_neuroglancer.precompute.segmentation_properties import write_segment_properties
 from cryoet_data_portal_neuroglancer.utils import determine_mesh_shape_from_lods
 
 LOGGER = logging.getLogger(__name__)
@@ -253,6 +254,7 @@ def _generate_standalone_mesh_info(
     mesh_dir: str = "mesh",
     resolution: tuple[float, float, float] | float = (1.0, 1.0, 1.0),
     mesh_chunk_size: tuple[float, float, float] | float = (448, 448, 448),
+    has_segment_properties: bool = False,
 ):
     outfolder = Path(outfolder)
     outfolder.mkdir(exist_ok=True, parents=True)
@@ -262,32 +264,31 @@ def _generate_standalone_mesh_info(
 
     # offset = bbox.transform[:, 3][:3].tolist()
     info = outfolder / "info"
-    info.write_text(
-        json.dumps(
+    output = {
+        "@type": "neuroglancer_multiscale_volume",
+        "data_type": "uint32",
+        "mesh": "mesh",
+        "num_channels": 1,
+        "scales": [
             {
-                "@type": "neuroglancer_multiscale_volume",
-                "data_type": "uint32",
-                "mesh": "mesh",
-                "num_channels": 1,
-                "scales": [
-                    {
-                        "chunk_sizes": [[256, 256, 256]],  # information required by neuroglancer but not used
-                        "compressed_segmentation_block_size": [
-                            64,
-                            64,
-                            64,
-                        ],  # information required by neuroglancer but not used
-                        "encoding": "compressed_segmentation",
-                        "key": "data",
-                        "resolution": resolution_conv,
-                        "size": size,
-                    },
-                ],
-                "type": "segmentation",
+                "chunk_sizes": [[256, 256, 256]],  # information required by neuroglancer but not used
+                "compressed_segmentation_block_size": [
+                    64,
+                    64,
+                    64,
+                ],  # information required by neuroglancer but not used
+                "encoding": "compressed_segmentation",
+                "key": "data",
+                "resolution": resolution_conv,
+                "size": size,
             },
-            indent=2,
-        ),
-    )
+        ],
+        "type": "segmentation",
+    }
+
+    if has_segment_properties:
+        output["segment_properties"] = "segment_properties"
+    info.write_text(json.dumps(output, indent=2))
 
     mesh_info = outfolder / mesh_dir
     mesh_info.mkdir(exist_ok=True, parents=True)
@@ -452,6 +453,7 @@ def generate_mesh_from_lods(
     min_mesh_chunk_dim: int = 16,
     label: int = 1,
     bounding_box_size: tuple[float, float, float] | None = None,
+    string_label: str | None = None,
 ):
     """
     Generate a sharded mesh from a list of LODs
@@ -474,6 +476,8 @@ def generate_mesh_from_lods(
         This calculation is often not accurate, so it is recommended to
         provide the bounding box size. Or turn off the bounding box in the
         neuroglancer state.
+    string_label : str | None, optional
+        The string label to use, by default None - ie. not used
     """
     concatenated_lods: list[trimesh.Trimesh] = cast(list[trimesh.Trimesh], [lod.dump(concatenate=True) for lod in lods])
     num_lod = len(concatenated_lods)
@@ -499,7 +503,11 @@ def generate_mesh_from_lods(
         size=(size_x, size_y, size_z),
         resolution=1.0,
         mesh_chunk_size=actual_chunk_shape,
+        has_segment_properties=string_label is not None,
     )
+
+    if string_label is not None:
+        write_segment_properties(outfolder, [label], [string_label])
 
     tq = LocalTaskQueue(progress=False)
     tasks = _create_sharded_multires_mesh_tasks_from_glb(
@@ -521,6 +529,7 @@ def generate_multiresolution_mesh(
     min_mesh_chunk_dim: int = 16,
     bounding_box_size: tuple[float, float, float] | None = None,
     label: int = 1,
+    string_label: str | None = None,
 ):
     """
     Generate a standalone sharded multiresolution mesh from a glb file or scene
@@ -549,6 +558,7 @@ def generate_multiresolution_mesh(
         min_mesh_chunk_dim=min_mesh_chunk_dim,
         bounding_box_size=bounding_box_size,
         label_dict={label: glb},
+        string_labels={label: string_label} if string_label is not None else None,
     )
 
 
@@ -558,6 +568,7 @@ def generate_multilabel_multiresolution_mesh(
     max_lod: int = 2,
     min_mesh_chunk_dim: int = 16,
     bounding_box_size: tuple[float, float, float] | None = None,
+    string_labels: dict[int, str] | None = None,
 ):
     """
     Generate standalone sharded multiresolution meshes from a mapping of labels to glb files or scenes.
@@ -626,7 +637,13 @@ def generate_multilabel_multiresolution_mesh(
         size=(size_x, size_y, size_z),
         resolution=1.0,
         mesh_chunk_size=actual_chunk_size,
+        has_segment_properties=string_labels is not None,
     )
+
+    if string_labels is not None:
+        ids = list(string_labels.keys())
+        string_labels_list = [string_labels[i] for i in ids]
+        write_segment_properties(outfolder, ids, string_labels_list)
 
     tq = LocalTaskQueue()
     tasks = _create_sharded_multires_mesh_tasks_from_glb(
@@ -648,6 +665,7 @@ def generate_multiresolution_mesh_from_segmentation(
     mesh_shape: tuple[int, int, int] | np.ndarray,
     min_mesh_chunk_dim: int = 16,
     max_simplification_error: int = 10,
+    labels_dict: dict[int, str] | None = None,
 ) -> None:
     """Generates the meshes for a segmentation stored as a precomputed Neuroglancer format.
 
@@ -668,6 +686,9 @@ def generate_multiresolution_mesh_from_segmentation(
         The maximal simplification error allowed for the mesh generation from the
         segmentation. This is used to simplify the mesh and reduce the number of
         vertices and faces in the mesh. The error is in the same unit as the data.
+    labels_dict: dict[int, str] | None
+        A dictionary of labels to string labels. This is used to generate the segment properties
+        for the segmentation. If None, no segment properties are generated.
     """
     tq = LocalTaskQueue()
 
@@ -708,6 +729,14 @@ def generate_multiresolution_mesh_from_segmentation(
     )
     tq.insert(tasks)
     tq.execute()
+
+    if labels_dict is not None:
+        LOGGER.debug("Writing segment properties")
+        write_segment_properties(
+            Path(mesh_directory).parent,
+            list(labels_dict.keys()),
+            list(labels_dict.values()),
+        )
 
 
 def generate_single_resolution_mesh(
