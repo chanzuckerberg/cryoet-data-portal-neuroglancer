@@ -93,6 +93,10 @@ def grab_tomogram(id_: int, zarr_path: Path):
 
 def run_all_contrast_limit_calculations(id_, input_data_path, output_path):
     output_path.mkdir(parents=True, exist_ok=True)
+
+    human_contrast = id_to_human_contrast_limits[id_]
+    volume_limit = human_contrast["volume"]
+
     # First, percentile contrast limits
     limits_dict = {}
     data = load_omezarr_data(input_data_path, resolution_level=-1, persist=False)
@@ -125,7 +129,7 @@ def run_all_contrast_limit_calculations(id_, input_data_path, output_path):
     cdf_calculator = CDFContrastLimitCalculator(calculator.volume)
     limits = cdf_calculator.contrast_limits_from_cdf()
     limits_dict["cdf"] = limits
-    cdf_calculator.plot_cdf(output_path / "cdf.png")
+    cdf_calculator.plot_cdf(output_path / "cdf.png", real_limits=volume_limit)
 
     # 2D contrast limits
     limits = calculator.contrast_limits_from_percentiles(1.0, 99.0)
@@ -134,8 +138,6 @@ def run_all_contrast_limit_calculations(id_, input_data_path, output_path):
     with open(output_path / "contrast_limits.json", "w") as f:
         json.dump(limits_dict, f)
 
-    human_contrast = id_to_human_contrast_limits[id_]
-    volume_limit = human_contrast["volume"]
     # Check which method is closest to the human contrast limits
     closeness_ordering = {
         k: abs(limits_dict[k][0] - volume_limit[0]) + abs(limits_dict[k][1] - volume_limit[1]) for k in limits_dict

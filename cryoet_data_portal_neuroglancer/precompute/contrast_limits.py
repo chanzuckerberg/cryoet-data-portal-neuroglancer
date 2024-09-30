@@ -244,10 +244,13 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
 
         # pick the middle GMM component - TODO should actually be the one with the
         # mean closest to the mean of the volume
-        means = means[np.argsort(means)]
-        covariances = covariances[np.argsort(means)]
+        volume_mean = np.mean(sample_data)
+        closest_mean_index = np.argmin(np.abs(means - volume_mean))
+        mean_to_use = means[closest_mean_index]
+        covariance_to_use = covariances[closest_mean_index]
+        variance_to_use = np.sqrt(covariance_to_use)
 
-        return means[1] - 0.1 * np.sqrt(covariances[1]), means[1] + 0.1 * np.sqrt(covariances[1])
+        return mean_to_use - 3 * variance_to_use, mean_to_use + 0.5 * variance_to_use
 
     def plot_gmm_clusters(self, output_filename: Optional[str | Path] = None) -> None:
         """Plot the GMM clusters."""
@@ -255,9 +258,11 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
 
         ax.plot(
             self.gmm_estimator.means_.flatten(),
-            self.gmm_estimator.covariances_.flatten(),
+            [np.sqrt(y) for y in self.gmm_estimator.covariances_.flatten()],
             "o",
         )
+        ax.set_xlabel("Mean")
+        ax.set_ylabel("Standard Deviation")
         if output_filename:
             fig.savefig(output_filename)
         else:
@@ -312,14 +317,24 @@ class KMeansContrastLimitCalculator(ContrastLimitCalculator):
         sample_data = self.volume.flatten()
         self.kmeans_estimator.fit(sample_data.reshape(-1, 1))
 
-        cluster_centers = self.kmeans_estimator.cluster_centers_
-        cluster_centers.sort()
+        cluster_centers = self.kmeans_estimator.cluster_centers_.flatten()
 
-        # Find the boundaries of the middle cluster
-        distance_to_middle = np.abs(cluster_centers - cluster_centers[1])
+        # Find the cluster which is closest to the mean of the volume
+        volume_mean = np.mean(sample_data)
+        closest_cluster_index = np.argmin(np.abs(cluster_centers - volume_mean))
 
-        left_boundary = cluster_centers[0][0] + 0.75 * distance_to_middle[0][0]
-        right_boundary = cluster_centers[-1][0] - 0.75 * distance_to_middle[-1][0]
+        # Find the closest cluster to that mean cluster
+        closest_distance = None
+        for i in range(0, self.num_clusters):
+            if i == closest_cluster_index:
+                continue
+            distance = np.abs(cluster_centers[i] - cluster_centers[closest_cluster_index])
+            if closest_distance is None or distance < closest_distance:
+                closest_cluster_index = i
+                closest_distance = distance
+
+        left_boundary = cluster_centers[closest_cluster_index] - 0.1 * closest_distance
+        right_boundary = cluster_centers[closest_cluster_index] + 0.1 * closest_distance
 
         return left_boundary, right_boundary
 
@@ -383,6 +398,7 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
             )
         except AttributeError:
             self.limits = (bin_edges[biggest_peak], bin_edges[smallest_negative_peak])
+        self.first_derivative = gradient
         self.second_derivative = second_derivative
 
         # Shrink the limits a bit
@@ -391,7 +407,7 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
 
         return self.limits
 
-    def plot_cdf(self, output_filename: Optional[str | Path] = None) -> None:
+    def plot_cdf(self, output_filename: Optional[str | Path] = None, real_limits: Optional[list] = None) -> None:
         """Plot the CDF and the calculated limits."""
         fig, ax = plt.subplots()
 
@@ -399,7 +415,12 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
         ax.axvline(self.limits[0], color="r")
         ax.axvline(self.limits[1], color="r")
 
-        ax.plot(self.cdf[0], self.second_derivative, "g")
+        if real_limits:
+            ax.axvline(real_limits[0], color="b")
+            ax.axvline(real_limits[1], color="b")
+
+        ax.plot(self.cdf[0], self.first_derivative * 100, "y")
+        ax.plot(self.cdf[0], self.second_derivative * 100, "g")
 
         if output_filename:
             fig.savefig(output_filename)
