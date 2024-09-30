@@ -4,7 +4,10 @@ import logging
 from pathlib import Path
 
 from cryoet_data_portal import Client, Tomogram
+from neuroglancer import viewer_state
+from neuroglancer.url_state import to_url
 from scipy.spatial.transform import Rotation
+from screenshot_urls import run_screenshot_loop
 
 from cryoet_data_portal_neuroglancer.io import load_omezarr_data
 from cryoet_data_portal_neuroglancer.precompute.contrast_limits import (
@@ -62,19 +65,19 @@ id_to_source_map = {
         (1.408e-9, 1.408e-9, 1.408e-9),
     ),
     706: (
-        "zarr://https://files.cryoetdataportal.cziscience.com/10004/Position_161/Tomograms/VoxelSpacing7.560/CanonicalTomogram/Position_161.zarr",
+        "https://files.cryoetdataportal.cziscience.com/10004/Position_161/Tomograms/VoxelSpacing7.560/CanonicalTomogram/Position_161.zarr",
         (7.56e-10, 7.56e-10, 7.56e-10),
     ),
     800: (
-        "zarr://https://files.cryoetdataportal.cziscience.com/10005/0105/Tomograms/VoxelSpacing5.224/CanonicalTomogram/0105.zarr",
+        "https://files.cryoetdataportal.cziscience.com/10005/0105/Tomograms/VoxelSpacing5.224/CanonicalTomogram/0105.zarr",
         (5.224e-10, 5.224e-10, 5.224e-10),
     ),
     10845: (
-        "zarr://https://files.cryoetdataportal.cziscience.com/10007/ay18112021_grid2_lamella3_position7/Tomograms/VoxelSpacing7.840/CanonicalTomogram/ay18112021_grid2_lamella3_position7.zarr",
+        "https://files.cryoetdataportal.cziscience.com/10007/ay18112021_grid2_lamella3_position7/Tomograms/VoxelSpacing7.840/CanonicalTomogram/ay18112021_grid2_lamella3_position7.zarr",
         (7.84e-10, 7.84e-10, 7.84e-10),
     ),
     4279: (
-        "zarr://https://files.cryoetdataportal.cziscience.com/10059/dga2018-08-27-600/Tomograms/VoxelSpacing16.800/CanonicalTomogram/dga2018-08-27-600.zarr",
+        "https://files.cryoetdataportal.cziscience.com/10059/dga2018-08-27-600/Tomograms/VoxelSpacing16.800/CanonicalTomogram/dga2018-08-27-600.zarr",
         (1.68e-9, 1.68e-9, 1.68e-9),
     ),
 }
@@ -126,7 +129,7 @@ def run_all_contrast_limit_calculations(id_, input_data_path, output_path):
 
     # 2D contrast limits
     limits = calculator.contrast_limits_from_percentiles(1.0, 99.0)
-    limits_dict["2d"] = limits
+    limits_dict["wide_percentile"] = limits
 
     with open(output_path / "contrast_limits.json", "w") as f:
         json.dump(limits_dict, f)
@@ -140,12 +143,14 @@ def run_all_contrast_limit_calculations(id_, input_data_path, output_path):
 
     closest_method = min(limits_dict.keys(), key=closeness_ordering.get)
     limits_dict = {k: limits_dict[k] for k in sorted(limits_dict, key=closeness_ordering.get)}
+    limits_dict_string = "".join(f"{k} : {v[0]:.5f} - {v[1]:.5f}\n" for k, v in limits_dict.items())
     limits_dict["size"] = data_size_dict
     print(
-        f"Closest method to human contrast limits: {closest_method}, {limits_dict[closest_method]}, human: {volume_limit}. 2D: {limits_dict['2d']}, human {human_contrast['slice']}, Details saved to {output_path}.",
+        f"Closest method to human contrast limits of {volume_limit} was {closest_method}:\n{limits_dict_string}Details saved to {output_path}.",
     )
     limits_dict["closest_method"] = closest_method
     limits_dict["distance_to_human"] = closeness_ordering
+    limits_dict["2d"] = limits_dict["wide_percentile"]
 
     return limits_dict
 
@@ -179,18 +184,21 @@ def create_state(id_, contrast_limit_dict, output_folder):
             is_visible=visible,
             volume_rendering_gain=gain,
         )
+        layer_info["_projectionScale"] = 2000
         layers_list.append(layer_info)
     json_state = combine_json_layers(
         layers_list,
         scale,
         projection_quaternion=Rotation.from_euler(seq="xyz", angles=(0, 0, 0), degrees=True).as_quat(),
+        show_axis_lines=False,
     )
     with open(output_folder / f"{id_}_state.json", "w") as f:
         json.dump(json_state, f, indent=4)
-    print(f"State file saved to {output_folder / f'{id_}_state.json'}")
+    return json_state
 
 
-def main(output_folder):
+def main(output_folder, take_screenshots=False):
+    url_list = []
     for id_, path in id_to_path_map.items():
         path = Path(output_folder) / path
         grab_tomogram(id_, path)
@@ -199,11 +207,25 @@ def main(output_folder):
             path,
             Path(output_folder) / f"results_{id_}",
         )
-        create_state(id_, limits, Path(output_folder) / f"results_{id_}")
+        state = create_state(id_, limits, Path(output_folder) / f"results_{id_}")
+        viewer_state_obj = viewer_state.ViewerState(state)
+        url_from_json = to_url(
+            viewer_state_obj,
+            prefix="https://neuroglancer-demo.appspot.com/",
+        )
+        url_list.append(url_from_json)
+    with open(Path(output_folder) / "urls.txt", "w") as f:
+        f.write("\n\n\n".join(url_list))
+
+    if take_screenshots:
+        ids = list(id_to_path_map.keys())
+        url_dict = {id_: [url] for id_, url in zip(ids, url_list, strict=False)}
+        run_screenshot_loop(url_dict, Path(output_folder))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--output_folder", type=str, default=OUTPUT_FOLDER)
+    parser.add_argument("--screenshot", action="store_true")
     args, _ = parser.parse_known_args()
-    main(args.output_folder)
+    main(args.output_folder, args.screenshot)
