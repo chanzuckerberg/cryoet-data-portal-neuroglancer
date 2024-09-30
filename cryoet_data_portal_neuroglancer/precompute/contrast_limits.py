@@ -376,34 +376,30 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
             gradient = np.gradient(cdf.compute())
         except AttributeError:
             gradient = np.gradient(cdf)
-        second_derivative = np.gradient(gradient)
-        peaks, _ = find_peaks(second_derivative, prominence=0.01)
+        largest_peak = np.argmax(gradient)
+        peak_gradient_value = gradient[largest_peak]
 
-        # If no peaks, take the argmax of the gradient
-        biggest_peak = np.argmax(second_derivative) if len(peaks) == 0 else peaks[np.argmax(second_derivative[peaks])]
+        start_of_rising = np.where(gradient > 0.08 * peak_gradient_value)[0][0]
+        # Find the first point after the largest peak where the gradient is less than 0.1 * peak_gradient_value
+        end_of_flattening = np.where(gradient[largest_peak:] < 0.08 * peak_gradient_value)[0][0]
+        end_of_flattening += largest_peak
 
-        negative_peaks, _ = find_peaks(-second_derivative, prominence=0.01)
-        smallest_negative_peak = (
-            np.argmin(second_derivative)
-            if len(negative_peaks) == 0
-            else negative_peaks[np.argmin(second_derivative[negative_peaks])]
-        )
+        start_value = bin_edges[start_of_rising]
+        end_value = bin_edges[end_of_flattening]
+        middle_value = bin_edges[largest_peak]
+        start_to_middle = middle_value - start_value
+        middle_to_end = end_value - middle_value
+        start_limit = middle_value - 1.0 * start_to_middle
+        end_limit = middle_value + 0.4 * middle_to_end
 
         x = np.linspace(min_value, max_value, 400)
         self.cdf = [x, cdf]
         try:
-            self.limits = (
-                bin_edges[biggest_peak].compute(),
-                bin_edges[smallest_negative_peak].compute(),
-            )
+            self.limits = (start_limit.compute(), end_limit.compute())
         except AttributeError:
-            self.limits = (bin_edges[biggest_peak], bin_edges[smallest_negative_peak])
+            self.limits = (start_limit, end_limit)
         self.first_derivative = gradient
-        self.second_derivative = second_derivative
-
-        # Shrink the limits a bit
-        limit_width = self.limits[1] - self.limits[0]
-        self.limits = (self.limits[0] + 0.1 * limit_width, self.limits[1] - 0.3 * limit_width)
+        self.second_derivative = np.gradient(gradient)
 
         return self.limits
 
