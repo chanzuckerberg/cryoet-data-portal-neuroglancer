@@ -169,6 +169,7 @@ def combine_json_layers(
     units: str = "m",
     projection_quaternion: list[float] = None,
     set_slices_visible_in_3d: bool | None = None,
+    show_axis_lines: bool = True,
 ) -> dict[str, Any]:
     """Note, if set_slices_visible_in_3d is not provided, it will be set to False if there are any image layers in the list with volume rendering."""
     image_layers = [layer for layer in layers if layer["type"] == "image"]
@@ -176,7 +177,7 @@ def combine_json_layers(
         set_slices_visible_in_3d = not any(layer["volumeRendering"] == "on" for layer in image_layers)
 
     scale = get_scale(scale)
-    if not projection_quaternion:
+    if projection_quaternion is not None:
         projection_quaternion = Rotation.from_euler(seq="xyz", angles=(45, 0, 0), degrees=True).as_quat()
     combined_json = {
         "dimensions": {dim: [res, units] for dim, res in zip("xyz", scale, strict=False)},
@@ -190,6 +191,7 @@ def combine_json_layers(
         "crossSectionBackgroundColor": "#000000",
         "layout": "4panel",
         "showSlices": set_slices_visible_in_3d,
+        "showAxisLines": show_axis_lines,
     }
     if len(image_layers) > 0 and "_position" in image_layers[0]:
         combined_json["position"] = image_layers[0]["_position"]
