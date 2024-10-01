@@ -114,7 +114,7 @@ class ShaderBuilder:
             checkbox_part += f"\n#uicontrol bool hide_noise_{noise_name} checkbox"
             self._shader_controls[f"hide_noise_{noise_name}"] = False
             data_value_getter += [
-                f"{TAB}value = (hide_noise_{noise_name} && value > 1.0) ? 0.0 : clamp(val, 0.0, 1.0);",
+                f"{TAB}value = (hide_noise_{noise_name} && value > 1.0) ? 0.0 : clamp(value, 0.0, 1.0);",
             ]
         data_value_getter += [f"{TAB}return value;", "}"]
         return [invlerp_component, checkbox_part, *data_value_getter]
