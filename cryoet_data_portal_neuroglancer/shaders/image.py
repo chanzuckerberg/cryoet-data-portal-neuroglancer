@@ -50,9 +50,10 @@ class ImageShaderBuilder(ShaderBuilder):
     def _make_default_shader(self, suppress_emission=False):
         self.add_to_shader_controls(
             self.make_invertible_invlerp_component(
-                self._contrast_name,
-                self._contrast_limits,
-                self._window_limits,
+                name=self._contrast_name,
+                contrast_limits=self._contrast_limits,
+                window_limits=self._window_limits,
+                checked_by_default=False,
             ),
         )
         self.add_to_shader_main("float outputValue;")
@@ -79,6 +80,7 @@ class ImageWithVolumeRenderingShaderBuilder(ImageShaderBuilder):
         window_limits: Optional[tuple[float, float]] = None,
         threedee_window_limits: Optional[tuple[float, float]] = None,
         threedee_contrast_name="contrast3D",
+        can_hide_high_values_in_neuroglancer=True,
     ):
         """Create a shader for Neuroglancer to display an image.
 
@@ -112,6 +114,7 @@ class ImageWithVolumeRenderingShaderBuilder(ImageShaderBuilder):
             else get_window_limits_from_contrast_limits(threedee_contrast_limits, 2.0)
         )
         self._threedee_contrast_name = threedee_contrast_name
+        self._can_hide_high_values_in_neuroglancer = can_hide_high_values_in_neuroglancer
 
         self._make_default_shader()
 
@@ -119,11 +122,11 @@ class ImageWithVolumeRenderingShaderBuilder(ImageShaderBuilder):
         super()._make_default_shader(suppress_emission=True)
         self.add_to_shader_controls(
             self.make_invertible_invlerp_component(
-                self._threedee_contrast_name,
-                self._threedee_contrast_limits,
-                self._threedee_window_limits,
+                name=self._threedee_contrast_name,
+                contrast_limits=self._threedee_contrast_limits,
+                window_limits=self._threedee_window_limits,
                 checked_by_default=True,
-                can_hide_noise=True,
+                can_hide_noise=self._can_hide_high_values_in_neuroglancer,
                 noise_name="3D",
             ),
         )

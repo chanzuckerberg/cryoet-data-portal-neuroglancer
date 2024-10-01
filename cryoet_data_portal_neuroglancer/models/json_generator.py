@@ -88,6 +88,7 @@ class ImageJSONGenerator(RenderingJSONGenerator):
     volume_rendering_depth_samples: int = 128  # Ideally, this should be a power of 2
     volume_rendering_is_visible: bool = False
     volume_rendering_gain: float = 0.0
+    can_hide_high_values_in_neuroglancer: bool = False
 
     def __post_init__(self):
         self._type = RenderingTypes.IMAGE
@@ -108,10 +109,12 @@ class ImageJSONGenerator(RenderingJSONGenerator):
             shader_builder = ImageWithVolumeRenderingShaderBuilder(
                 contrast_limits=self.contrast_limits,
                 threedee_contrast_limits=self.threedee_contrast_limits,
+                can_hide_high_values_in_neuroglancer=self.can_hide_high_values_in_neuroglancer,
             )
         else:
             shader_builder = ImageShaderBuilder(
                 contrast_limits=self.contrast_limits,
+                can_hide_high_values_in_neuroglancer=self.can_hide_high_values_in_neuroglancer,
             )
         return shader_builder.build()
 

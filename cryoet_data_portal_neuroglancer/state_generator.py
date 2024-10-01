@@ -116,6 +116,7 @@ def generate_image_layer(
     threedee_contrast_limits: tuple[float, float] | None = None,
     volume_rendering_is_visible: bool = False,
     volume_rendering_gain: float = -7.8,
+    can_hide_high_values_in_neuroglancer: bool | None = None,
 ) -> dict[str, Any]:
     """Generates JSON for an image layer with optional contrast limits.
 
@@ -125,6 +126,8 @@ def generate_image_layer(
     if not has_volume_rendering_shader and volume_rendering_is_visible:
         has_volume_rendering_shader = True
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
+    if can_hide_high_values_in_neuroglancer is None:
+        can_hide_high_values_in_neuroglancer = has_volume_rendering_shader
     return ImageJSONGenerator(
         source=source,
         name=name,
@@ -139,6 +142,7 @@ def generate_image_layer(
         threedee_contrast_limits=threedee_contrast_limits,
         volume_rendering_is_visible=volume_rendering_is_visible,
         volume_rendering_gain=volume_rendering_gain,
+        can_hide_high_values_in_neuroglancer=can_hide_high_values_in_neuroglancer,
     ).to_json()
 
 
