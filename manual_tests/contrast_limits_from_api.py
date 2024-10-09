@@ -2,6 +2,7 @@ import argparse
 import json
 from pathlib import Path
 
+import numpy as np
 from cryoet_data_portal import Client, Tomogram
 from neuroglancer import viewer_state
 from neuroglancer.url_state import to_url
@@ -17,6 +18,7 @@ from cryoet_data_portal_neuroglancer.precompute.contrast_limits import (
     SignalDecimationContrastLimitCalculator,
 )
 from cryoet_data_portal_neuroglancer.state_generator import combine_json_layers, generate_image_layer
+from cryoet_data_portal_neuroglancer.utils import ParameterOptimizer
 
 # Set up logging - level is info
 # logging.basicConfig(level=logging.INFO, force=True)
@@ -140,6 +142,31 @@ def run_all_contrast_limit_calculations(id_, input_data_path, output_path):
     # 2D contrast limits
     limits = calculator.compute_contrast_limit(1.0, 99.0)
     limits_dict["wide_percentile"] = limits
+
+    # TEMP move to proper place, try to optimize one of the methods
+    def objective_function(params):
+        num_clusters = params["num_clusters"]
+        z_radius = params["z_radius"]
+        num_samples = params["num_samples"]
+        calculator = GMMContrastLimitCalculator(data, num_components=num_clusters)
+        calculator.trim_volume_around_central_zslice(z_radius=z_radius)
+        calculator.take_random_samples_from_volume(num_samples=num_samples)
+        limits = calculator.compute_contrast_limit()
+        real_limits = volume_limit
+        difference = np.sqrt(((limits[0] - real_limits[0]) ** 2) + ((limits[1] - real_limits[1]) ** 2))
+        return difference
+
+    # Lets try optimize the GMM method
+    parameter_optimizer = ParameterOptimizer(objective_function)
+    parameter_optimizer.space_creator(
+        {
+            "num_clusters": {"type": "randint", "args": [2, 10]},
+            "z_radius": {"type": "randint", "args": [1, 10]},
+            "num_samples": {"type": "randint", "args": [2000, 30000]},
+        },
+    )
+    result = parameter_optimizer.optimize(max_evals=100)
+    print(result)
 
     with open(output_path / "contrast_limits.json", "w") as f:
         json.dump(limits_dict, f)
