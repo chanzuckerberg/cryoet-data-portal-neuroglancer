@@ -111,10 +111,10 @@ class ShaderBuilder:
         if can_hide_noise:
             if noise_name is None:
                 noise_name = name
-            checkbox_part += f"\n#uicontrol bool hide_white_outside_range_{noise_name} checkbox"
-            self._shader_controls[f"hide_white_outside_range_{noise_name}"] = False
+            checkbox_part += f"\n#uicontrol bool hide_values_outside_limits_{noise_name} checkbox"
+            self._shader_controls[f"hide_values_outside_limits_{noise_name}"] = False
             data_value_getter += [
-                f"{TAB}value = (hide_white_outside_range_{noise_name} && value > 1.0) ? 0.0 : clamp(value, 0.0, 1.0);",
+                f"{TAB}value = (hide_values_outside_limits_{noise_name} && value > 1.0) ? 0.0 : clamp(value, 0.0, 1.0);",
             ]
         data_value_getter += [f"{TAB}return value;", "}"]
         return [invlerp_component, checkbox_part, *data_value_getter]

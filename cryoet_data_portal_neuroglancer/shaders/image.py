@@ -79,7 +79,7 @@ class ImageWithVolumeRenderingShaderBuilder(ImageShaderBuilder):
         contrast_name="contrast",
         window_limits: Optional[tuple[float, float]] = None,
         threedee_window_limits: Optional[tuple[float, float]] = None,
-        threedee_contrast_name="contrast3D",
+        threedee_contrast_name="contrast_3D",
         can_hide_high_values_in_neuroglancer=True,
     ):
         """Create a shader for Neuroglancer to display an image.
@@ -99,7 +99,7 @@ class ImageWithVolumeRenderingShaderBuilder(ImageShaderBuilder):
             The minimum and maximum values for the window control for volume rendering, by default None.
             If None, the window limits will be calculated from the contrast limits.
         threedee_contrast_name : str, optional
-            The name of the contrast control for volume rendering, by default "contrast3D".
+            The name of the contrast control for volume rendering, by default "contrast_3D".
         """
         super().__init__(
             contrast_limits=contrast_limits,
