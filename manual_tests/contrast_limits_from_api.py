@@ -1,6 +1,5 @@
 import argparse
 import json
-import logging
 from pathlib import Path
 
 from cryoet_data_portal import Client, Tomogram
@@ -15,18 +14,20 @@ from cryoet_data_portal_neuroglancer.precompute.contrast_limits import (
     ContrastLimitCalculator,
     GMMContrastLimitCalculator,
     KMeansContrastLimitCalculator,
+    # SignalDecimationContrastLimitCalculator,
 )
 from cryoet_data_portal_neuroglancer.state_generator import combine_json_layers, generate_image_layer
 
 # Set up logging - level is info
 # logging.basicConfig(level=logging.INFO, force=True)
 
-OUTPUT_FOLDER = "/media/starfish/LargeSSD/data/cryoET/data/FromAPI"
+# OUTPUT_FOLDER = "/media/starfish/LargeSSD/data/cryoET/data/FromAPI"
+OUTPUT_FOLDER = "./COMPARISON"
 
 id_to_path_map = {
     1000: "1000/16.zarr",
-    706: "706/Position_161.zarr",
-    800: "800/0105.zarr",
+    # 706: "706/Position_161.zarr",
+    # 800: "800/0105.zarr",
     10845: "10845/ay18112021_grid2_lamella3_position7.zarr",
     4279: "4279/dga2018-08-27-600.zarr",
 }
@@ -37,11 +38,11 @@ id_to_human_contrast_limits = {
         "volume": [-0.035, 0.009],
         "gain": -7.6,
     },
-    706: {
-        "slice": [-44499.8, 83143],
-        "volume": [-20221.2, 18767.6],
-        "gain": -7.7,
-    },
+    # 706: {
+    #     "slice": [-44499.8, 83143],
+    #     "volume": [-20221.2, 18767.6],
+    #     "gain": -7.7,
+    # },
     800: {
         "slice": [0.0000748111, 0.00189353],
         "volume": [0.000705811, 0.00152511],
@@ -64,10 +65,10 @@ id_to_source_map = {
         "https://files.cryoetdataportal.cziscience.com/10008/16/Tomograms/VoxelSpacing14.080/CanonicalTomogram/16.zarr",
         (1.408e-9, 1.408e-9, 1.408e-9),
     ),
-    706: (
-        "https://files.cryoetdataportal.cziscience.com/10004/Position_161/Tomograms/VoxelSpacing7.560/CanonicalTomogram/Position_161.zarr",
-        (7.56e-10, 7.56e-10, 7.56e-10),
-    ),
+    # 706: (
+    #     "https://files.cryoetdataportal.cziscience.com/10004/Position_161/Tomograms/VoxelSpacing7.560/CanonicalTomogram/Position_161.zarr",
+    #     (7.56e-10, 7.56e-10, 7.56e-10),
+    # ),
     800: (
         "https://files.cryoetdataportal.cziscience.com/10005/0105/Tomograms/VoxelSpacing5.224/CanonicalTomogram/0105.zarr",
         (5.224e-10, 5.224e-10, 5.224e-10),
@@ -130,6 +131,12 @@ def run_all_contrast_limit_calculations(id_, input_data_path, output_path):
     limits = cdf_calculator.contrast_limits_from_cdf()
     limits_dict["cdf"] = limits
     cdf_calculator.plot_cdf(output_path / "cdf.png", real_limits=volume_limit)
+
+    # # Signal decimation based contrast limits
+    # cdf_calculator = SignalDecimationContrastLimitCalculator(calculator.volume)
+    # limits = cdf_calculator.contrast_limits_from_cdf()
+    # limits_dict["decimation"] = limits
+    # cdf_calculator.plot_cdf(output_path / "decimation.png", real_limits=volume_limit)
 
     # 2D contrast limits
     limits = calculator.contrast_limits_from_percentiles(1.0, 99.0)
@@ -199,7 +206,7 @@ def create_state(id_, contrast_limit_dict, output_folder):
     return json_state
 
 
-def main(output_folder, take_screenshots=False):
+def main(output_folder, take_screenshots=False, wait_for=60 * 1000):
     url_list = []
     for id_, path in id_to_path_map.items():
         path = Path(output_folder) / path
@@ -222,12 +229,13 @@ def main(output_folder, take_screenshots=False):
     if take_screenshots:
         ids = list(id_to_path_map.keys())
         url_dict = {id_: [url] for id_, url in zip(ids, url_list, strict=False)}
-        run_screenshot_loop(url_dict, Path(output_folder))
+        run_screenshot_loop(url_dict, Path(output_folder), wait_for=wait_for)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--output_folder", type=str, default=OUTPUT_FOLDER)
     parser.add_argument("--screenshot", action="store_true")
+    parser.add_argument("--wait", default=60, type=int, help="How long to wait before taking the screenshot (in s)")
     args, _ = parser.parse_known_args()
-    main(args.output_folder, args.screenshot)
+    main(args.output_folder, args.screenshot, wait_for=(args.wait * 1000))
