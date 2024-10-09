@@ -6,11 +6,9 @@ from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.signal import find_peaks
+from scipy.signal import decimate, find_peaks
 from sklearn.cluster import KMeans
 from sklearn.mixture import GaussianMixture
-from scipy.signal import decimate
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -152,7 +150,7 @@ class ContrastLimitCalculator:
             )
 
     @compute_with_timer
-    def contrast_limits_from_percentiles(
+    def compute_contrast_limit(
         self,
         low_percentile: float = 1.0,
         high_percentile: float = 99.0,
@@ -229,7 +227,7 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
         )
 
     @compute_with_timer
-    def contrast_limits_from_gmm(self) -> tuple[float, float]:
+    def compute_contrast_limit(self) -> tuple[float, float]:
         """Calculate the contrast limits using Gaussian Mixture Model.
 
         Returns
@@ -254,7 +252,7 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
 
         return mean_to_use - 3 * variance_to_use, mean_to_use + 0.5 * variance_to_use
 
-    def plot_gmm_clusters(self, output_filename: Optional[str | Path] = None) -> None:
+    def plot(self, output_filename: Optional[str | Path] = None) -> None:
         """Plot the GMM clusters."""
         fig, ax = plt.subplots()
 
@@ -289,7 +287,7 @@ class KMeansContrastLimitCalculator(ContrastLimitCalculator):
         self.num_clusters = num_clusters
         self.kmeans_estimator = KMeans(n_clusters=num_clusters, random_state=0)
 
-    def plot_kmeans_clusters(self, output_filename: Optional[str | Path] = None) -> None:
+    def plot(self, output_filename: Optional[str | Path] = None) -> None:
         """Plot the KMeans clusters."""
         fig, ax = plt.subplots()
 
@@ -301,7 +299,7 @@ class KMeansContrastLimitCalculator(ContrastLimitCalculator):
         plt.close(fig)
 
     @compute_with_timer
-    def contrast_limits_from_kmeans(self) -> tuple[float, float]:
+    def compute_contrast_limit(self) -> tuple[float, float]:
         """Calculate the contrast limits using KMeans clustering.
 
         Parameters
@@ -357,7 +355,7 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
         self.second_derivative = None
 
     @compute_with_timer
-    def contrast_limits_from_cdf(self) -> tuple[float, float]:
+    def compute_contrast_limit(self) -> tuple[float, float]:
         """Calculate the contrast limits using the Cumulative Distribution Function.
 
         Returns
@@ -405,7 +403,7 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
 
         return self.limits
 
-    def plot_cdf(self, output_filename: Optional[str | Path] = None, real_limits: Optional[list] = None) -> None:
+    def plot(self, output_filename: Optional[str | Path] = None, real_limits: Optional[list] = None) -> None:
         """Plot the CDF and the calculated limits."""
         fig, ax = plt.subplots()
 
@@ -427,7 +425,6 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
         plt.close(fig)
 
 
-
 class SignalDecimationContrastLimitCalculator(ContrastLimitCalculator):
 
     def __init__(self, volume: Optional["np.ndarray"] = None):
@@ -444,8 +441,8 @@ class SignalDecimationContrastLimitCalculator(ContrastLimitCalculator):
         self.decimation = None
 
     @compute_with_timer
-    def contrast_limits_from_cdf(self) -> tuple[float, float]:
-        """Calculate the contrast limits using the Cumulative Distribution Function.
+    def compute_contrast_limit(self) -> tuple[float, float]:
+        """Calculate the contrast limits using decimation.
 
         Returns
         -------
@@ -455,53 +452,46 @@ class SignalDecimationContrastLimitCalculator(ContrastLimitCalculator):
         # Calculate the histogram of the volume
         min_value = np.min(self.volume.flatten())
         max_value = np.max(self.volume.flatten())
-        hist, bin_edges = np.histogram(self.volume.flatten(), bins=400, range=[min_value, max_value])
+        hist, _ = np.histogram(self.volume.flatten(), bins=400, range=[min_value, max_value])
 
         # Calculate the CDF of the histogram
         cdf = np.cumsum(hist) / np.sum(hist)
         x = np.linspace(min_value, max_value, 400)
 
         # Downsampling the CDF
-        downsample_factor = 2
+        downsample_factor = 5
         y_decimated = decimate(cdf, downsample_factor)
         x_decimated = np.linspace(np.min(x), np.max(x), len(y_decimated))
 
-        # Change threshold based on the original histogram
-        # change_threshold = 0.009 * (max_value - min_value)  # Or use std of the histogram
-
         # Calculate the absolute differences between consecutive points in the decimated CDF
         diff_decimated = np.abs(np.diff(y_decimated))
-        # change_threshold = np.max(diff_decimated[:20]) * 2000
-        change_threshold = np.max(diff_decimated[:20]) * 2
-        lower_change_threshold = change_threshold * 1.5
-        # print(diff_decimated)
 
+        # Compute threshold and lower_change threshold
         initial_flat = np.mean(cdf[:50])  # Average of first 50 points (assumed flat region)
-        final_flat = np.mean(cdf[-50:])   # Average of last 50 points (assumed flat region)
+        final_flat = np.mean(cdf[-50:])  # Average of last 50 points (assumed flat region)
         midpoint = (initial_flat + final_flat) / 2
-        change_threshold = 0.01 * midpoint
-        lower_change_threshold = change_threshold * 0.1
-        print(change_threshold)
-
+        lower_curve_threshold = 0.01 * midpoint
+        upper_change_threshold = (
+            lower_curve_threshold  # Change for the up of the curve equal to the one for the beginning
+        )
 
         # Detect start and end of slope
-        start_idx_decimated = np.argmax(diff_decimated > change_threshold)  # First large change
-        end_idx_decimated = np.argmax(diff_decimated[start_idx_decimated + 1:] < lower_change_threshold) + start_idx_decimated
-
-        # Check if we found a start index
-        # if start_idx_decimated < len(diff_decimated):
-        #     if end_idx_decimated >= len(diff_decimated):
-        #         end_idx_decimated = len(diff_decimated) - 1  # Clamp to last index
-        # else:
-        #     end_idx_decimated = -1  # No valid end index found
+        start_idx_decimated = np.argmax(diff_decimated > lower_curve_threshold)  # First large change
+        end_idx_decimated = (
+            np.argmax(diff_decimated[start_idx_decimated + 1 :] < upper_change_threshold) + start_idx_decimated
+        )  # first small change
 
         # Map back the indices to original values
         self.cdf = [x, cdf]
-        self.limits = (x_decimated[start_idx_decimated], x_decimated[end_idx_decimated]) if end_idx_decimated != -1 else (None, None)
+        self.limits = (
+            (x_decimated[start_idx_decimated], x_decimated[end_idx_decimated])
+            if end_idx_decimated != -1
+            else (None, None)
+        )
 
         return self.limits
 
-    def plot_cdf(self, output_filename: Optional[str | Path] = None, real_limits: Optional[list] = None) -> None:
+    def plot(self, output_filename: Optional[str | Path] = None, real_limits: Optional[list] = None) -> None:
         """Plot the CDF and the calculated limits."""
         fig, ax = plt.subplots()
 
@@ -512,10 +502,6 @@ class SignalDecimationContrastLimitCalculator(ContrastLimitCalculator):
         if real_limits:
             ax.axvline(real_limits[0], color="b")
             ax.axvline(real_limits[1], color="b")
-
-        # ax.plot(*self.decimation, "y")
-        # ax.plot(self.cdf[0], self.first_derivative * 100, "y")
-        # ax.plot(self.cdf[0], self.second_derivative * 100, "g")
 
         if output_filename:
             fig.savefig(output_filename)
