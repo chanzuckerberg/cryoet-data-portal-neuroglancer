@@ -10,11 +10,11 @@ def test_get_default_image_vr_shader():
     contrast_name = "contrast"
     threedee_contrast_name = "contrast3D"
     expected_shader = """
-#uicontrol invlerp contrast(clamp=false)
+#uicontrol invlerp contrast
 #uicontrol bool invert_contrast checkbox
 #uicontrol invlerp contrast3D(clamp=false)
 #uicontrol bool invert_contrast3D checkbox
-#uicontrol bool hide_white_outside_range_3D checkbox
+#uicontrol bool hide_values_outside_limits_3D checkbox
 
 float get_contrast() {
   float value = invert_contrast ? 1.0 - contrast() : contrast();
@@ -22,7 +22,7 @@ float get_contrast() {
 }
 float get_contrast3D() {
   float value = invert_contrast3D ? 1.0 - contrast3D() : contrast3D();
-  value = (hide_white_outside_range_3D && value > 1.0) ? 0.0 : clamp(value, 0.0, 1.0);
+  value = (hide_values_outside_limits_3D && value > 1.0) ? 0.0 : clamp(value, 0.0, 1.0);
   return value;
 }
 
