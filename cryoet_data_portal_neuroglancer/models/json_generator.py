@@ -49,6 +49,33 @@ class RenderingTypes(Enum):
 
 
 @dataclass
+class SegmentPropertyJSONGenerator:
+    """Generates a JSON file for segmentation properties.
+
+    Supports a subset of the properties that can be set in Neuroglancer.
+    See https://github.com/google/neuroglancer/blob/3efc90465e702453916d2b03d472c16378848132/src/datasource/precomputed/segment_properties.md
+    """
+
+    ids: list[int]
+    labels: list[str]
+
+    def generate_json(self) -> dict:
+        return {
+            "inline": {
+                "ids": [str(val) for val in self.ids],
+                "properties": [
+                    {
+                        "values": self.labels,
+                        "type": "label",
+                        "id": "label",
+                    },
+                ],
+            },
+            "@type": "neuroglancer_segment_properties",
+        }
+
+
+@dataclass
 class RenderingJSONGenerator:
     """Generates a JSON file for Neuroglancer to read."""
 
@@ -79,9 +106,9 @@ class ImageJSONGenerator(RenderingJSONGenerator):
 
     size: dict[str, float]
     contrast_limits: tuple[float, float] = (-64, 64)
-    start: dict[str, float] = None
-    mean: float = None
-    rms: float = None
+    start: dict[str, float] | None = None
+    mean: float | None = None
+    rms: float | None = None
     is_visible: bool = True
     has_volume_rendering_shader: bool = False
     volume_rendering_depth_samples: int = 256  # Ideally, this should be a power of 2
@@ -186,26 +213,45 @@ class OrientedPointAnnotationJSONGenerator(AnnotationJSONGenerator):
 class SegmentationJSONGenerator(RenderingJSONGenerator):
     """Generates JSON Neuroglancer config for segmentation mask."""
 
-    color: str
+    color: str | None = None
     is_visible: bool = True
+    display_mesh: bool = True
+    display_bounding_box: bool = False
+    highlight_on_hover: bool = False
+    mesh_render_scale: float = 1.0
+    visible_segments: tuple[int, ...] = (1,)
 
     def __post_init__(self):
         self._type = RenderingTypes.SEGMENTATION
 
     def generate_json(self) -> dict:
-        return {
+        state = {
             "type": self.layer_type,
             "name": f"{self.name}",
-            "source": create_source(f"precomputed://{self.source}", self.scale, self.scale),
+            "source": {
+                **create_source(f"precomputed://{self.source}", self.scale, self.scale),
+                "subsources": {
+                    "default": True,
+                    "mesh": self.display_mesh,
+                },
+                "enableDefaultSubsources": self.display_bounding_box,
+            },
             "tab": "rendering",
             "selectedAlpha": 1,
-            "hoverHighlight": False,
-            "segments": [
-                1,
-            ],
-            "segmentDefaultColor": self.color,
+            "hoverHighlight": self.highlight_on_hover,
+            "segments": sorted((self.visible_segments)),
             "visible": self.is_visible,
+            "meshRenderScale": self.mesh_render_scale,
         }
+        # self.color === None means that the color will be random
+        # This is useful for multiple segmentations
+        if self.color is not None:
+            state["segmentDefaultColor"] = self.color
+        return state
+
+
+# Alias for SegmentationJSONGenerator - for future compatibility
+MeshJSONGenerator = SegmentationJSONGenerator
 
 
 @dataclass

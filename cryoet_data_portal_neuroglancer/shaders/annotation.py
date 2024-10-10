@@ -34,7 +34,6 @@ class PointShaderBuilder(ShaderBuilder):
 
 
 class NonOrientedPointShaderBuilder(PointShaderBuilder):
-
     def __init__(
         self,
         point_size_multiplier: float = 1.0,

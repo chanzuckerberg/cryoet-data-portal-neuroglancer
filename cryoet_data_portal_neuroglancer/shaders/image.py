@@ -1,5 +1,3 @@
-from typing import Optional
-
 from cryoet_data_portal_neuroglancer.shaders.shader_builder import ShaderBuilder
 from cryoet_data_portal_neuroglancer.utils import get_window_limits_from_contrast_limits
 
@@ -15,7 +13,7 @@ class ImageShaderBuilder(ShaderBuilder):
     def __init__(
         self,
         contrast_limits: tuple[float, float],
-        window_limits: Optional[tuple[float, float]] = None,
+        window_limits: tuple[float, float] | None = None,
         contrast_name="contrast",
         create_default_shader=True,
     ):
@@ -76,8 +74,8 @@ class ImageWithVolumeRenderingShaderBuilder(ImageShaderBuilder):
         contrast_limits: tuple[float, float],
         threedee_contrast_limits: tuple[float, float],
         contrast_name="contrast",
-        window_limits: Optional[tuple[float, float]] = None,
-        threedee_window_limits: Optional[tuple[float, float]] = None,
+        window_limits: tuple[float, float] | None = None,
+        threedee_window_limits: tuple[float, float] | None = None,
         threedee_contrast_name="contrast3D",
     ):
         """Create a shader for Neuroglancer to display an image.

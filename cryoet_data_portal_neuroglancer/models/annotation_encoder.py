@@ -2,7 +2,7 @@ import json
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 from cloudvolume.datasource.precomputed.sharding import ShardingSpecification
 from cloudvolume.lib import jsonify
@@ -18,7 +18,7 @@ class AnnotationEncoder:
     resolution: float
     coordinate_space: CoordinateSpace
     names_by_id: dict[int, str]
-    shard_by_id: Optional[tuple[int, int]] = (0, 10)
+    shard_by_id: tuple[int, int] | None = (0, 10)
     label_key_mapper: Callable[[dict[str, Any]], int] = lambda x: 0
     color_mapper: Callable[[dict[str, Any]], tuple[int, int, int]] = lambda x: (255, 255, 255)
     _writer: AnnotationWriter = field(init=False, default=None)
