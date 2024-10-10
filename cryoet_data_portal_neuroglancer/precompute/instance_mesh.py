@@ -38,7 +38,7 @@ def encode_oriented_mesh(
         and the maximum faces is 5 million, then LOD 1 is used as the first LOD.
         The remaining LODs are then generated starting from LOD 1
     decimation_aggressiveness : float, optional
-        The aggressiveness of the decimation algorithm, by default 5.0
+        The aggressiveness of the decimation algorithm, by default 4.5
 
     Returns
     -------
