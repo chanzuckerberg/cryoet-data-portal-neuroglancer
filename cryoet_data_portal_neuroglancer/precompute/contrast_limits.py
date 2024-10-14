@@ -10,6 +10,8 @@ from scipy.signal import decimate, find_peaks
 from sklearn.cluster import KMeans
 from sklearn.mixture import GaussianMixture
 
+from cryoet_data_portal_neuroglancer.utils import ParameterOptimizer
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -25,6 +27,10 @@ def compute_with_timer(func):
         return result
 
     return wrapper
+
+
+def euclidean_distance(x: tuple[float, float], y: tuple[float, float]) -> float:
+    return np.sqrt(((x[0] - y[0]) ** 2) + ((x[1] - y[1]) ** 2))
 
 
 # TODO fix this to work with dask data, see the mesh changes for reference
@@ -176,6 +182,62 @@ class ContrastLimitCalculator:
             return low_value.compute()[0], high_value.compute()[0]
         except AttributeError:
             return low_value, high_value
+
+    def optimize(self, real_limits, max_evals=100, loss_threshold=None, **kwargs) -> dict:
+        """Hyper-parameter optimisation.
+
+        Sub-classes should implement the
+        _objective_function and _define_parameter_space methods.
+
+        Parameters
+        ----------
+        params: dict
+            The parameters for the optimisation.
+            Keys are "low_percentile" and "high_percentile".
+        real_limits: tuple[float, float]
+            The real contrast limits.
+        max_evals: int, optional.
+            The maximum number of evaluations.
+            By default 100.
+        loss_threshold: float, optional.
+            The loss threshold.
+            By default None.
+        **kwargs
+            Additional keyword arguments - passed to hyperopt fmin.
+
+        Returns
+        -------
+        tuple[float, float]
+            The best parameters found.
+        """
+
+        def _objective(params):
+            return self._objective_function(params, real_limits)
+
+        parameter_optimizer = ParameterOptimizer(_objective)
+        self._define_parameter_space(parameter_optimizer)
+        return parameter_optimizer.optimize(
+            max_evals=max_evals,
+            loss_threshold=loss_threshold,
+            **kwargs,
+        )
+
+    def _objective_function(self, params, real_limits):
+        return euclidean_distance(
+            self.compute_contrast_limit(
+                params["low_percentile"],
+                params["high_percentile"],
+            ),
+            real_limits,
+        )
+
+    def _define_parameter_space(self, parameter_optimizer: ParameterOptimizer):
+        parameter_optimizer.space_creator(
+            {
+                "low_percentile": {"type": "randint", "args": [0, 50]},
+                "high_percentile": {"type": "randint", "args": [51, 100]},
+            },
+        )
 
     @compute_with_timer
     def contrast_limits_from_mean(

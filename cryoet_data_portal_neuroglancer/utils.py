@@ -189,10 +189,17 @@ class ParameterOptimizer:
 
         space = {key: params_to_hyperopt(key, value) for key, value in parameter_dict.items()}
         self.set_space(space)
-    
+
     def set_space(self, space):
         self.space = space
 
-    def optimize(self, max_evals=100):
-        best = fmin(self.objective, self.space, algo=tpe.suggest, max_evals=max_evals)
+    def optimize(self, max_evals=100, loss_threshold=None, **kwargs) -> dict:
+        best = fmin(
+            self.objective,
+            self.space,
+            algo=tpe.suggest,
+            max_evals=max_evals,
+            loss_threshold=loss_threshold,
+            **kwargs,
+        )
         return best
