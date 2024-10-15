@@ -14,11 +14,10 @@ from cryoet_data_portal_neuroglancer.precompute.contrast_limits import (
     CDFContrastLimitCalculator,
     ContrastLimitCalculator,
     GMMContrastLimitCalculator,
-    KMeansContrastLimitCalculator,
     SignalDecimationContrastLimitCalculator,
+    combined_contrast_limit_plot,
 )
 from cryoet_data_portal_neuroglancer.state_generator import combine_json_layers, generate_image_layer
-from cryoet_data_portal_neuroglancer.utils import ParameterOptimizer
 
 # Set up logging - level is info
 # logging.basicConfig(level=logging.INFO, force=True)
@@ -85,6 +84,17 @@ id_to_source_map = {
 }
 
 
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)
+
+
 def grab_tomogram(id_: int, zarr_path: Path):
     client = Client()
     if not zarr_path.exists():
@@ -93,7 +103,13 @@ def grab_tomogram(id_: int, zarr_path: Path):
         tomogram.download_omezarr(str(zarr_path.parent.resolve()))
 
 
-def run_all_contrast_limit_calculations(id_, input_data_path, output_path):
+def run_all_contrast_limit_calculations(
+    id_,
+    input_data_path,
+    output_path,
+    z_radius=5,
+    num_samples=20000,
+):
     output_path.mkdir(parents=True, exist_ok=True)
 
     human_contrast = id_to_human_contrast_limits[id_]
@@ -101,75 +117,54 @@ def run_all_contrast_limit_calculations(id_, input_data_path, output_path):
 
     # First, percentile contrast limits
     limits_dict = {}
+    info_dict = {}
     data = load_omezarr_data(input_data_path, resolution_level=-1, persist=False)
     data_shape = data.shape
     data_size_dict = {"z": data_shape[0], "y": data_shape[1], "x": data_shape[2]}
 
     calculator = ContrastLimitCalculator(data)
+    # Trim the volume around the central z-slice
+    calculator.trim_volume_around_central_zslice(z_radius=z_radius)
+    calculator.take_random_samples_from_volume(num_samples=num_samples)
 
-    # For now, we will trim the volume around the central z-slice
-    calculator.trim_volume_around_central_zslice(z_radius=5)
-    calculator.take_random_samples_from_volume(20000)
-
-    # Percentile contrast limits
-    limits = calculator.compute_contrast_limit(5.0, 60.0)
-    limits_dict["percentile"] = limits
-
-    # K means contrast limits
-    kmeans_calculator = KMeansContrastLimitCalculator(calculator.volume)
-    limits = kmeans_calculator.compute_contrast_limit()
-    limits_dict["kmeans"] = limits
-    kmeans_calculator.plot(output_path / "kmeans_clusters.png")
-
-    # GMM contrast limits
     gmm_calculator = GMMContrastLimitCalculator(calculator.volume)
-    limits = gmm_calculator.compute_contrast_limit()
-    limits_dict["gmm"] = limits
-    gmm_calculator.plot(output_path / "gmm_clusters.png")
-
-    # CDF based contrast limits
     cdf_calculator = CDFContrastLimitCalculator(calculator.volume)
-    limits = cdf_calculator.compute_contrast_limit()
-    limits_dict["cdf"] = limits
-    cdf_calculator.plot(output_path / "cdf.png", real_limits=volume_limit)
-
-    # Signal decimation based contrast limits
     decimation_calculator = SignalDecimationContrastLimitCalculator(calculator.volume)
-    limits = decimation_calculator.compute_contrast_limit()
-    limits_dict["decimation"] = limits
-    decimation_calculator.plot(output_path / "decimation.png", real_limits=volume_limit)
 
-    # 2D contrast limits
-    limits = calculator.compute_contrast_limit(1.0, 99.0)
-    limits_dict["wide_percentile"] = limits
-
-    # TEMP move to proper place, try to optimize one of the methods
-    def objective_function(params):
-        num_clusters = params["num_clusters"]
-        z_radius = params["z_radius"]
-        num_samples = params["num_samples"]
-        calculator = GMMContrastLimitCalculator(data, num_components=num_clusters)
-        calculator.trim_volume_around_central_zslice(z_radius=z_radius)
-        calculator.take_random_samples_from_volume(num_samples=num_samples)
-        limits = calculator.compute_contrast_limit()
-        real_limits = volume_limit
-        difference = np.sqrt(((limits[0] - real_limits[0]) ** 2) + ((limits[1] - real_limits[1]) ** 2))
-        return difference
-
-    # Lets try optimize the GMM method
-    parameter_optimizer = ParameterOptimizer(objective_function)
-    parameter_optimizer.space_creator(
-        {
-            "num_clusters": {"type": "randint", "args": [2, 10]},
-            "z_radius": {"type": "randint", "args": [1, 10]},
-            "num_samples": {"type": "randint", "args": [2000, 30000]},
-        },
+    calculator_dict = {
+        "percentile": calculator,
+        "gmm": gmm_calculator,
+        "cdf": cdf_calculator,
+        "decimation": decimation_calculator,
+    }
+    hyperopt_evals_dict = {
+        "percentile": 5,
+        "gmm": 5,
+        "cdf": 5,
+        "decimation": 5,
+    }
+    for key, calc in calculator_dict.items():
+        max_hyperopt_evals = hyperopt_evals_dict[key]
+        best_info, limits = calc.optimize(
+            real_limits=volume_limit,
+            max_evals=max_hyperopt_evals,
+        )
+        limits_dict[key] = limits
+        info_dict[key] = best_info
+        print(
+            f"{key}: found ({limits[0]:.4f}, {limits[1]:.4f}) compared to ({volume_limit[0]:.4f}, {volume_limit[1]:.4f}) with:\n{best_info}",
+        )
+    plot_output_name = output_path / f"contrast_limits_plot_{id_}.png"
+    combined_contrast_limit_plot(
+        cdf_calculator.cdf,
+        human_contrast["volume"],
+        limits_dict,
+        plot_output_name,
     )
-    result = parameter_optimizer.optimize(max_evals=100)
-    print(result)
 
-    with open(output_path / "contrast_limits.json", "w") as f:
-        json.dump(limits_dict, f)
+    with open(output_path / f"contrast_limits_{id_}.json", "w") as f:
+        combined_dict = {k: {"limits": v, "info": info_dict[k]} for k, v in limits_dict.items()}
+        json.dump(combined_dict, f, cls=NpEncoder, indent=4)
 
     # Check which method is closest to the human contrast limits
     closeness_ordering = {
@@ -185,8 +180,7 @@ def run_all_contrast_limit_calculations(id_, input_data_path, output_path):
     )
     limits_dict["closest_method"] = closest_method
     limits_dict["distance_to_human"] = closeness_ordering
-    limits_dict["2d"] = limits_dict["wide_percentile"]
-
+    limits_dict["2d"] = volume_limit
     return limits_dict
 
 
@@ -240,9 +234,9 @@ def main(output_folder, take_screenshots=False, wait_for=60 * 1000):
         limits = run_all_contrast_limit_calculations(
             id_,
             path,
-            Path(output_folder) / f"results_{id_}",
+            Path(output_folder) / "results",
         )
-        state = create_state(id_, limits, Path(output_folder) / f"results_{id_}")
+        state = create_state(id_, limits, Path(output_folder) / "results")
         viewer_state_obj = viewer_state.ViewerState(state)
         url_from_json = to_url(
             viewer_state_obj,
