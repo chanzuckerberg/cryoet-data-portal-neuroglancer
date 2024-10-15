@@ -207,29 +207,31 @@ class ContrastLimitCalculator:
 
         Returns
         -------
-        tuple[float, float]
-            The best parameters found.
+        dict, tuple[float, float]
+            The best parameters found, and the contrast limits.
         """
 
         def _objective(params):
-            return self._objective_function(params, real_limits)
+            return self.objective_function(params, real_limits)
 
         parameter_optimizer = ParameterOptimizer(_objective)
         self._define_parameter_space(parameter_optimizer)
-        return parameter_optimizer.optimize(
+        best = parameter_optimizer.optimize(
             max_evals=max_evals,
             loss_threshold=loss_threshold,
             **kwargs,
         )
+        contrast_limits = self._objective_function(best)
+        return best, contrast_limits
 
-    def _objective_function(self, params, real_limits):
+    def objective_function(self, params, real_limits):
         return euclidean_distance(
-            self.compute_contrast_limit(
-                params["low_percentile"],
-                params["high_percentile"],
-            ),
+            self._objective_function(params),
             real_limits,
         )
+
+    def _objective_function(self, params):
+        return self.compute_contrast_limit(params["low_percentile"], params["high_percentile"])
 
     def _define_parameter_space(self, parameter_optimizer: ParameterOptimizer):
         parameter_optimizer.space_creator(
@@ -266,53 +268,95 @@ class ContrastLimitCalculator:
 
 class GMMContrastLimitCalculator(ContrastLimitCalculator):
 
-    def __init__(self, volume: Optional["np.ndarray"] = None, num_components: int = 3):
-        """Initialize the contrast limit calculator.
+    @compute_with_timer
+    def compute_contrast_limit(
+        self,
+        num_components: int = 3,
+        covariance_type: str | int = "full",
+        low_variance_mult: float = 3.0,
+        high_variance_mult: float = 0.5,
+    ) -> tuple[float, float]:
+        """Calculate the contrast limits using Gaussian Mixture Model.
 
         Parameters
         ----------
-            volume: np.ndarray or None, optional.
-                Input volume for calculating contrast limits.
-            num_components: int, optional.
-                The number of components to use for GMM.
-                By default 3.
-        """
-        super().__init__(volume)
-        self.num_components = num_components
-        # cov_type in ["spherical", "diag", "tied", "full"]
-        self.gmm_estimator = GaussianMixture(
-            n_components=num_components,
-            covariance_type="full",
-            max_iter=20,
-            random_state=0,
-            init_params="k-means++",
-        )
-
-    @compute_with_timer
-    def compute_contrast_limit(self) -> tuple[float, float]:
-        """Calculate the contrast limits using Gaussian Mixture Model.
+        num_components: int, optional.
+            The number of components to use for the GMM.
+            By default 3.
+        covariance_type: str, optional.
+            The covariance type to use for the GMM.
+            By default "full".
+            Options are "full", "tied", "diag", "spherical".
+        low_variance_mult: float, optional.
+            The multiplier for the low variance.
+            By default 3.0.
+        high_variance_mult: float, optional.
+            The multiplier for the high variance.
+            By default 0.5.
 
         Returns
         -------
             tuple[float, float]
                 The calculated contrast limits.
         """
+        if not isinstance(covariance_type, str):
+            covariance_type = int(covariance_type)
+            covariance_type = ["full", "diag", "spherical"][covariance_type]
+
+        self.num_components = num_components
+        self.gmm_estimator = GaussianMixture(
+            n_components=num_components,
+            covariance_type=covariance_type,
+            max_iter=20,
+            random_state=42,
+            reg_covar=1e-4,
+            init_params="k-means++",
+        )
+
         sample_data = self.volume.flatten()
         self.gmm_estimator.fit(sample_data.reshape(-1, 1))
 
         # Get the stats for the gaussian which sits in the middle
         means = self.gmm_estimator.means_.flatten()
-        covariances = self.gmm_estimator.covariances_.flatten()
+        covariances = self.gmm_estimator.covariances_
 
-        # pick the middle GMM component - TODO should actually be the one with the
-        # mean closest to the mean of the volume
+        # The shape depends on `covariance_type`::
+        # (n_components,)                        if 'spherical',
+        # (n_features, n_features)               if 'tied',
+        # (n_components, n_features)             if 'diag',
+        # (n_components, n_features, n_features) if 'full'
+        if covariance_type == "spherical":
+            variances = covariances
+        elif covariance_type == "diag":
+            variances = covariances[:, 0].flatten()
+        elif covariance_type == "full":
+            variances = covariances[:, 0, 0].flatten()
+
+        # Pick the GMM component which is closest to the mean of the volume
         volume_mean = np.mean(sample_data)
         closest_mean_index = np.argmin(np.abs(means - volume_mean))
         mean_to_use = means[closest_mean_index]
-        covariance_to_use = covariances[closest_mean_index]
-        variance_to_use = np.sqrt(covariance_to_use)
+        std_to_use = np.sqrt(variances[closest_mean_index])
 
-        return mean_to_use - 3 * variance_to_use, mean_to_use + 0.5 * variance_to_use
+        return mean_to_use - low_variance_mult * std_to_use, mean_to_use + high_variance_mult * std_to_use
+
+    def _objective_function(self, params):
+        return self.compute_contrast_limit(
+            params["num_components"],
+            params["covariance_type"],
+            params["low_variance_mult"],
+            params["high_variance_mult"],
+        )
+
+    def _define_parameter_space(self, parameter_optimizer):
+        parameter_optimizer.space_creator(
+            {
+                "num_components": {"type": "randint", "args": [2, 3]},
+                "covariance_type": {"type": "choice", "args": [["full", "diag", "spherical"]]},
+                "low_variance_mult": {"type": "uniform", "args": [1.0, 5.0]},
+                "high_variance_mult": {"type": "uniform", "args": [0.1, 1.0]},
+            },
+        )
 
     def plot(self, output_filename: Optional[str | Path] = None) -> None:
         """Plot the GMM clusters."""
@@ -332,75 +376,6 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
         plt.close(fig)
 
 
-class KMeansContrastLimitCalculator(ContrastLimitCalculator):
-
-    def __init__(self, volume: Optional["np.ndarray"] = None, num_clusters: int = 3):
-        """Initialize the contrast limit calculator.
-
-        Parameters
-        ----------
-            volume: np.ndarray or None, optional.
-                Input volume for calculating contrast limits.
-            num_clusters: int, optional.
-                The number of clusters to use for KMeans.
-                By default 3.
-        """
-        super().__init__(volume)
-        self.num_clusters = num_clusters
-        self.kmeans_estimator = KMeans(n_clusters=num_clusters, random_state=0)
-
-    def plot(self, output_filename: Optional[str | Path] = None) -> None:
-        """Plot the KMeans clusters."""
-        fig, ax = plt.subplots()
-
-        ax.plot(self.kmeans_estimator.cluster_centers_, "o")
-        if output_filename:
-            fig.savefig(output_filename)
-        else:
-            plt.show()
-        plt.close(fig)
-
-    @compute_with_timer
-    def compute_contrast_limit(self) -> tuple[float, float]:
-        """Calculate the contrast limits using KMeans clustering.
-
-        Parameters
-        ----------
-            num_clusters: int, optional.
-                The number of clusters to use for KMeans.
-                By default 3.
-
-        Returns
-        -------
-            tuple[float, float]
-                The calculated contrast limits.
-        """
-        LOGGER.info("Calculating contrast limits from KMeans.")
-        sample_data = self.volume.flatten()
-        self.kmeans_estimator.fit(sample_data.reshape(-1, 1))
-
-        cluster_centers = self.kmeans_estimator.cluster_centers_.flatten()
-
-        # Find the cluster which is closest to the mean of the volume
-        volume_mean = np.mean(sample_data)
-        closest_cluster_index = np.argmin(np.abs(cluster_centers - volume_mean))
-
-        # Find the closest cluster to that mean cluster
-        closest_distance = None
-        for i in range(0, self.num_clusters):
-            if i == closest_cluster_index:
-                continue
-            distance = np.abs(cluster_centers[i] - cluster_centers[closest_cluster_index])
-            if closest_distance is None or distance < closest_distance:
-                closest_cluster_index = i
-                closest_distance = distance
-
-        left_boundary = cluster_centers[closest_cluster_index] - 0.1 * closest_distance
-        right_boundary = cluster_centers[closest_cluster_index] + 0.1 * closest_distance
-
-        return left_boundary, right_boundary
-
-
 class CDFContrastLimitCalculator(ContrastLimitCalculator):
 
     def __init__(self, volume: Optional["np.ndarray"] = None):
@@ -417,7 +392,13 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
         self.second_derivative = None
 
     @compute_with_timer
-    def compute_contrast_limit(self) -> tuple[float, float]:
+    def compute_contrast_limit(
+        self,
+        start_gradient: float = 0.08,
+        end_gradient: float = 0.08,
+        start_multiplier: float = 1.0,
+        end_multiplier: float = 0.4,
+    ) -> tuple[float, float]:
         """Calculate the contrast limits using the Cumulative Distribution Function.
 
         Returns
@@ -426,9 +407,10 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
                 The calculated contrast limits.
         """
         # Calculate the histogram of the volume
+        n_bins = 512
         min_value = np.min(self.volume.flatten())
         max_value = np.max(self.volume.flatten())
-        hist, bin_edges = np.histogram(self.volume.flatten(), bins=400, range=[min_value, max_value])
+        hist, bin_edges = np.histogram(self.volume.flatten(), bins=n_bins, range=[min_value, max_value])
 
         # Calculate the CDF of the histogram
         cdf = np.cumsum(hist) / np.sum(hist)
@@ -441,9 +423,9 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
         largest_peak = np.argmax(gradient)
         peak_gradient_value = gradient[largest_peak]
 
-        start_of_rising = np.where(gradient > 0.08 * peak_gradient_value)[0][0]
+        start_of_rising = np.where(gradient > start_gradient * peak_gradient_value)[0][0]
         # Find the first point after the largest peak where the gradient is less than 0.1 * peak_gradient_value
-        end_of_flattening = np.where(gradient[largest_peak:] < 0.08 * peak_gradient_value)[0][0]
+        end_of_flattening = np.where(gradient[largest_peak:] < end_gradient * peak_gradient_value)[0][0]
         end_of_flattening += largest_peak
 
         start_value = bin_edges[start_of_rising]
@@ -451,10 +433,10 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
         middle_value = bin_edges[largest_peak]
         start_to_middle = middle_value - start_value
         middle_to_end = end_value - middle_value
-        start_limit = middle_value - 1.0 * start_to_middle
-        end_limit = middle_value + 0.4 * middle_to_end
+        start_limit = middle_value - start_multiplier * start_to_middle
+        end_limit = middle_value + end_multiplier * middle_to_end
 
-        x = np.linspace(min_value, max_value, 400)
+        x = np.linspace(min_value, max_value, n_bins)
         self.cdf = [x, cdf]
         try:
             self.limits = (start_limit.compute(), end_limit.compute())
@@ -464,6 +446,24 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
         self.second_derivative = np.gradient(gradient)
 
         return self.limits
+
+    def _objective_function(self, params):
+        return self.compute_contrast_limit(
+            params["start_gradient"],
+            params["end_gradient"],
+            params["start_multiplier"],
+            params["end_multiplier"],
+        )
+
+    def _define_parameter_space(self, parameter_optimizer):
+        parameter_optimizer.space_creator(
+            {
+                "start_gradient": {"type": "uniform", "args": [0.01, 0.2]},
+                "end_gradient": {"type": "uniform", "args": [0.01, 0.2]},
+                "start_multiplier": {"type": "uniform", "args": [0.1, 1.5]},
+                "end_multiplier": {"type": "uniform", "args": [0.1, 1.5]},
+            },
+        )
 
     def plot(self, output_filename: Optional[str | Path] = None, real_limits: Optional[list] = None) -> None:
         """Plot the CDF and the calculated limits."""
@@ -503,7 +503,12 @@ class SignalDecimationContrastLimitCalculator(ContrastLimitCalculator):
         self.decimation = None
 
     @compute_with_timer
-    def compute_contrast_limit(self) -> tuple[float, float]:
+    def compute_contrast_limit(
+        self,
+        downsample_factor: int = 5,
+        sample_factor: float = 0.05,
+        threshold_factor: float = 0.01,
+    ) -> tuple[float, float]:
         """Calculate the contrast limits using decimation.
 
         Returns
@@ -512,16 +517,16 @@ class SignalDecimationContrastLimitCalculator(ContrastLimitCalculator):
                 The calculated contrast limits.
         """
         # Calculate the histogram of the volume
+        n_bins = 512
         min_value = np.min(self.volume.flatten())
         max_value = np.max(self.volume.flatten())
-        hist, _ = np.histogram(self.volume.flatten(), bins=400, range=[min_value, max_value])
+        hist, _ = np.histogram(self.volume.flatten(), bins=n_bins, range=[min_value, max_value])
 
         # Calculate the CDF of the histogram
         cdf = np.cumsum(hist) / np.sum(hist)
-        x = np.linspace(min_value, max_value, 400)
+        x = np.linspace(min_value, max_value, n_bins)
 
         # Downsampling the CDF
-        downsample_factor = 5
         y_decimated = decimate(cdf, downsample_factor)
         x_decimated = np.linspace(np.min(x), np.max(x), len(y_decimated))
 
@@ -529,13 +534,13 @@ class SignalDecimationContrastLimitCalculator(ContrastLimitCalculator):
         diff_decimated = np.abs(np.diff(y_decimated))
 
         # Compute threshold and lower_change threshold
-        initial_flat = np.mean(cdf[:50])  # Average of first 50 points (assumed flat region)
-        final_flat = np.mean(cdf[-50:])  # Average of last 50 points (assumed flat region)
+        sample_size = int(sample_factor * len(diff_decimated))
+
+        initial_flat = np.mean(cdf[:sample_size])  # Average of first 50 points (assumed flat region)
+        final_flat = np.mean(cdf[-sample_size:])  # Average of last 50 points (assumed flat region)
         midpoint = (initial_flat + final_flat) / 2
-        lower_curve_threshold = 0.01 * midpoint
-        upper_change_threshold = (
-            lower_curve_threshold  # Change for the up of the curve equal to the one for the beginning
-        )
+        lower_curve_threshold = threshold_factor * midpoint
+        upper_change_threshold = lower_curve_threshold
 
         # Detect start and end of slope
         start_idx_decimated = np.argmax(diff_decimated > lower_curve_threshold)  # First large change
@@ -552,6 +557,22 @@ class SignalDecimationContrastLimitCalculator(ContrastLimitCalculator):
         )
 
         return self.limits
+
+    def _objective_function(self, params):
+        return self.compute_contrast_limit(
+            params["downsample_factor"],
+            params["sample_factor"],
+            params["threshold_factor"],
+        )
+
+    def _define_parameter_space(self, parameter_optimizer):
+        parameter_optimizer.space_creator(
+            {
+                "downsample_factor": {"type": "randint", "args": [2, 8]},
+                "sample_factor": {"type": "uniform", "args": [0.01, 0.1]},
+                "threshold_factor": {"type": "uniform", "args": [0.001, 0.1]},
+            },
+        )
 
     def plot(self, output_filename: Optional[str | Path] = None, real_limits: Optional[list] = None) -> None:
         """Plot the CDF and the calculated limits."""
@@ -570,3 +591,45 @@ class SignalDecimationContrastLimitCalculator(ContrastLimitCalculator):
         else:
             plt.show()
         plt.close(fig)
+
+
+def combined_contrast_limit_plot(
+    cdf: list[list[float], list[float]],
+    real_limits: tuple[float, float],
+    limits_dict: dict[str, tuple[float, float]],
+    output_filename: Optional[str | Path] = None,
+) -> None:
+    """Plot the CDF and the calculated limits."""
+    fig, ax = plt.subplots()
+
+    ax.plot(cdf[0], cdf[1])
+    ax.axvline(real_limits[0], color="b")
+    ax.axvline(real_limits[1], color="b")
+
+    from matplotlib.lines import Line2D
+
+    custom_lines = [Line2D([0], [0], color="b", lw=4)]
+    colors_dict = {"gmm": "g", "cdf": "y", "decimation": "r"}
+    min_x = real_limits[0]
+    max_x = real_limits[1]
+    for key, limits in limits_dict.items():
+        min_x = min(min_x, limits[0])
+        max_x = max(max_x, limits[1])
+        color = colors_dict.get(key, "k")
+        ax.axvline(limits[0], color=color)
+        ax.axvline(limits[1], color=color)
+        custom_lines.append(Line2D([0], [0], color=color, lw=4))
+
+    ax.set_xlim(min_x, max_x)
+
+    # Produce a legend
+    legend = ["Real Limits"]
+    for key in limits_dict:
+        legend.append(key + " Limits")
+    ax.legend(custom_lines, legend)
+
+    if output_filename:
+        fig.savefig(output_filename)
+    else:
+        plt.show()
+    plt.close(fig)
