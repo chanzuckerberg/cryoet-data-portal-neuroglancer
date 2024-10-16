@@ -272,7 +272,7 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
         self,
         low_variance_mult: float = 3.0,
         high_variance_mult: float = 0.5,
-        max_components: int = 5,
+        max_components: int = 3,
     ) -> tuple[float, float]:
         """Calculate the contrast limits using Gaussian Mixture Model.
 
@@ -298,6 +298,7 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
 
         bics = np.zeros(shape=(max_components, 2))
         for n in range(1, max_components + 1):
+            n = int(n)
             gmm = GaussianMixture(
                 n_components=n,
                 covariance_type=covariance_type,
@@ -306,13 +307,19 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
                 init_params="k-means++",
             )
             try:
-                gmm.fit(sample_data)
+                gmm.fit(sample_data.reshape(-1, 1))
             except ValueError:
                 bics[n - 1] = [np.inf, n]
             else:
-                bics[n - 1] = [gmm.bic(sample_data), n]
+                bics[n - 1] = [gmm.bic(sample_data.reshape(-1, 1)), n]
         min_bic_index = np.argmin(bics[:, 0])
         best_n = int(bics[min_bic_index, 1])
+
+        variance_multi_dict = {
+            1: (2.2, 0.6),
+            2: (2.3, 0.65),
+            3: (3.0, 0.8),
+        }
 
         # Redo the best with more iterations
         self.gmm_estimator = GaussianMixture(
@@ -339,6 +346,8 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
         closest_mean_index = np.argmin(np.abs(means - volume_mean))
         mean_to_use = means[closest_mean_index]
         std_to_use = np.sqrt(variances[closest_mean_index])
+
+        low_variance_mult, high_variance_mult = variance_multi_dict[best_n]
 
         low_limit, high_limit = (
             mean_to_use - low_variance_mult * std_to_use,
