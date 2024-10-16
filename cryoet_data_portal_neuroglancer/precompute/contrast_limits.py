@@ -7,7 +7,6 @@ from typing import Optional
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import decimate, find_peaks
-from sklearn.cluster import KMeans
 from sklearn.mixture import GaussianMixture
 
 from cryoet_data_portal_neuroglancer.utils import ParameterOptimizer
@@ -236,8 +235,8 @@ class ContrastLimitCalculator:
     def _define_parameter_space(self, parameter_optimizer: ParameterOptimizer):
         parameter_optimizer.space_creator(
             {
-                "low_percentile": {"type": "randint", "args": [0, 50]},
-                "high_percentile": {"type": "randint", "args": [51, 100]},
+                "low_percentile": {"type": "randint", "args": [1, 2]},
+                "high_percentile": {"type": "randint", "args": [80, 81]},
             },
         )
 
@@ -271,17 +270,17 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
     @compute_with_timer
     def compute_contrast_limit(
         self,
-        num_components: int = 3,
         low_variance_mult: float = 3.0,
         high_variance_mult: float = 0.5,
+        max_components: int = 5,
     ) -> tuple[float, float]:
         """Calculate the contrast limits using Gaussian Mixture Model.
 
         Parameters
         ----------
-        num_components: int, optional.
-            The number of components to use for the GMM.
-            By default 3.
+        max_components: int, optional.
+            The max number of components to use for the GMM.
+            By default 5.
         low_variance_mult: float, optional.
             The multiplier for the low variance.
             By default 3.0.
@@ -294,30 +293,36 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
             tuple[float, float]
                 The calculated contrast limits.
         """
-        if num_components < 2:
-            raise ValueError("Number of components must be at least 2.")
-        self.num_components = num_components
         covariance_type = "full"
+        sample_data = self.volume.flatten()
+
+        bics = np.zeros(shape=(max_components, 2))
+        for n in range(1, max_components + 1):
+            gmm = GaussianMixture(
+                n_components=n,
+                covariance_type=covariance_type,
+                max_iter=100,
+                random_state=42,
+                init_params="k-means++",
+            )
+            try:
+                gmm.fit(sample_data)
+            except ValueError:
+                bics[n - 1] = [np.inf, n]
+            else:
+                bics[n - 1] = [gmm.bic(sample_data), n]
+        min_bic_index = np.argmin(bics[:, 0])
+        best_n = int(bics[min_bic_index, 1])
+
+        # Redo the best with more iterations
         self.gmm_estimator = GaussianMixture(
-            n_components=num_components,
+            n_components=best_n,
             covariance_type=covariance_type,
-            max_iter=20,
+            max_iter=300,
             random_state=42,
-            reg_covar=1e-5,
             init_params="k-means++",
         )
-
-        sample_data = self.volume.flatten()
-        try:
-            self.gmm_estimator.fit(sample_data.reshape(-1, 1))
-        except ValueError:
-            # GMM fit can fail if the data is not well distributed - try with less components
-            return self.compute_contrast_limit(
-                num_components - 1,
-                low_variance_mult,
-                high_variance_mult,
-            )
-
+        self.gmm_estimator.fit(sample_data.reshape(-1, 1))
         # Get the stats for the gaussian which sits in the middle
         means = self.gmm_estimator.means_.flatten()
         covariances = self.gmm_estimator.covariances_
@@ -339,7 +344,6 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
 
     def _objective_function(self, params):
         return self.compute_contrast_limit(
-            params["num_components"],
             params["low_variance_mult"],
             params["high_variance_mult"],
         )
@@ -347,9 +351,8 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
     def _define_parameter_space(self, parameter_optimizer):
         parameter_optimizer.space_creator(
             {
-                "num_components": {"type": "randint", "args": [2, 4]},
-                "low_variance_mult": {"type": "uniform", "args": [1.0, 5.0]},
-                "high_variance_mult": {"type": "uniform", "args": [0.1, 1.0]},
+                "low_variance_mult": {"type": "uniform", "args": [2.2, 2.21]},
+                "high_variance_mult": {"type": "uniform", "args": [0.6, 0.61]},
             },
         )
 
@@ -386,6 +389,40 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
         self.limits = None
         self.second_derivative = None
 
+    def automatic_parameter_estimation(self):
+        _, _, gradient, _ = self._caculate_cdf(n_bins=512)
+
+        largest_peak = np.argmax(gradient)
+        peak_gradient = gradient[largest_peak]
+        # Find the start gradient percentage
+        # Before the gradient climbs above 20% of the peak gradient
+        # Find the median values of the gradient
+        start_of_rising = np.where(gradient > 0.3 * peak_gradient)[0][0]
+        mean_before_rising = np.mean(gradient[:start_of_rising])
+        start_gradient_threshold = mean_before_rising / peak_gradient
+
+        # Find the end gradient percentage
+        end_of_flattening = np.where(gradient[start_of_rising:] < 0.3 * peak_gradient)[0][0]
+        mean_after_rising = np.median(gradient[start_of_rising + end_of_flattening :])
+        end_gradient_threshold = mean_after_rising / peak_gradient
+
+        start_gradient_threshold = max(0.01, start_gradient_threshold)
+        end_gradient_threshold = max(0.01, end_gradient_threshold)
+
+        return start_gradient_threshold, end_gradient_threshold
+
+    def _caculate_cdf(self, n_bins):
+        min_value = np.min(self.volume.flatten())
+        max_value = np.max(self.volume.flatten())
+        hist, bin_edges = np.histogram(self.volume.flatten(), bins=n_bins, range=[min_value, max_value])
+        cdf = np.cumsum(hist) / np.sum(hist)
+        try:
+            gradient = np.gradient(cdf.compute())
+        except AttributeError:
+            gradient = np.gradient(cdf)
+        x = np.linspace(min_value, max_value, n_bins)
+        return cdf, bin_edges, gradient, x
+
     @compute_with_timer
     def compute_contrast_limit(
         self,
@@ -402,21 +439,13 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
                 The calculated contrast limits.
         """
         # Calculate the histogram of the volume
-        n_bins = 512
-        min_value = np.min(self.volume.flatten())
-        max_value = np.max(self.volume.flatten())
-        hist, bin_edges = np.histogram(self.volume.flatten(), bins=n_bins, range=[min_value, max_value])
+        cdf, bin_edges, gradient, x = self._caculate_cdf(n_bins=512)
 
-        # Calculate the CDF of the histogram
-        cdf = np.cumsum(hist) / np.sum(hist)
-
-        # Find where the function starts to flatten
-        try:
-            gradient = np.gradient(cdf.compute())
-        except AttributeError:
-            gradient = np.gradient(cdf)
+        # Find the largest peak in the gradient
         largest_peak = np.argmax(gradient)
         peak_gradient_value = gradient[largest_peak]
+
+        start_gradient, end_gradient = self.automatic_parameter_estimation()
 
         start_of_rising = np.where(gradient > start_gradient * peak_gradient_value)[0][0]
         # Find the first point after the largest peak where the gradient is less than 0.1 * peak_gradient_value
@@ -431,12 +460,17 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
         start_limit = middle_value - start_multiplier * start_to_middle
         end_limit = middle_value + end_multiplier * middle_to_end
 
-        x = np.linspace(min_value, max_value, n_bins)
         self.cdf = [x, cdf]
         try:
             self.limits = (start_limit.compute(), end_limit.compute())
         except AttributeError:
             self.limits = (start_limit, end_limit)
+
+        # Ensure that the limits are within the range of the volume
+        self.limits = (
+            max(self.limits[0], np.min(self.volume)),
+            min(self.limits[1], np.max(self.volume)),
+        )
         self.first_derivative = gradient
         self.second_derivative = np.gradient(gradient)
 
@@ -453,10 +487,10 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
     def _define_parameter_space(self, parameter_optimizer):
         parameter_optimizer.space_creator(
             {
-                "start_gradient": {"type": "uniform", "args": [0.01, 0.2]},
-                "end_gradient": {"type": "uniform", "args": [0.01, 0.2]},
-                "start_multiplier": {"type": "uniform", "args": [0.1, 1.5]},
-                "end_multiplier": {"type": "uniform", "args": [0.1, 1.5]},
+                "start_gradient": {"type": "uniform", "args": [0.01, 0.3]},
+                "end_gradient": {"type": "uniform", "args": [0.01, 0.3]},
+                "start_multiplier": {"type": "uniform", "args": [1.0, 1.0001]},
+                "end_multiplier": {"type": "uniform", "args": [1.0, 1.00001]},
             },
         )
 

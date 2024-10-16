@@ -129,19 +129,14 @@ def run_all_contrast_limit_calculations(
 
     gmm_calculator = GMMContrastLimitCalculator(calculator.volume)
     cdf_calculator = CDFContrastLimitCalculator(calculator.volume)
-    decimation_calculator = SignalDecimationContrastLimitCalculator(calculator.volume)
 
     calculator_dict = {
-        "percentile": calculator,
         "gmm": gmm_calculator,
         "cdf": cdf_calculator,
-        "decimation": decimation_calculator,
     }
     hyperopt_evals_dict = {
-        "percentile": 5,
-        "gmm": 500,
-        "cdf": 500,
-        "decimation": 500,
+        "gmm": 5,
+        "cdf": 5,
     }
     for key, calc in calculator_dict.items():
         max_hyperopt_evals = hyperopt_evals_dict[key]
@@ -165,6 +160,7 @@ def run_all_contrast_limit_calculations(
     with open(output_path / f"contrast_limits_{id_}.json", "w") as f:
         combined_dict = {k: {"limits": v, "info": info_dict[k]} for k, v in limits_dict.items()}
         combined_dict["real_limits"] = volume_limit
+        combined_dict["estimated_cdf"] = cdf_calculator.automatic_parameter_estimation()
         json.dump(combined_dict, f, cls=NpEncoder, indent=4)
 
     # Check which method is closest to the human contrast limits
