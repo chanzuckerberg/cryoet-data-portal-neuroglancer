@@ -340,7 +340,14 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
         mean_to_use = means[closest_mean_index]
         std_to_use = np.sqrt(variances[closest_mean_index])
 
-        return mean_to_use - low_variance_mult * std_to_use, mean_to_use + high_variance_mult * std_to_use
+        low_limit, high_limit = (
+            mean_to_use - low_variance_mult * std_to_use,
+            mean_to_use + high_variance_mult * std_to_use,
+        )
+        # Ensure that the limits are within the range of the volume
+        low_limit = float(max(low_limit, np.min(sample_data)))
+        high_limit = float(min(high_limit, np.max(sample_data)))
+        return low_limit, high_limit
 
     def _objective_function(self, params):
         return self.compute_contrast_limit(
@@ -648,6 +655,8 @@ def combined_contrast_limit_plot(
         ax.axvline(limits[1], color=color)
         custom_lines.append(Line2D([0], [0], color=color, lw=4))
 
+    min_x = min_x - 0.1 * (max_x - min_x)
+    max_x = max_x + 0.1 * (max_x - min_x)
     ax.set_xlim(min_x, max_x)
 
     # Produce a legend
