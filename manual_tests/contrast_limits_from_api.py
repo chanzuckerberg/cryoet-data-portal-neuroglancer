@@ -139,9 +139,9 @@ def run_all_contrast_limit_calculations(
     }
     hyperopt_evals_dict = {
         "percentile": 5,
-        "gmm": 5,
-        "cdf": 5,
-        "decimation": 5,
+        "gmm": 500,
+        "cdf": 500,
+        "decimation": 500,
     }
     for key, calc in calculator_dict.items():
         max_hyperopt_evals = hyperopt_evals_dict[key]
@@ -164,6 +164,7 @@ def run_all_contrast_limit_calculations(
 
     with open(output_path / f"contrast_limits_{id_}.json", "w") as f:
         combined_dict = {k: {"limits": v, "info": info_dict[k]} for k, v in limits_dict.items()}
+        combined_dict["real_limits"] = volume_limit
         json.dump(combined_dict, f, cls=NpEncoder, indent=4)
 
     # Check which method is closest to the human contrast limits
