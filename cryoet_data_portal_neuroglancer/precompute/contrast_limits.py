@@ -316,8 +316,8 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
         best_n = int(bics[min_bic_index, 1])
 
         variance_multi_dict = {
-            1: (2.2, 0.6),
-            2: (2.3, 0.65),
+            1: (2.0, 0.5),
+            2: (2.2, 0.65),
             3: (3.0, 0.8),
         }
 
