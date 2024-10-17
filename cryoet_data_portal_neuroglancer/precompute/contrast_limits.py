@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Literal, Optional
 
 import dask.array as da
-import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import find_peaks
 from sklearn.mixture import GaussianMixture
@@ -523,6 +522,7 @@ def combined_contrast_limit_plot(
     output_filename: str | Path,
 ) -> None:
     """Plot the CDF and the calculated limits."""
+    import matplotlib.pyplot as plt
     fig, ax = plt.subplots()
 
     ax.plot(cdf[0], cdf[1])
