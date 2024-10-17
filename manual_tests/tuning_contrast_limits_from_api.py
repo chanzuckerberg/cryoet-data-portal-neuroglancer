@@ -24,6 +24,7 @@ from cryoet_data_portal_neuroglancer.state_generator import combine_json_layers,
 
 OUTPUT_FOLDER = "/media/starfish/LargeSSD/data/cryoET/data/FromAPI"
 
+# These are the examples that were human chosen
 id_to_path_map = {
     1000: "1000/16.zarr",
     706: "706/Position_161.zarr",
@@ -31,6 +32,8 @@ id_to_path_map = {
     10845: "10845/ay18112021_grid2_lamella3_position7.zarr",
     4279: "4279/dga2018-08-27-600.zarr",
 }
+
+# These are some random examples that can be used instead
 
 id_to_human_contrast_limits = {
     1000: {

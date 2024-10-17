@@ -20,7 +20,31 @@ def compute_contrast_limits(
     method: Literal["gmm", "cdf"] = "gmm",
     z_radius: int | None | Literal["auto"] = 5,
     num_samples: int | None = 100_000,
-):
+) -> tuple[float, float]:
+    """Compute the contrast limits for the given data.
+
+    Parameters
+    ----------
+    data: da.Array or np.ndarray
+        The input data for calculating contrast limits. Must be 3D.
+    method: str, optional.
+        The method to use for calculating contrast limits.
+        By default "gmm". Other option is "cdf".
+    z_radius: int or None or "auto", optional.
+        The number of z-slices to include above and below the central z-slice.
+        By default 5.
+        Disable by setting to None. Auto compute by setting to "auto".
+        Auto compute can currently be problematic for large volumes.
+    num_samples: int or None, optional.
+        The number of samples to take from the volume.
+        By default 100_000.
+        Disable sampling and use the whole volume by setting to None.
+
+    Returns
+    -------
+    tuple[float, float]
+        The calculated contrast limits.
+    """
     calculator = GMMContrastLimitCalculator(data) if method == "gmm" else CDFContrastLimitCalculator(data)
     if z_radius is not None:
         if z_radius == "auto":
@@ -164,6 +188,11 @@ class ContrastLimitCalculator:
             np.ndarray
                 The random samples.
         """
+        sample_data = self.volume.flatten()
+        num_total_samples = len(sample_data)
+        if num_samples > num_total_samples:
+            return
+
         generator = np.random.default_rng(0)
         if len(self.volume.flatten()) > num_samples:
             self.volume = generator.choice(
