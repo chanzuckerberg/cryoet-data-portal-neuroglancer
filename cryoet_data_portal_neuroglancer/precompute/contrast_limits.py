@@ -34,6 +34,7 @@ def compute_contrast_limits(
         The number of z-slices to include above and below the central z-slice.
         None means the whole volume is used.
         If "auto", the z-radius mode is picked based on the method.
+        In "auto", the GMM method uses more of the volume, while the CDF method uses less.
         "compute" attempts to estimate a good z-slicing, but
         can currently be problematic for large volumes.
         default is "auto".
@@ -50,7 +51,7 @@ def compute_contrast_limits(
     calculator = GMMContrastLimitCalculator(data) if method == "gmm" else CDFContrastLimitCalculator(data)
     if z_radius is not None:
         if z_radius == "auto":
-            z_radius = None if method == "gmm" else 5
+            z_radius = 15 if method == "gmm" else 5
         calculator.trim_volume_around_central_zslice(z_radius=z_radius)
     if downsampling_ratio is not None:
         total_size = np.prod(data.shape)
