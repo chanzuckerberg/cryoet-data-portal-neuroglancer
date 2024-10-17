@@ -14,7 +14,6 @@ from cryoet_data_portal_neuroglancer.precompute.contrast_limits import (
     CDFContrastLimitCalculator,
     ContrastLimitCalculator,
     GMMContrastLimitCalculator,
-    SignalDecimationContrastLimitCalculator,
     combined_contrast_limit_plot,
 )
 from cryoet_data_portal_neuroglancer.state_generator import combine_json_layers, generate_image_layer
@@ -136,7 +135,7 @@ def run_all_contrast_limit_calculations(
     }
     hyperopt_evals_dict = {
         "gmm": 5,
-        "cdf": 5,
+        "cdf": 100,
     }
     for key, calc in calculator_dict.items():
         max_hyperopt_evals = hyperopt_evals_dict[key]
