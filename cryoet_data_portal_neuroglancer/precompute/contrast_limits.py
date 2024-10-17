@@ -273,8 +273,8 @@ class ContrastLimitCalculator:
         """NOTE: the range here is very small, for real-tuning, it should be larger."""
         parameter_optimizer.space_creator(
             {
-                "low_percentile": {"type": "randint", "args": [1, 2]},
-                "high_percentile": {"type": "randint", "args": [80, 81]},
+                "low_percentile": {"type": "randint", "args": [1, 50]},
+                "high_percentile": {"type": "randint", "args": [50, 100]},
             },
         )
 
