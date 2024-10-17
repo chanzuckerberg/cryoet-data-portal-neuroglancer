@@ -24,7 +24,6 @@ from cryoet_data_portal_neuroglancer.state_generator import combine_json_layers,
 
 OUTPUT_FOLDER = "/media/starfish/LargeSSD/data/cryoET/data/FromAPI"
 
-# These are the examples that were human chosen
 id_to_path_map = {
     1000: "1000/16.zarr",
     706: "706/Position_161.zarr",
@@ -32,8 +31,6 @@ id_to_path_map = {
     10845: "10845/ay18112021_grid2_lamella3_position7.zarr",
     4279: "4279/dga2018-08-27-600.zarr",
 }
-
-# These are some random examples that can be used instead
 
 id_to_human_contrast_limits = {
     1000: {
@@ -111,7 +108,7 @@ def run_contrast_limit_calculations_from_api(
     input_data_path,
     output_path,
     z_radius=5,
-    num_samples=20000,
+    ds_factor=0.3,
 ):
     output_path.mkdir(parents=True, exist_ok=True)
     human_contrast = id_to_human_contrast_limits[id_]
@@ -126,13 +123,13 @@ def run_contrast_limit_calculations_from_api(
         data,
         method="gmm",
         z_radius=z_radius,
-        num_samples=num_samples,
+        downsampling_ratio=ds_factor,
     )
     cdf_limits = compute_contrast_limits(
         data,
         method="cdf",
         z_radius=z_radius,
-        num_samples=num_samples,
+        downsampling_ratio=ds_factor,
     )
     limits_dict["gmm"] = gmm_limits
     limits_dict["cdf"] = cdf_limits
@@ -152,7 +149,7 @@ def run_contrast_limit_calculations_from_api(
     limits_dict = {k: limits_dict[k] for k in sorted(limits_dict, key=closeness_ordering.get)}
     limits_dict_string = "".join(f"{k} : {v[0]:.5f} - {v[1]:.5f}\n" for k, v in limits_dict.items())
     print(
-        f"Closest method to human contrast limits of {volume_limit} was {closest_method}:\n{limits_dict_string}Details saved to {output_path}.",
+        f"----------------\nClosest method to human contrast limits of {volume_limit} was {closest_method}:\n{limits_dict_string}Details saved to {output_path}.",
     )
     # For state generation
     limits_dict["closest_method"] = closest_method
@@ -256,7 +253,7 @@ def create_state(id_, contrast_limit_dict, output_folder):
     for key, limits in contrast_limit_dict.items():
         if key in ignored_keys:
             continue
-        visible = key == contrast_limit_dict["closest_method"]
+        visible = key == "gmm"
         closeness = contrast_limit_dict["distance_to_human"].get(key, 0)
         gain = id_to_human_contrast_limits[id_]["gain"] if key == "human" else -7.8
         twodee_limits = contrast_limit_dict["2d"] if key != "human" else id_to_human_contrast_limits[id_]["slice"]
@@ -286,7 +283,13 @@ def create_state(id_, contrast_limit_dict, output_folder):
     return json_state
 
 
-def main(output_folder, take_screenshots=False, wait_for=60 * 1000):
+def main(
+    output_folder,
+    take_screenshots=False,
+    wait_for=60 * 1000,
+    z_radius=5,
+    ds_factor=0.3,
+):
     url_list = []
     for id_, path in id_to_path_map.items():
         path = Path(output_folder) / path
@@ -295,6 +298,8 @@ def main(output_folder, take_screenshots=False, wait_for=60 * 1000):
             id_,
             path,
             Path(output_folder) / "results",
+            z_radius=z_radius,
+            ds_factor=ds_factor,
         )
         # For tuning hyperparameters
         # limits = run_all_contrast_limit_calculations(

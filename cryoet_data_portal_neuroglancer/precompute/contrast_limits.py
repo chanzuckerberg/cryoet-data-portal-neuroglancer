@@ -18,8 +18,8 @@ LOGGER = logging.getLogger(__name__)
 def compute_contrast_limits(
     data: da.Array | np.ndarray,
     method: Literal["gmm", "cdf"] = "gmm",
-    z_radius: int | None | Literal["auto"] = 5,
-    num_samples: int | None = 100_000,
+    z_radius: int | None | Literal["auto", "computed"] = "auto",
+    downsampling_ratio: float | None = 0.3,
 ) -> tuple[float, float]:
     """Compute the contrast limits for the given data.
 
@@ -32,13 +32,15 @@ def compute_contrast_limits(
         By default "gmm". Other option is "cdf".
     z_radius: int or None or "auto", optional.
         The number of z-slices to include above and below the central z-slice.
-        By default 5.
-        Disable by setting to None. Auto compute by setting to "auto".
-        Auto compute can currently be problematic for large volumes.
-    num_samples: int or None, optional.
-        The number of samples to take from the volume.
-        By default 100_000.
-        Disable sampling and use the whole volume by setting to None.
+        None means the whole volume is used.
+        If "auto", the z-radius mode is picked based on the method.
+        "compute" attempts to estimate a good z-slicing, but
+        can currently be problematic for large volumes.
+        default is "auto".
+    downsampling_ratio: float or None, optional.
+        The downsampling ratio for the volume. By default 0.3.
+        If None, no downsampling is performed (same as 1.0).
+        This is particularly useful if the z_radius is set to None.
 
     Returns
     -------
@@ -48,10 +50,13 @@ def compute_contrast_limits(
     calculator = GMMContrastLimitCalculator(data) if method == "gmm" else CDFContrastLimitCalculator(data)
     if z_radius is not None:
         if z_radius == "auto":
-            z_radius = None
+            z_radius = None if method == "gmm" else 5
         calculator.trim_volume_around_central_zslice(z_radius=z_radius)
-    if num_samples is not None:
-        calculator.take_random_samples_from_volume(num_samples=num_samples)
+    if downsampling_ratio is not None:
+        total_size = np.prod(data.shape)
+        calculator.take_random_samples_from_volume(
+            num_samples=int(total_size * downsampling_ratio),
+        )
     return calculator.compute_contrast_limit()
 
 
