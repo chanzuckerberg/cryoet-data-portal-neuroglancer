@@ -15,6 +15,7 @@ from cryoet_data_portal_neuroglancer.precompute.contrast_limits import (
     ContrastLimitCalculator,
     GMMContrastLimitCalculator,
     combined_contrast_limit_plot,
+    compute_contrast_limits,
 )
 from cryoet_data_portal_neuroglancer.state_generator import combine_json_layers, generate_image_layer
 
@@ -102,6 +103,62 @@ def grab_tomogram(id_: int, zarr_path: Path):
         tomogram.download_omezarr(str(zarr_path.parent.resolve()))
 
 
+def run_contrast_limit_calculations_from_api(
+    id_,
+    input_data_path,
+    output_path,
+    z_radius=5,
+    num_samples=20000,
+):
+    output_path.mkdir(parents=True, exist_ok=True)
+    human_contrast = id_to_human_contrast_limits[id_]
+    volume_limit = human_contrast["volume"]
+    data = load_omezarr_data(input_data_path, resolution_level=-1, persist=False)
+    data_shape = data.shape
+    data_size_dict = {"z": data_shape[0], "y": data_shape[1], "x": data_shape[2]}
+
+    limits_dict = {}
+    # Ensure the main public API is working
+    gmm_limits = compute_contrast_limits(
+        data,
+        method="gmm",
+        z_radius=z_radius,
+        num_samples=num_samples,
+    )
+    cdf_limits = compute_contrast_limits(
+        data,
+        method="cdf",
+        z_radius=z_radius,
+        num_samples=num_samples,
+    )
+    limits_dict["gmm"] = gmm_limits
+    limits_dict["cdf"] = cdf_limits
+
+    # From here on is saving the results and extra info to make a URL state
+    with open(output_path / f"contrast_limits_{id_}.json", "w") as f:
+        combined_dict = limits_dict.copy()
+        combined_dict["real_limits"] = volume_limit
+        json.dump(combined_dict, f, cls=NpEncoder, indent=4)
+
+    # Check which method is closest to the human contrast limits
+    closeness_ordering = {
+        k: abs(limits_dict[k][0] - volume_limit[0]) + abs(limits_dict[k][1] - volume_limit[1]) for k in limits_dict
+    }
+
+    closest_method = min(limits_dict.keys(), key=closeness_ordering.get)
+    limits_dict = {k: limits_dict[k] for k in sorted(limits_dict, key=closeness_ordering.get)}
+    limits_dict_string = "".join(f"{k} : {v[0]:.5f} - {v[1]:.5f}\n" for k, v in limits_dict.items())
+    print(
+        f"Closest method to human contrast limits of {volume_limit} was {closest_method}:\n{limits_dict_string}Details saved to {output_path}.",
+    )
+    # For state generation
+    limits_dict["closest_method"] = closest_method
+    limits_dict["distance_to_human"] = closeness_ordering
+    limits_dict["2d"] = volume_limit
+    limits_dict["size"] = data_size_dict
+    return limits_dict
+
+
 def run_all_contrast_limit_calculations(
     id_,
     input_data_path,
@@ -120,6 +177,10 @@ def run_all_contrast_limit_calculations(
     data = load_omezarr_data(input_data_path, resolution_level=-1, persist=False)
     data_shape = data.shape
     data_size_dict = {"z": data_shape[0], "y": data_shape[1], "x": data_shape[2]}
+
+    # Ensure the main public API is working
+    print("GMM from API", compute_contrast_limits(data, method="gmm"))
+    print("CDF from API", compute_contrast_limits(data, method="cdf"))
 
     calculator = ContrastLimitCalculator(data)
     # Trim the volume around the central z-slice
@@ -227,11 +288,17 @@ def main(output_folder, take_screenshots=False, wait_for=60 * 1000):
     for id_, path in id_to_path_map.items():
         path = Path(output_folder) / path
         grab_tomogram(id_, path)
-        limits = run_all_contrast_limit_calculations(
+        limits = run_contrast_limit_calculations_from_api(
             id_,
             path,
             Path(output_folder) / "results",
         )
+        # For tuning hyperparameters
+        # limits = run_all_contrast_limit_calculations(
+        #     id_,
+        #     path,
+        #     Path(output_folder) / "results",
+        # )
         state = create_state(id_, limits, Path(output_folder) / "results")
         viewer_state_obj = viewer_state.ViewerState(state)
         url_from_json = to_url(

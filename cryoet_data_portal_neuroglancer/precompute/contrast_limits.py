@@ -2,8 +2,9 @@
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
+import dask.array as da
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import find_peaks
@@ -14,7 +15,23 @@ from cryoet_data_portal_neuroglancer.utils import ParameterOptimizer
 LOGGER = logging.getLogger(__name__)
 
 
-def compute_with_timer(func):
+def compute_contrast_limits(
+    data: da.Array | np.ndarray,
+    method: Literal["gmm", "cdf"] = "gmm",
+    z_radius: int | None | Literal["auto"] = 5,
+    num_samples: int | None = 100_000,
+):
+    calculator = GMMContrastLimitCalculator(data) if method == "gmm" else CDFContrastLimitCalculator(data)
+    if z_radius is not None:
+        if z_radius == "auto":
+            z_radius = None
+        calculator.trim_volume_around_central_zslice(z_radius=z_radius)
+    if num_samples is not None:
+        calculator.take_random_samples_from_volume(num_samples=num_samples)
+    return calculator.compute_contrast_limit()
+
+
+def _compute_with_timer(func):
     def wrapper(*args, **kwargs):
         import time
 
@@ -28,7 +45,7 @@ def compute_with_timer(func):
     return wrapper
 
 
-def euclidean_distance(x: tuple[float, float], y: tuple[float, float]) -> float:
+def _euclidean_distance(x: tuple[float, float], y: tuple[float, float]) -> float:
     return np.sqrt(((x[0] - y[0]) ** 2) + ((x[1] - y[1]) ** 2))
 
 
@@ -155,7 +172,7 @@ class ContrastLimitCalculator:
                 replace=False,
             )
 
-    @compute_with_timer
+    @_compute_with_timer
     def compute_contrast_limit(
         self,
         low_percentile: float = 1.0,
@@ -225,7 +242,7 @@ class ContrastLimitCalculator:
         return best, contrast_limits
 
     def objective_function(self, params, real_limits):
-        return euclidean_distance(
+        return _euclidean_distance(
             self._objective_function(params),
             real_limits,
         )
@@ -242,7 +259,7 @@ class ContrastLimitCalculator:
             },
         )
 
-    @compute_with_timer
+    @_compute_with_timer
     def contrast_limits_from_mean(
         self,
         multipler: float = 3.0,
@@ -269,7 +286,7 @@ class ContrastLimitCalculator:
 
 class GMMContrastLimitCalculator(ContrastLimitCalculator):
 
-    @compute_with_timer
+    @_compute_with_timer
     def compute_contrast_limit(
         self,
         low_variance_mult: float = 3.0,
@@ -423,7 +440,7 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
         x = np.linspace(min_value, max_value, n_bins)
         return cdf, bin_edges, gradient, x
 
-    @compute_with_timer
+    @_compute_with_timer
     def compute_contrast_limit(
         self,
         gradient_threshold: float = 0.3,
