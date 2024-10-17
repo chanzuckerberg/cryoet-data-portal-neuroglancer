@@ -60,20 +60,6 @@ def compute_contrast_limits(
     return calculator.compute_contrast_limit()
 
 
-def _compute_with_timer(func):
-    def wrapper(*args, **kwargs):
-        import time
-
-        start_time = time.time()
-        LOGGER.info(f"Running function {func.__name__}")
-        result = func(*args, **kwargs)
-        end_time = time.time()
-        LOGGER.info(f"Function {func.__name__} took {end_time - start_time:.2f} seconds")
-        return result
-
-    return wrapper
-
-
 def _euclidean_distance(x: tuple[float, float], y: tuple[float, float]) -> float:
     return np.sqrt(((x[0] - y[0]) ** 2) + ((x[1] - y[1]) ** 2))
 
@@ -206,7 +192,6 @@ class ContrastLimitCalculator:
                 replace=False,
             )
 
-    @_compute_with_timer
     def compute_contrast_limit(
         self,
         low_percentile: float = 1.0,
@@ -293,7 +278,6 @@ class ContrastLimitCalculator:
             },
         )
 
-    @_compute_with_timer
     def contrast_limits_from_mean(
         self,
         multipler: float = 3.0,
@@ -320,7 +304,6 @@ class ContrastLimitCalculator:
 
 class GMMContrastLimitCalculator(ContrastLimitCalculator):
 
-    @_compute_with_timer
     def compute_contrast_limit(
         self,
         low_variance_mult: float = 3.0,
@@ -474,7 +457,6 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
         x = np.linspace(min_value, max_value, n_bins)
         return cdf, bin_edges, gradient, x
 
-    @_compute_with_timer
     def compute_contrast_limit(
         self,
         gradient_threshold: float = 0.3,
