@@ -249,10 +249,8 @@ def combine_json_layers(
         set_slices_visible_in_3d = not any(layer["volumeRendering"] == "on" for layer in image_layers)
 
     scale = get_scale(scale)
-    if projection_quaternion is not None:
+    if projection_quaternion is None:
         projection_quaternion = Rotation.from_euler(seq="xyz", angles=(45, 0, 0), degrees=True).as_quat()
-    else:
-        projection_quaternion = []
     combined_json = {
         "dimensions": {dim: [res, units] for dim, res in zip("xyz", scale, strict=False)},
         "crossSectionScale": 1.8,
