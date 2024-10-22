@@ -56,7 +56,7 @@ void main() {
 
     contrast_threedee_control = shader_controls[threedee_contrast_name]
     assert contrast_threedee_control["range"] == list(threedee_contrast_limits)
-    assert contrast_threedee_control["window"] == [-5.0, 5.0] # Window bigger than range
+    assert contrast_threedee_control["window"] == [-5.0, 5.0]  # Window bigger than range
 
     checkbox_control = shader_controls[f"invert_{threedee_contrast_name}"]
     assert checkbox_control is True

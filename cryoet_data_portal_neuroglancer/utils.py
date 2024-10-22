@@ -258,6 +258,7 @@ def get_window_limits_from_contrast_limits(
 
 class ParameterOptimizer:
     """This class requires installatino of hyperopt package, version 0.2.7 or higher"""
+
     def __init__(self, objective):
         self.objective = objective
 

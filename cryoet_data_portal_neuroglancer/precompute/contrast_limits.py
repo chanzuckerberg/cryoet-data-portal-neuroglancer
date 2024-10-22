@@ -523,6 +523,7 @@ def combined_contrast_limit_plot(
 ) -> None:
     """Plot the CDF and the calculated limits."""
     import matplotlib.pyplot as plt
+
     fig, ax = plt.subplots()
 
     ax.plot(cdf[0], cdf[1])
