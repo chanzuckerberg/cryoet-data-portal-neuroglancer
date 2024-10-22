@@ -62,10 +62,10 @@ def compute_contrast_limits(
 
 
 def _restrict_volume_around_central_z_slice(
-    volume: "np.ndarray",
+    volume: np.ndarray,
     central_z_slice: int | None = None,
     z_radius: int | None = 5,
-) -> "np.ndarray":
+) -> np.ndarray:
     """Restrict a 3D volume to a region around a central z-slice.
 
     Parameters
@@ -109,7 +109,7 @@ def _restrict_volume_around_central_z_slice(
 
 class ContrastLimitCalculator:
 
-    def __init__(self, volume: "np.ndarray" | None = None):
+    def __init__(self, volume: np.ndarray | None = None):
         """Initialize the contrast limit calculator.
 
         Parameters
@@ -121,7 +121,7 @@ class ContrastLimitCalculator:
 
     def set_volume_and_z_limits(
         self,
-        volume: "np.ndarray",
+        volume: np.ndarray,
         central_z_slice: int | None = None,
         z_radius: int | None = None,
     ) -> None:
@@ -409,7 +409,7 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
 
 class CDFContrastLimitCalculator(ContrastLimitCalculator):
 
-    def __init__(self, volume: "np.ndarray" | None = None):
+    def __init__(self, volume: np.ndarray | None = None):
         """Initialize the contrast limit calculator.
 
         Parameters
