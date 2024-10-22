@@ -1,10 +1,16 @@
+import logging
 from functools import lru_cache
 from math import ceil
-from typing import Iterator
+from typing import TYPE_CHECKING, Iterator
 
 import dask.array as da
 import numpy as np
-from hyperopt import hp, tpe, fmin
+import trimesh
+
+if TYPE_CHECKING:
+    import dask.array as da
+
+LOGGER = logging.getLogger(__name__)
 
 
 def get_scale(
@@ -140,6 +146,86 @@ def rotate_xyz_via_matrix(matrix: np.ndarray) -> np.ndarray:
     return np.dot(matrix, np.eye(3)).T
 
 
+def rotate_and_translate_mesh(
+    mesh: trimesh.Trimesh,
+    scene: trimesh.Scene,
+    id_: str | int,
+    rotation_matrix: np.ndarray,
+    translation_vector: np.ndarray,
+) -> trimesh.Scene:
+    """
+    Rotate and translate a mesh using a 3x3 or 4x4 rotation matrix
+    and a 3D translation vector
+
+    Parameters
+    ----------
+    mesh: Trimesh.Mesh
+        The mesh to rotate and translate
+    scene: Trimesh.Scene
+        The scene containing the mesh
+    id_: str | int
+        The ID of the mesh
+    matrix: np.ndarray
+        The 3x3 or 4x4 rotation matrix
+    translation_vector: np.ndarray
+        The 3D translation vector
+
+    Returns
+    -------
+    Trimesh.Scene
+        The scene with the rotated and translated mesh
+    """
+
+    def _convert_to_homogenous(rotation_matrix):
+        homogenous_matrix = np.eye(4)
+        homogenous_matrix[:3, :3] = rotation_matrix
+        return homogenous_matrix
+
+    if rotation_matrix.shape == (3, 3):
+        transform = _convert_to_homogenous(rotation_matrix)
+    elif rotation_matrix.shape == (4, 4):
+        transform = rotation_matrix
+    else:
+        raise ValueError("Rotation matrix must be 3x3 or 4x4")
+
+    transform[:3, 3] = translation_vector
+
+    transformed_mesh = mesh.copy().apply_transform(transform)
+    scene.add_geometry(transformed_mesh, node_name=str(id_))
+
+    return scene
+
+
+def subsample_scene(
+    scene: "trimesh.Scene",
+    num_elements: int | None = None,
+    keys_to_sample: list | None = None,
+    at_random: bool = False,
+):
+    """Subsample the scene to a smaller scene with a given number of elements or keys to sample
+
+    Parameters
+    ----------
+    scene : trimesh.Scene
+        The scene to subsample
+    num_elements : int, optional
+        The number of elements to sample, by default None
+    keys_to_sample : list, optional
+        The keys to sample, by default None
+    at_random : bool, optional
+        Whether to sample at random, by default False
+    """
+    if (num_elements and keys_to_sample) or (not num_elements and not keys_to_sample):
+        raise ValueError("Either num_elements or keys_to_sample should be provided, but not both")
+    if num_elements:
+        if at_random:
+            keys_to_sample = np.random.choice(list(scene.geometry.keys()), num_elements)
+        else:  # Take the first num_elements
+            keys_to_sample = list(scene.geometry.keys())[:num_elements]
+    selected_geometries = {k: v for k, v in scene.geometry.items() if k in keys_to_sample}
+    return trimesh.Scene(selected_geometries)
+
+
 def get_window_limits_from_contrast_limits(
     contrast_limits: tuple[float, float],
     distance_scale: float = 0.1,
@@ -171,10 +257,13 @@ def get_window_limits_from_contrast_limits(
 
 
 class ParameterOptimizer:
+    """This class requires installatino of hyperopt package, version 0.2.7 or higher"""
     def __init__(self, objective):
         self.objective = objective
 
     def space_creator(self, parameter_dict):
+        from hyperopt import hp
+
         def hp_function_from_string(type_string):
             type_dict = {
                 "choice": hp.choice,
@@ -194,6 +283,8 @@ class ParameterOptimizer:
         self.space = space
 
     def optimize(self, max_evals=100, loss_threshold=None, **kwargs) -> dict:
+        from hyperopt import fmin, tpe
+
         best = fmin(
             self.objective,
             self.space,
@@ -203,3 +294,58 @@ class ParameterOptimizer:
             **kwargs,
         )
         return best
+
+
+def determine_size_of_non_zero_bounding_box(
+    data: "da.Array",
+) -> tuple[tuple[int, int], tuple[int, int], tuple[int, int]]:
+    """
+    Determine the size of the non-zero bounding box of a volume.
+
+    The input volume is assumed in Z, Y, X order, and the output bounding box
+    is in X, Y, Z order for Neuroglancer.
+
+    Parameters
+    ----------
+    volume : np.ndarray
+        The volume to determine the bounding box of
+
+    Returns
+    -------
+    tuple[tuple[int, int], tuple[int, int], tuple[int, int]]
+        The bounding box as a tuple of tuples
+    """
+    LOGGER.debug("Determining size of non-zero bounding box")
+    min_z, max_z = np.inf, 0
+    min_y, max_y = np.inf, 0
+    min_x, max_x = np.inf, 0
+    # Process the data in chunks
+    for chunk, _ in iterate_chunks(data):
+        non_zero_indices = chunk.nonzero()
+        non_zero_indices[0].compute_chunk_sizes()
+        if len(non_zero_indices[0]) == 0:
+            continue
+        min_z = min(min_z, np.min(non_zero_indices[0]))
+        max_z = max(max_z, np.max(non_zero_indices[0]))
+        min_y = min(min_y, np.min(non_zero_indices[1]))
+        max_y = max(max_y, np.max(non_zero_indices[1]))
+        min_x = min(min_x, np.min(non_zero_indices[2]))
+        max_x = max(max_x, np.max(non_zero_indices[2]))
+
+    if min_z == np.inf:
+        min_z = min_y = min_x = 0
+    return max_x - min_x + 1, max_y - min_y + 1, max_z - min_z + 1
+
+
+def determine_mesh_shape_from_lods(lods: list[trimesh.Trimesh]):
+    mesh_starts = [np.min(lod.vertices, axis=0) for lod in lods]
+    mesh_ends = [np.max(lod.vertices, axis=0) for lod in lods]
+    LOGGER.debug(
+        "LOD mesh origin points %s and end points %s",
+        mesh_starts,
+        mesh_ends,
+    )
+    grid_origin = np.floor(np.min(mesh_starts, axis=0))
+    grid_end = np.ceil(np.max(mesh_ends, axis=0))
+    mesh_shape = (grid_end - grid_origin).astype(int)
+    return grid_origin, mesh_shape

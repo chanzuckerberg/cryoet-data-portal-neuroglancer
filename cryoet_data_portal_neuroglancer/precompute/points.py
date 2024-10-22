@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 import numpy as np
 from neuroglancer import AnnotationPropertySpec, CoordinateSpace
@@ -128,10 +128,10 @@ def encode_annotation(
     output_path: Path,
     resolution: float,
     is_oriented: bool = False,
-    names_by_id: Optional[dict[int, str]] = None,
+    names_by_id: dict[int, str] | None = None,
     label_key_mapper: Callable[[dict[str, Any]], int] = lambda x: 0,
     color_mapper: Callable[[dict[str, Any]], tuple[int, int, int]] = lambda x: (255, 255, 255),
-    shard_by_id: Optional[tuple[int, int] | bool] = (0, 10),
+    shard_by_id: tuple[int, int] | None = (0, 10),
     oriented_line_parameters: tuple[float, LineLengthMethod] = (1.5, LineLengthMethod.SCALE),
 ) -> None:
     """Encode annotation data to Neuroglancer format.
@@ -154,7 +154,7 @@ def encode_annotation(
         Function to map annotation data to label key, by default, all annotations are labeled as 0
     color_mapper : Callable[[dict[str, Any]], tuple[int, int, int]], optional
         Function to map annotation data to RGB color, by default all annotations are white
-    shard_by_id : Optional[tuple[int, int]], optional
+    shard_by_id : tuple[int, int], optional
         Tuple of shard_bits and minishard_bits, by default (0, 10)
         If None, no sharding will be done.
     line_length_parameters : tuple[float, LineLengthMethod], optional
