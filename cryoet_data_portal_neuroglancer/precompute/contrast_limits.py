@@ -2,11 +2,12 @@
 
 import logging
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 import dask.array as da
 import numpy as np
 from scipy.signal import find_peaks
+from scipy.spatial.distance import euclidean
 from sklearn.mixture import GaussianMixture
 
 from cryoet_data_portal_neuroglancer.utils import ParameterOptimizer
@@ -60,14 +61,10 @@ def compute_contrast_limits(
     return calculator.compute_contrast_limit()
 
 
-def _euclidean_distance(x: tuple[float, float], y: tuple[float, float]) -> float:
-    return np.sqrt(((x[0] - y[0]) ** 2) + ((x[1] - y[1]) ** 2))
-
-
 def _restrict_volume_around_central_z_slice(
     volume: "np.ndarray",
-    central_z_slice: Optional[int] = None,
-    z_radius: Optional[int] = 5,
+    central_z_slice: int | None = None,
+    z_radius: int | None = 5,
 ) -> "np.ndarray":
     """Restrict a 3D volume to a region around a central z-slice.
 
@@ -78,7 +75,7 @@ def _restrict_volume_around_central_z_slice(
         central_z_slice: int or None, optional.
             The central z-slice around which to restrict the volume.
             By default None, in which case the central z-slice is the middle slice.
-        z_radius: int, optional.
+        z_radius: int or None, optional.
             The number of z-slices to include above and below the central z-slice.
             By default 5,
             If it is None, it is auto computed - but this can be problematic for large volumes.
@@ -112,7 +109,7 @@ def _restrict_volume_around_central_z_slice(
 
 class ContrastLimitCalculator:
 
-    def __init__(self, volume: Optional["np.ndarray"] = None):
+    def __init__(self, volume: "np.ndarray" | None = None):
         """Initialize the contrast limit calculator.
 
         Parameters
@@ -125,8 +122,8 @@ class ContrastLimitCalculator:
     def set_volume_and_z_limits(
         self,
         volume: "np.ndarray",
-        central_z_slice: Optional[int] = None,
-        z_radius: Optional[int] = None,
+        central_z_slice: int | None = None,
+        z_radius: int | None = None,
     ) -> None:
         """Set the volume and z-limits for calculating contrast limits.
 
@@ -146,8 +143,8 @@ class ContrastLimitCalculator:
 
     def trim_volume_around_central_zslice(
         self,
-        central_z_slice: Optional[int] = None,
-        z_radius: Optional[int] = None,
+        central_z_slice: int | None = None,
+        z_radius: int | None = None,
     ) -> None:
         """Trim the volume around a central z-slice.
 
@@ -261,7 +258,7 @@ class ContrastLimitCalculator:
         return best, contrast_limits
 
     def objective_function(self, params, real_limits):
-        return _euclidean_distance(
+        return euclidean(
             self._objective_function(params),
             real_limits,
         )
@@ -412,7 +409,7 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
 
 class CDFContrastLimitCalculator(ContrastLimitCalculator):
 
-    def __init__(self, volume: Optional["np.ndarray"] = None):
+    def __init__(self, volume: "np.ndarray" | None = None):
         """Initialize the contrast limit calculator.
 
         Parameters

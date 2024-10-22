@@ -22,7 +22,7 @@ from cryoet_data_portal_neuroglancer.state_generator import combine_json_layers,
 # Set up logging - level is info
 # logging.basicConfig(level=logging.INFO, force=True)
 
-OUTPUT_FOLDER = "/media/starfish/LargeSSD/data/cryoET/data/FromAPI"
+OUTPUT_FOLDER = Path.cwd() / "contrast_limits_from_api"
 
 id_to_path_map = {
     1000: "1000/16.zarr",

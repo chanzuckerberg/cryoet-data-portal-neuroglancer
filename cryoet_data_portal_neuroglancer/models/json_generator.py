@@ -131,7 +131,6 @@ class ImageJSONGenerator(RenderingJSONGenerator):
             self.contrast_limits = self._compute_contrast_limits()
         if self.threedee_contrast_limits is None:
             self.threedee_contrast_limits = self.contrast_limits
-        self.threedee_contrast_limits = self.threedee_contrast_limits
         if self.has_volume_rendering_shader:
             shader_builder = ImageWithVolumeRenderingShaderBuilder(
                 contrast_limits=self.contrast_limits,

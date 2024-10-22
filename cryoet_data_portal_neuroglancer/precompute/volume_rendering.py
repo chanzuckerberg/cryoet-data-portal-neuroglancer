@@ -1,6 +1,5 @@
 import multiprocessing as mp
 from multiprocessing import shared_memory
-from typing import Optional
 
 import numpy as np
 from tqdm import tqdm
@@ -41,7 +40,7 @@ def volume_render(
     contrast_limits: tuple[float, float],
     exponential_gain: float = 0.0,
     depth_samples: int = 64,
-    num_workers: Optional[int] = None,
+    num_workers: int | None = None,
 ):
     if num_workers is None:
         num_workers = mp.cpu_count()
