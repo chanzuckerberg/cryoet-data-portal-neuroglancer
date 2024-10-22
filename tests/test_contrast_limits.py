@@ -1,6 +1,6 @@
 import numpy as np
 
-from cryoet_data_portal_neuroglancer.precompute.contrast_limits import ContrastLimitCalculator
+from cryoet_data_portal_neuroglancer.precompute.contrast_limits import ContrastLimitCalculator, compute_contrast_limits
 
 
 def test_percentile_contrast_limits():
@@ -26,7 +26,21 @@ def test_percentile_contrast_limits():
     assert limits == (0.0, 99.0)
 
 
-# Disabled for now, as the optimization is not working as expected
+def test_api_contrast_limits():
+    """Test the main entry point for computing contrast limits.
+
+    This test is to ensure that some values are returned and that the limits are in the correct order."""
+    np.random.seed(42)
+    data = np.random.rand(10, 5, 2)
+    gmm_limits = compute_contrast_limits(data, "gmm")
+    assert isinstance(gmm_limits, tuple)
+    assert gmm_limits[0] < gmm_limits[1]
+
+    cdf_limits = compute_contrast_limits(data, "cdf")
+    assert isinstance(cdf_limits, tuple)
+    assert cdf_limits[0] < cdf_limits[1]
+
+
 # This is a long test, so it is disabled by default
 # def test_hyperparameter_optimization():
 #     data = np.arange(100).reshape(10, 5, 2)
