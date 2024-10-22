@@ -56,7 +56,8 @@ def volume_render(
 
     # Create shared memory for the rendered image
     shm_image = shared_memory.SharedMemory(
-        create=True, size=np.prod(volume_rendered_image_shape) * np.float32().itemsize
+        create=True,
+        size=np.prod(volume_rendered_image_shape) * np.float32().itemsize,
     )
 
     try:
