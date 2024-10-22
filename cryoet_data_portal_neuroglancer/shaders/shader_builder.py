@@ -1,6 +1,6 @@
 """Create GLSL shaders for Neuroglancer."""
 
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable
 
 TAB = "  "
 
@@ -54,6 +54,10 @@ class ShaderBuilder:
             "shaderControls": self._shader_controls,
         }
 
+    def build_shader(self) -> dict[str, str | dict[str, Any]]:
+        """An alias for build() for more descriptive naming"""
+        return self.build()
+
     def make_invlerp_component(
         self,
         name: str,
@@ -85,7 +89,7 @@ class ShaderBuilder:
         name: str,
         min_value: float = 0.0,
         max_value: float = 1.0,
-        default_value: Optional[float] = None,
+        default_value: float | None = None,
     ) -> str:
         if default_value is not None:
             self._shader_controls[name] = default_value
