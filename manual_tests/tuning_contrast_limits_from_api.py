@@ -182,11 +182,13 @@ def run_all_contrast_limit_calculations(
     print("GMM from API", compute_contrast_limits(data, method="gmm"))
     print("CDF from API", compute_contrast_limits(data, method="cdf"))
 
-    calculator = ContrastLimitCalculator(data)
-    # Trim the volume around the central z-slice
-    calculator.trim_volume_around_central_zslice(z_radius=z_radius)
-    calculator.take_random_samples_from_volume(num_samples=num_samples)
+    calculator = ContrastLimitCalculator(
+        data,
+        z_radius=z_radius,
+        num_samples=num_samples,
+    )
 
+    # To save doing the downsampling twice
     gmm_calculator = GMMContrastLimitCalculator(calculator.volume)
     cdf_calculator = CDFContrastLimitCalculator(calculator.volume)
 
@@ -210,8 +212,10 @@ def run_all_contrast_limit_calculations(
             f"{key}: found ({limits[0]:.4f}, {limits[1]:.4f}) compared to ({volume_limit[0]:.4f}, {volume_limit[1]:.4f}) with:\n{best_info}",
         )
     plot_output_name = output_path / f"contrast_limits_plot_{id_}.png"
+    cdf_info = cdf_calculator.calculate_cdf()
+    cdf_for_plot = [cdf_info[-1], cdf_info[0]]
     combined_contrast_limit_plot(
-        cdf_calculator.cdf,
+        cdf_for_plot,
         human_contrast["volume"],
         limits_dict,
         plot_output_name,

@@ -1,6 +1,7 @@
 """Methods for computing contrast limits for Neuroglancer image layers."""
 
 import logging
+from abc import abstractmethod
 from pathlib import Path
 from typing import Literal
 
@@ -48,17 +49,13 @@ def compute_contrast_limits(
     tuple[float, float]
         The calculated contrast limits.
     """
-    calculator = GMMContrastLimitCalculator(data) if method == "gmm" else CDFContrastLimitCalculator(data)
-    if z_radius is not None:
-        if z_radius == "auto":
-            z_radius = 15 if method == "gmm" else 5
-        calculator.trim_volume_around_central_zslice(z_radius=z_radius)
-    if downsampling_ratio is not None:
-        total_size = np.prod(data.shape)
-        calculator.take_random_samples_from_volume(
-            num_samples=int(total_size * downsampling_ratio),
-        )
-    return calculator.compute_contrast_limit()
+    calculator_class: ContrastLimitCalculator = (
+        GMMContrastLimitCalculator if method == "gmm" else CDFContrastLimitCalculator
+    )
+    if z_radius is not None and z_radius == "auto":
+        z_radius = 15 if method == "gmm" else 5
+    num_samples = None if downsampling_ratio is None else int(np.prod(data.shape) * downsampling_ratio)
+    return calculator_class(data, z_radius=z_radius, num_samples=num_samples).compute_contrast_limit()
 
 
 def _restrict_volume_around_central_z_slice(
@@ -107,114 +104,86 @@ def _restrict_volume_around_central_z_slice(
     return volume[z_min:z_max]
 
 
+def _take_random_samples_from_volume(
+    volume: np.ndarray,
+    num_samples: int | None = 100_000,
+) -> None:
+    """Take random samples from the volume as a 1D array.
+
+    Parameters
+    ----------
+        volume: np.ndarray
+            The input volume.
+        num_samples: int or None, optional.
+            The number of samples to take, all data if None.
+            Default is 100_000.
+
+    Returns
+    -------
+        np.ndarray
+            The random samples as a 1D array.
+    """
+    sample_data = volume.flatten()
+    num_total_samples = len(sample_data)
+    if num_samples is None or (num_samples > num_total_samples):
+        return sample_data
+
+    generator = np.random.default_rng(42)
+    return generator.choice(
+        sample_data,
+        num_samples,
+        replace=False,
+    )
+
+
 class ContrastLimitCalculator:
+    """
+    Base class for contrast limit calculators.
 
-    def __init__(self, volume: np.ndarray | None = None):
-        """Initialize the contrast limit calculator.
+    Comes with a default calculation using percentiles.
+    This class is designed to allow setting up the calculator with a volume to work on
+    and then compute the contrast limits using the compute_contrast_limit method.
+    Subclasses can override this method to provide their own implementation.
 
-        Parameters
-        ----------
-            volume: np.ndarray or None, optional.
-                Input volume for calculating contrast limits.
-        """
-        self.volume = volume
+    An additional feature for tuning contrast limits is hyperparameter optimisation.
+    To benefit from this, subclasses should implement the _objective_function and _define_parameter_space methods.
 
-    def set_volume_and_z_limits(
+    Attributes
+    ----------
+    volume: np.ndarray
+        The flattened and downsampled volume to calculate the contrast limits from.
+    """
+
+    def __init__(
         self,
         volume: np.ndarray,
-        central_z_slice: int | None = None,
         z_radius: int | None = None,
-    ) -> None:
-        """Set the volume and z-limits for calculating contrast limits.
+        num_samples: int | None = None,
+        central_z_slice: int | None = None,
+    ):
+        """Initialize the contrast limit calculator.
 
         Parameters
         ----------
             volume: np.ndarray
                 3D numpy array with Z as the first axis.
-            central_z_slice: int or None, optional.
-                The central z-slice around which to restrict the volume.
-                By default None, in which case the central z-slice is the middle slice.
             z_radius: int or None, optional.
                 The number of z-slices to include above and below the central z-slice.
                 By default None.
-        """
-        self.volume = volume
-        self.trim_volume_around_central_zslice(central_z_slice, z_radius)
-
-    def trim_volume_around_central_zslice(
-        self,
-        central_z_slice: int | None = None,
-        z_radius: int | None = None,
-    ) -> None:
-        """Trim the volume around a central z-slice.
-
-        Parameters
-        ----------
+            num_samples: int or None, optional
+                The number of random samples to take from the volume after clipping
+                By default None.
+                Setting this to None will use all the data.
             central_z_slice: int or None, optional.
                 The central z-slice around which to restrict the volume.
                 By default None, in which case the central z-slice is the middle slice.
-            z_radius: int or None, optional.
-                The number of z-slices to include above and below the central z-slice.
-                By default None, in which case it is auto computed.
         """
-        self.volume = _restrict_volume_around_central_z_slice(
-            self.volume,
+        volume = _restrict_volume_around_central_z_slice(
+            volume,
             central_z_slice,
             z_radius,
         )
-
-    def take_random_samples_from_volume(self, num_samples: int = 100_000) -> None:
-        """Take random samples from the volume.
-
-        Parameters
-        ----------
-            num_samples: int
-                The number of samples to take.
-
-        Returns
-        -------
-            np.ndarray
-                The random samples.
-        """
-        sample_data = self.volume.flatten()
-        num_total_samples = len(sample_data)
-        if num_samples > num_total_samples:
-            return
-
-        generator = np.random.default_rng(0)
-        if len(self.volume.flatten()) > num_samples:
-            self.volume = generator.choice(
-                self.volume.flatten(),
-                num_samples,
-                replace=False,
-            )
-
-    def compute_contrast_limit(
-        self,
-        low_percentile: float = 1.0,
-        high_percentile: float = 99.0,
-    ) -> tuple[float, float]:
-        """Calculate the contrast limits from the given percentiles.
-
-        Parameters
-        ----------
-            low_percentile: float
-                The low percentile for the contrast limit.
-            high_percentile: float
-                The high percentile for the contrast limit.
-
-        Returns
-        -------
-            tuple[float, float]
-                The calculated contrast limits.
-        """
-        low_value = np.percentile(self.volume.flatten(), low_percentile)
-        high_value = np.percentile(self.volume.flatten(), high_percentile)
-
-        try:
-            return low_value.compute()[0], high_value.compute()[0]
-        except AttributeError:
-            return low_value, high_value
+        self.volume = _take_random_samples_from_volume(volume, num_samples)
 
     def optimize(self, real_limits, max_evals=100, loss_threshold=None, **kwargs) -> dict:
         """Hyper-parameter optimisation.
@@ -263,40 +232,61 @@ class ContrastLimitCalculator:
             real_limits,
         )
 
+    @abstractmethod
+    def compute_contrast_limit(self, *args, **kwargs) -> tuple[float, float]:
+        """Calculate the contrast limits"""
+
+    @abstractmethod
     def _objective_function(self, params):
-        return self.compute_contrast_limit(params["low_percentile"], params["high_percentile"])
+        """Parse params dict to compute contrast limits"""
 
+    @abstractmethod
     def _define_parameter_space(self, parameter_optimizer: ParameterOptimizer):
-        """NOTE: the range here is very small, for real-tuning, it should be larger."""
-        parameter_optimizer.space_creator(
-            {
-                "low_percentile": {"type": "randint", "args": [1, 50]},
-                "high_percentile": {"type": "randint", "args": [50, 100]},
-            },
-        )
+        """Use parameter_optimizer to define the parameter space for the params dict"""
 
-    def contrast_limits_from_mean(
+
+class PercentileContrastLimitCalculator(ContrastLimitCalculator):
+
+    def compute_contrast_limit(
         self,
-        multipler: float = 3.0,
+        low_percentile: float = 1.0,
+        high_percentile: float = 99.0,
     ) -> tuple[float, float]:
-        """Calculate the contrast limits from the mean and RMS.
+        """Calculate the contrast limits from the given percentiles.
 
         Parameters
         ----------
-            multipler: float, optional.
-                The multiplier for the RMS value.
-                By default 3.0.
+            low_percentile: float
+                The low percentile for the contrast limit.
+            high_percentile: float
+                The high percentile for the contrast limit.
 
         Returns
         -------
             tuple[float, float]
                 The calculated contrast limits.
         """
-        mean_value = np.mean(self.volume)
-        rms_value = np.sqrt(np.mean(self.volume**2))
-        width = multipler * rms_value
+        low_value = np.percentile(self.volume, low_percentile)
+        high_value = np.percentile(self.volume, high_percentile)
 
-        return mean_value - width, mean_value + width
+        try:
+            return low_value.compute()[0], high_value.compute()[0]
+        except AttributeError:
+            return low_value, high_value
+
+    def _objective_function(self, params):
+        return self.compute_contrast_limit(
+            params["low_percentile"],
+            params["high_percentile"],
+        )
+
+    def _define_parameter_space(self, parameter_optimizer: ParameterOptimizer):
+        parameter_optimizer.space_creator(
+            {
+                "low_percentile": {"type": "randint", "args": [1, 50]},
+                "high_percentile": {"type": "randint", "args": [50, 100]},
+            },
+        )
 
 
 class GMMContrastLimitCalculator(ContrastLimitCalculator):
@@ -327,7 +317,7 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
                 The calculated contrast limits.
         """
         covariance_type = "full"
-        sample_data = self.volume.flatten()
+        sample_data = self.volume
 
         # Find the best number of components - using BIC
         # BIC is a criterion for model selection among a finite set of models
@@ -360,18 +350,18 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
         }
 
         # Redo the best with more iterations
-        self.gmm_estimator = GaussianMixture(
+        gmm_estimator = GaussianMixture(
             n_components=best_n,
             covariance_type=covariance_type,
             max_iter=300,
             random_state=42,
             init_params="k-means++",
         )
-        self.gmm_estimator.fit(sample_data.reshape(-1, 1))
+        gmm_estimator.fit(sample_data.reshape(-1, 1))
 
         # Extract the means and variances
-        means = self.gmm_estimator.means_.flatten()
-        covariances = self.gmm_estimator.covariances_  # (n_components, n_features, n_features)
+        means = gmm_estimator.means_.flatten()
+        covariances = gmm_estimator.covariances_  # (n_components, n_features, n_features)
         variances = covariances.flatten()  # n_features is 1, so this is n_components
 
         # Pick the GMM component which is closest to the mean of the volume
@@ -409,19 +399,8 @@ class GMMContrastLimitCalculator(ContrastLimitCalculator):
 
 class CDFContrastLimitCalculator(ContrastLimitCalculator):
 
-    def __init__(self, volume: np.ndarray | None = None):
-        """Initialize the contrast limit calculator.
-
-        Parameters
-        ----------
-            volume: np.ndarray or None, optional.
-                Input volume for calculating contrast limits.
-        """
-        super().__init__(volume)
-        self.cdf = None
-
-    def automatic_parameter_estimation(self, gradient_threshold=0.3):
-        _, _, gradient, _ = self._caculate_cdf(n_bins=512)
+    def _automatic_parameter_estimation(self, gradient_threshold=0.3):
+        _, _, gradient, _ = self.calculate_cdf(n_bins=512)
 
         largest_peak = np.argmax(gradient)
         peak_gradient = gradient[largest_peak]
@@ -442,10 +421,28 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
 
         return start_gradient_threshold, end_gradient_threshold
 
-    def _caculate_cdf(self, n_bins):
-        min_value = np.min(self.volume.flatten())
-        max_value = np.max(self.volume.flatten())
-        hist, bin_edges = np.histogram(self.volume.flatten(), bins=n_bins, range=[min_value, max_value])
+    def calculate_cdf(self, n_bins=512):
+        """Calculate the Cumulative Distribution Function of the volume.
+
+        Parameters
+        ----------
+        n_bins: int
+            The number of bins for the histogram. By default 512.
+
+        Returns
+        -------
+        cdf: np.ndarray
+            The Cumulative Distribution Function.
+        bin_edges: np.ndarray
+            The bin edges for the histogram used to calculate the CDF.
+        gradient: np.ndarray
+            The gradient of the CDF, same length as the CDF.
+        x: np.ndarray
+            The x values for the CDF, calculated from the bin edges.
+        """
+        min_value = np.min(self.volume)
+        max_value = np.max(self.volume)
+        hist, bin_edges = np.histogram(self.volume, bins=n_bins, range=[min_value, max_value])
         cdf = np.cumsum(hist) / np.sum(hist)
         try:
             gradient = np.gradient(cdf.compute())
@@ -473,14 +470,14 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
                 The calculated contrast limits.
         """
         # Calculate the histogram of the volume
-        cdf, bin_edges, gradient, x = self._caculate_cdf(n_bins=512)
+        _, bin_edges, gradient, _ = self.calculate_cdf(n_bins=512)
 
         # Find the largest peak in the gradient
         largest_peak = np.argmax(gradient)
         peak_gradient_value = gradient[largest_peak]
 
         # Find the start and end gradient percentages
-        start_gradient, end_gradient = self.automatic_parameter_estimation(gradient_threshold)
+        start_gradient, end_gradient = self._automatic_parameter_estimation(gradient_threshold)
 
         # Find where the gradient starts rising and starts flattening after the peak
         start_of_rising = np.where(gradient > start_gradient * peak_gradient_value)[0][0]
@@ -489,7 +486,6 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
         start_limit = bin_edges[start_of_rising]
         end_limit = bin_edges[end_of_flattening]
 
-        self.cdf = [x, cdf]
         try:
             limits = (start_limit.compute(), end_limit.compute())
         except AttributeError:
@@ -497,8 +493,8 @@ class CDFContrastLimitCalculator(ContrastLimitCalculator):
 
         # Ensure that the limits are within the range of the volume
         return (
-            float(max(limits[0], np.min(self.volume.flatten()))),
-            float(min(limits[1], np.max(self.volume.flatten()))),
+            float(max(limits[0], np.min(self.volume))),
+            float(min(limits[1], np.max(self.volume))),
         )
 
     def _objective_function(self, params):
