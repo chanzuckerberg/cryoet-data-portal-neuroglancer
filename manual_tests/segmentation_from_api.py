@@ -27,7 +27,6 @@ def grab_annotation():
 
 
 def make_precomputed_segmentation():
-
     encode_segmentation(
         zarr_path,
         output_path,

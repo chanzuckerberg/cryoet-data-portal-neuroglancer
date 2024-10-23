@@ -37,7 +37,7 @@ class ImageShaderBuilder(ShaderBuilder):
         super().__init__()
         self._contrast_limits = contrast_limits
         self._window_limits = (
-            window_limits if window_limits is not None else get_window_limits_from_contrast_limits(contrast_limits)
+            window_limits if window_limits is not None else get_window_limits_from_contrast_limits(contrast_limits, 0.2)
         )
         self._contrast_name = contrast_name
 
@@ -48,9 +48,10 @@ class ImageShaderBuilder(ShaderBuilder):
     def _make_default_shader(self, suppress_emission=False):
         self.add_to_shader_controls(
             self.make_invertible_invlerp_component(
-                self._contrast_name,
-                self._contrast_limits,
-                self._window_limits,
+                name=self._contrast_name,
+                contrast_limits=self._contrast_limits,
+                window_limits=self._window_limits,
+                checked_by_default=False,
             ),
         )
         self.add_to_shader_main("float outputValue;")
@@ -76,7 +77,8 @@ class ImageWithVolumeRenderingShaderBuilder(ImageShaderBuilder):
         contrast_name="contrast",
         window_limits: tuple[float, float] | None = None,
         threedee_window_limits: tuple[float, float] | None = None,
-        threedee_contrast_name="contrast3D",
+        threedee_contrast_name="contrast_3D",
+        can_hide_high_values_in_neuroglancer=True,
     ):
         """Create a shader for Neuroglancer to display an image.
 
@@ -95,7 +97,7 @@ class ImageWithVolumeRenderingShaderBuilder(ImageShaderBuilder):
             The minimum and maximum values for the window control for volume rendering, by default None.
             If None, the window limits will be calculated from the contrast limits.
         threedee_contrast_name : str, optional
-            The name of the contrast control for volume rendering, by default "contrast3D".
+            The name of the contrast control for volume rendering, by default "contrast_3D".
         """
         super().__init__(
             contrast_limits=contrast_limits,
@@ -107,9 +109,10 @@ class ImageWithVolumeRenderingShaderBuilder(ImageShaderBuilder):
         self._threedee_window_limits = (
             threedee_window_limits
             if threedee_window_limits is not None
-            else get_window_limits_from_contrast_limits(threedee_contrast_limits)
+            else get_window_limits_from_contrast_limits(threedee_contrast_limits, 2.0)
         )
         self._threedee_contrast_name = threedee_contrast_name
+        self._can_hide_high_values_in_neuroglancer = can_hide_high_values_in_neuroglancer
 
         self._make_default_shader()
 
@@ -117,9 +120,12 @@ class ImageWithVolumeRenderingShaderBuilder(ImageShaderBuilder):
         super()._make_default_shader(suppress_emission=True)
         self.add_to_shader_controls(
             self.make_invertible_invlerp_component(
-                self._threedee_contrast_name,
-                self._threedee_contrast_limits,
-                self._threedee_window_limits,
+                name=self._threedee_contrast_name,
+                contrast_limits=self._threedee_contrast_limits,
+                window_limits=self._threedee_window_limits,
+                checked_by_default=True,
+                can_hide_noise=self._can_hide_high_values_in_neuroglancer,
+                noise_name="3D",
             ),
         )
 
