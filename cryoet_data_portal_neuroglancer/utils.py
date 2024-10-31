@@ -231,12 +231,14 @@ def get_window_limits_from_contrast_limits(
     distance_scale: float = 0.1,
 ) -> tuple[float, float]:
     """
-    Create default window limits from contrast limits, 10% padding
+    Create default window limits from contrast limits, distance_scale * 10% padding
 
     Parameters
     ----------
     contrast_limits : tuple[float, float]
         The contrast limits
+    distance_scale : float, optional
+        How much to bump the contrast limits to get the window limits, by default 0.1
 
     Returns
     -------
@@ -252,6 +254,47 @@ def get_window_limits_from_contrast_limits(
     window_start = lower_contrast - (distance * distance_scale)
     window_end = higher_contrast + (distance * distance_scale)
     return window_start, window_end
+
+
+class ParameterOptimizer:
+    """This class requires installatino of hyperopt package, version 0.2.7 or higher"""
+
+    def __init__(self, objective):
+        self.objective = objective
+
+    def space_creator(self, parameter_dict):
+        from hyperopt import hp
+
+        def hp_function_from_string(type_string):
+            type_dict = {
+                "choice": hp.choice,
+                "uniform": hp.uniform,
+                "lognormal": hp.lognormal,
+                "randint": hp.randint,
+            }
+            return type_dict[type_string]
+
+        def params_to_hyperopt(key, params):
+            return hp_function_from_string(params["type"])(key, *params["args"])
+
+        space = {key: params_to_hyperopt(key, value) for key, value in parameter_dict.items()}
+        self.set_space(space)
+
+    def set_space(self, space):
+        self.space = space
+
+    def optimize(self, max_evals=100, loss_threshold=None, **kwargs) -> dict:
+        from hyperopt import fmin, tpe
+
+        best = fmin(
+            self.objective,
+            self.space,
+            algo=tpe.suggest,
+            max_evals=max_evals,
+            loss_threshold=loss_threshold,
+            **kwargs,
+        )
+        return best
 
 
 def determine_size_of_non_zero_bounding_box(

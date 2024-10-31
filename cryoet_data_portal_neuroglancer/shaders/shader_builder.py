@@ -63,25 +63,64 @@ class ShaderBuilder:
         name: str,
         contrast_limits: tuple[float, float],
         window_limits: tuple[float, float],
+        clamp: bool = True,
     ) -> str:
         controls = self._shader_controls.setdefault(name, {})
         controls["range"] = list(contrast_limits)
         controls["window"] = list(window_limits)
-        return f"#uicontrol invlerp {name}"
+        if clamp:
+            return f"#uicontrol invlerp {name}"
+        else:
+            return f"#uicontrol invlerp {name}(clamp=false)"
 
     def make_invertible_invlerp_component(
         self,
         name: str,
         contrast_limits: tuple[float, float],
         window_limits: tuple[float, float],
+        checked_by_default: bool = False,
+        can_hide_noise: bool = False,
+        noise_name: str | None = None,
     ) -> list[str]:
-        invlerp_component = self.make_invlerp_component(name, contrast_limits, window_limits)
+        """
+        Create an invertible invlerp component with a checkbox to invert the values.
+
+        Parameters
+        ----------
+        name : str
+            The name of the component.
+        contrast_limits : tuple[float, float]
+            The minimum and maximum values for the contrast values.
+        window_limits : tuple[float, float]
+            The minimum and maximum values for the window control.
+        checked_by_default : bool, optional
+            Whether the checkbox should be checked by default, by default False.
+        can_hide_noise : bool, optional
+            Whether the high noise can be hidden, by default False.
+        noise_name : str, optional
+            The name of the noise control, by default None.
+        """
+        invlerp_component = self.make_invlerp_component(
+            name,
+            contrast_limits,
+            window_limits,
+            clamp=not can_hide_noise,
+        )
         checkbox_part = f"#uicontrol bool invert_{name} checkbox"
         data_value_getter = [
             f"float get_{name}()" + " {",
-            f"{TAB}return invert_{name} ? 1.0 - {name}() : {name}();",
-            "}",
+            f"{TAB}float value = invert_{name} ? 1.0 - {name}() : {name}();",
         ]
+        self._shader_controls[f"invert_{name}"] = checked_by_default
+        if can_hide_noise:
+            if noise_name is None:
+                noise_name = name
+            checkbox_part += f"\n#uicontrol bool hide_values_outside_limits_{noise_name} checkbox"
+            self._shader_controls[f"hide_values_outside_limits_{noise_name}"] = False
+            data_value_getter += [
+                f"{TAB}value = (hide_values_outside_limits_{noise_name} && value > 1.0) ? 0.0 : clamp(value, 0.0, 1.0);",
+            ]
+        data_value_getter += [f"{TAB}return value;", "}"]
         return [invlerp_component, checkbox_part, *data_value_getter]
 
     def make_slider_component(

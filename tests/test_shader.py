@@ -12,14 +12,18 @@ def test_get_default_image_vr_shader():
     expected_shader = """
 #uicontrol invlerp contrast
 #uicontrol bool invert_contrast checkbox
-#uicontrol invlerp contrast3D
+#uicontrol invlerp contrast3D(clamp=false)
 #uicontrol bool invert_contrast3D checkbox
+#uicontrol bool hide_values_outside_limits_3D checkbox
 
 float get_contrast() {
-  return invert_contrast ? 1.0 - contrast() : contrast();
+  float value = invert_contrast ? 1.0 - contrast() : contrast();
+  return value;
 }
 float get_contrast3D() {
-  return invert_contrast3D ? 1.0 - contrast3D() : contrast3D();
+  float value = invert_contrast3D ? 1.0 - contrast3D() : contrast3D();
+  value = (hide_values_outside_limits_3D && value > 1.0) ? 0.0 : clamp(value, 0.0, 1.0);
+  return value;
 }
 
 void main() {
@@ -52,7 +56,12 @@ void main() {
 
     contrast_threedee_control = shader_controls[threedee_contrast_name]
     assert contrast_threedee_control["range"] == list(threedee_contrast_limits)
-    assert contrast_threedee_control["window"] == [-1.2, 1.2]
+    assert contrast_threedee_control["window"] == [-5.0, 5.0]  # Window bigger than range
+
+    checkbox_control = shader_controls[f"invert_{threedee_contrast_name}"]
+    assert checkbox_control is True
+    checkbox_control = shader_controls[f"invert_{contrast_name}"]
+    assert checkbox_control is False
 
 
 def test_get_default_image_shader():
@@ -64,7 +73,8 @@ def test_get_default_image_shader():
 #uicontrol bool invert_contrast checkbox
 
 float get_contrast() {
-  return invert_contrast ? 1.0 - contrast() : contrast();
+  float value = invert_contrast ? 1.0 - contrast() : contrast();
+  return value;
 }
 
 void main() {
