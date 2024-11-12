@@ -381,7 +381,7 @@ def encode_segmentation(
     if delete_existing and output_path.exists():
         contents = list(output_path.iterdir())
         content_names = {c.name for c in contents}
-        if content_names and content_names.difference({"data", "info", "mesh", "provenance"}):
+        if content_names and content_names.difference({"data", "info", "mesh", "provenance", "segment_properties"}):
             raise FileExistsError(
                 f"Output directory {output_path!s} exists and contains non-conversion related files. {content_names}",
             )
