@@ -95,6 +95,7 @@ def generate_segmentation_mask_layer(
     highlight_on_hover: bool = False,
     mesh_render_scale: float = 2.0,
     visible_segments: tuple[int, ...] = (1,),
+    enable_pick: bool = False,
 ) -> dict[str, Any]:
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     _validate_color(color)
@@ -109,6 +110,7 @@ def generate_segmentation_mask_layer(
         highlight_on_hover=highlight_on_hover,
         mesh_render_scale=mesh_render_scale,
         visible_segments=visible_segments,
+        enable_pick=enable_pick,
     ).to_json()
 
 

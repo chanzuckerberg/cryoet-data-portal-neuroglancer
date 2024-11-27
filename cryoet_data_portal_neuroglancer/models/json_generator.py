@@ -232,6 +232,7 @@ class SegmentationJSONGenerator(RenderingJSONGenerator):
     highlight_on_hover: bool = False
     mesh_render_scale: float = 1.0
     visible_segments: tuple[int, ...] = (1,)
+    enable_pick: bool = False
 
     def __post_init__(self):
         self._type = RenderingTypes.SEGMENTATION
@@ -254,6 +255,7 @@ class SegmentationJSONGenerator(RenderingJSONGenerator):
             "segments": sorted((self.visible_segments)),
             "visible": self.is_visible,
             "meshRenderScale": self.mesh_render_scale,
+            "pick": self.enable_pick,
         }
         # self.color === None means that the color will be random
         # This is useful for multiple segmentations
