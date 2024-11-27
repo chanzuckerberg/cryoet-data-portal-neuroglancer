@@ -182,6 +182,7 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
     point_size_multiplier: float = 1.0
     is_instance_segmentation: bool = False
     is_visible: bool = True
+    enable_color_sync: bool = True
 
     def __post_init__(self):
         self._type = RenderingTypes.ANNOTATION
@@ -201,6 +202,7 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
             "source": create_source(f"precomputed://{self.source}", self.scale, self.scale),
             "tab": "rendering",
             "visible": self.is_visible,
+            "layerBarColorSync": self.enable_color_sync,
             **self._get_shader(),
         }
 
@@ -233,6 +235,7 @@ class SegmentationJSONGenerator(RenderingJSONGenerator):
     mesh_render_scale: float = 1.0
     visible_segments: tuple[int, ...] = (1,)
     enable_pick: bool = False
+    enable_color_sync: bool = True
 
     def __post_init__(self):
         self._type = RenderingTypes.SEGMENTATION
@@ -256,6 +259,7 @@ class SegmentationJSONGenerator(RenderingJSONGenerator):
             "visible": self.is_visible,
             "meshRenderScale": self.mesh_render_scale,
             "pick": self.enable_pick,
+            "layerBarColorSync": self.enable_color_sync,
         }
         # self.color === None means that the color will be random
         # This is useful for multiple segmentations

@@ -7,6 +7,7 @@ def test__generate_image_layer_default_values():
     assert "blend" in state
     assert state["blend"] == "additive"
     assert state["opacity"] == 1.0
+    assert "layerBarColorSync" not in state
 
 
 def test__generate_segmentation_layer_default_values():
@@ -14,3 +15,4 @@ def test__generate_segmentation_layer_default_values():
 
     assert "pick" in state
     assert state["pick"] is False
+    assert state["layerBarColorSync"] is True
