@@ -116,13 +116,16 @@ class ImageJSONGenerator(RenderingJSONGenerator):
     volume_rendering_is_visible: bool = False
     volume_rendering_gain: float = 0.0
     can_hide_high_values_in_neuroglancer: bool = False
+    blend: str = "additive"
+    opacity: float = 1.0
 
     def __post_init__(self):
         self._type = RenderingTypes.IMAGE
 
     def _compute_contrast_limits(self) -> tuple[float, float]:
         if self.mean is None or self.rms is None:
-            return self.contrast_limits
+            # return self.contrast_limits
+            return (0.0, 1.0)
         width = 3 * self.rms
         return (self.mean - width, self.mean + width)
 
@@ -140,7 +143,7 @@ class ImageJSONGenerator(RenderingJSONGenerator):
         else:
             shader_builder = ImageShaderBuilder(
                 contrast_limits=self.contrast_limits,
-                can_hide_high_values_in_neuroglancer=self.can_hide_high_values_in_neuroglancer,
+                # can_hide_high_values_in_neuroglancer=self.can_hide_high_values_in_neuroglancer,
             )
         return shader_builder.build()
 
@@ -159,7 +162,8 @@ class ImageJSONGenerator(RenderingJSONGenerator):
             "type": self.layer_type,
             "name": self.name,
             "source": create_source(f"zarr://{self.source}", self.scale, self.scale),
-            "opacity": 0.51,
+            "opacity": self.opacity,
+            "blend": self.blend,
             "tab": "rendering",
             "visible": self.is_visible,
             "volumeRendering": "on" if self.volume_rendering_is_visible else "off",
@@ -268,6 +272,8 @@ class ImageVolumeJSONGenerator(RenderingJSONGenerator):
 
     color: str
     rendering_depth: int
+    blend: str = "additive"
+    opacity: float = 1.0
 
     def __post_init__(self):
         self._type = RenderingTypes.IMAGE
@@ -291,7 +297,8 @@ class ImageVolumeJSONGenerator(RenderingJSONGenerator):
             "name": f"{self.name}",
             "source": create_source(f"zarr://{self.source}", self.scale, self.scale),
             "tab": "rendering",
-            "blend": "additive",
+            "blend": self.blend,
+            "opacity": self.opacity,
             "volumeRendering": "on",
             "volumeRenderingDepthSamples": self.rendering_depth,
             "visible": self.is_visible,
