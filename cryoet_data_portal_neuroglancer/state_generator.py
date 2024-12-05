@@ -185,6 +185,8 @@ def generate_image_layer(
     volume_rendering_is_visible: bool = False,
     volume_rendering_gain: float = -7.8,
     can_hide_high_values_in_neuroglancer: bool | None = None,
+    blend: str = "additive",
+    opacity: float = 1.0,
 ) -> dict[str, Any]:
     """Generates JSON for an image layer with optional contrast limits.
 
@@ -211,6 +213,8 @@ def generate_image_layer(
         volume_rendering_is_visible=volume_rendering_is_visible,
         volume_rendering_gain=volume_rendering_gain,
         can_hide_high_values_in_neuroglancer=can_hide_high_values_in_neuroglancer,
+        blend=blend,
+        opacity=opacity,
     ).to_json()
 
 
@@ -222,6 +226,8 @@ def generate_image_volume_layer(
     scale: tuple[float, float, float] | list[float] | float = (1.0, 1.0, 1.0),
     is_visible: bool = True,
     rendering_depth: int = 1024,
+    blend: str = "additive",
+    opacity: float = 1.0,
 ) -> dict[str, Any]:
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     _validate_color(color)
@@ -232,6 +238,8 @@ def generate_image_volume_layer(
         scale=scale,
         is_visible=is_visible,
         rendering_depth=rendering_depth,
+        blend=blend,
+        opacity=opacity,
     ).to_json()
 
 
