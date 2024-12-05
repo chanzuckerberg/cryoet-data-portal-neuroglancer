@@ -118,6 +118,7 @@ class ImageJSONGenerator(RenderingJSONGenerator):
     can_hide_high_values_in_neuroglancer: bool = False
     blend: str = "additive"
     opacity: float = 1.0
+    is_code_editor_visible: bool = False
 
     def __post_init__(self):
         self._type = RenderingTypes.IMAGE
@@ -168,6 +169,7 @@ class ImageJSONGenerator(RenderingJSONGenerator):
             "visible": self.is_visible,
             "volumeRendering": "on" if self.volume_rendering_is_visible else "off",
             "volumeRenderingGain": self.volume_rendering_gain,
+            "codeVisible": self.is_code_editor_visible,
         }
         if self.has_volume_rendering_shader:
             config["volumeRenderingDepthSamples"] = self.volume_rendering_depth_samples
@@ -182,6 +184,7 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
     point_size_multiplier: float = 1.0
     is_instance_segmentation: bool = False
     is_visible: bool = True
+    is_code_editor_visible: bool = False
 
     def __post_init__(self):
         self._type = RenderingTypes.ANNOTATION
@@ -201,6 +204,7 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
             "source": create_source(f"precomputed://{self.source}", self.scale, self.scale),
             "tab": "rendering",
             "visible": self.is_visible,
+            "codeVisible": self.is_code_editor_visible,
             **self._get_shader(),
         }
 
