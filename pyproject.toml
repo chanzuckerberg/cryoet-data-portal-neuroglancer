@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cryoet-data-portal-neuroglancer"
-version = "1.0.0"
+version = "1.1.0"
 description = "Utility package for working with Neuroglancer data in the CZI Cryo-ET Data Portal"
 authors = [
     "CZI Imaging Team <cryoetdataportal@chanzuckerberg.com>",
