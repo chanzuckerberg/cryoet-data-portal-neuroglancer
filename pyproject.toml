@@ -1,11 +1,11 @@
-[tool.poetry]
+[project]
 name = "cryoet-data-portal-neuroglancer"
-version = "0.1.0"
+version = "1.0.1"
 description = "Utility package for working with Neuroglancer data in the CZI Cryo-ET Data Portal"
 authors = [
-    "CZI Imaging Team <cryoetdataportal@chanzuckerberg.com>",
-    "Sean Martin",
-    "Vincent Aranega",
+    {name="CZI Imaging Team",  email="cryoetdataportal@chanzuckerberg.com"},
+    {name="Sean Martin"},
+    {name="Vincent Aranega"},
 ]
 license = "MIT"
 readme = "README.md"
@@ -23,7 +23,6 @@ classifiers = [
 packages = [
     { include = "cryoet_data_portal_neuroglancer", from = "." },
 ]
-
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
