@@ -1,33 +1,37 @@
 [tool.poetry]
 name = "cryoet-data-portal-neuroglancer"
 version = "1.1.0"
+packages = [{ include = "cryoet_data_portal_neuroglancer", from = "." }]
+repository = "https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer"
+authors = ["CZI Imaging Team <cryoetdataportal@chanzuckerberg.com>"]
 description = "Utility package for working with Neuroglancer data in the CZI Cryo-ET Data Portal"
+
+[project]
+name = "cryoet-data-portal-neuroglancer"
+description = "Utility package for working with Neuroglancer data in the CZI Cryo-ET Data Portal"
+version = "1.1.0"
 authors = [
-    "CZI Imaging Team <cryoetdataportal@chanzuckerberg.com>",
-    "Sean Martin",
-    "Vincent Aranega",
+  { name = "CZI Imaging Team", email = "cryoetdataportal@chanzuckerberg.com" },
+  { name = "Sean Martin" },
+  { name = "Vincent Aranega" },
 ]
 license = "MIT"
 readme = "README.md"
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Information Technology",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python",
-    "Operating System :: POSIX :: Linux",
-    "Operating System :: MacOS :: MacOS X",
-    "Programming Language :: Python :: 3.11",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Information Technology",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: MacOS :: MacOS X",
+  "Programming Language :: Python :: 3.11",
 ]
-packages = [
-    { include = "cryoet_data_portal_neuroglancer", from = "." },
-]
-repository = "https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer"
 
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core>=1.9.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.dependencies]
@@ -64,28 +68,29 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = [
-    "E", "W",  # pycodestyle
-    "F",  # pyflakes
-    "B",  # bugbear
-    "I",  # isort
-    "N",  # pep8-naming
-    "ASYNC",  # async
-    "COM",  # commas
-    "C4",  # comprehensions
-    "DTZ",  # datetimez
-    "ISC",  # implicit-str-concat
-    "G",  # logging-format
-    "T20",  # print
-    "SIM",  # simplify
+  "E",
+  "W",     # pycodestyle
+  "F",     # pyflakes
+  "B",     # bugbear
+  "I",     # isort
+  "N",     # pep8-naming
+  "ASYNC", # async
+  "COM",   # commas
+  "C4",    # comprehensions
+  "DTZ",   # datetimez
+  "ISC",   # implicit-str-concat
+  "G",     # logging-format
+  "T20",   # print
+  "SIM",   # simplify
 ]
 ignore = [
-    "E501",  # line too long
-    "C408",  # rewrite empty built-ins as literals
-    "T201",  # print statements.
+  "E501", # line too long
+  "C408", # rewrite empty built-ins as literals
+  "T201", # print statements.
 ]
 
 [tool.ruff.lint.isort]
-known-first-party =["common"]
+known-first-party = ["common"]
 
 [tool.ruff.lint.flake8-quotes]
 docstring-quotes = "double"
