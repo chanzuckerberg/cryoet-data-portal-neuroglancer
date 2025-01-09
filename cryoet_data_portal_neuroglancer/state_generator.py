@@ -279,6 +279,18 @@ def combine_json_layers(
             "row": 1,
             "visible": True,
         },
+        "helpPanel": {
+            "side": "right",
+            "row": 0,
+        },
+        "settingsPanel": {
+            "side": "right",
+            "row": 1,
+        },
+        "selection": {
+            "row": 2,
+            "visible": False,
+        },
     }
     if len(image_layers) > 0 and "_position" in image_layers[0]:
         combined_json["position"] = image_layers[0]["_position"]
