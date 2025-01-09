@@ -269,11 +269,28 @@ def combine_json_layers(
         "selectedLayer": {
             "visible": True,
             "layer": layers[0]["name"],
+            "side": "left",
         },
         "crossSectionBackgroundColor": "#000000",
         "layout": "4panel",
         "showSlices": set_slices_visible_in_3d,
         "showAxisLines": show_axis_lines,
+        "layerListPanel": {
+            "row": 1,
+            "visible": True,
+        },
+        "helpPanel": {
+            "side": "right",
+            "row": 0,
+        },
+        "settingsPanel": {
+            "side": "right",
+            "row": 1,
+        },
+        "selection": {
+            "row": 2,
+            "visible": False,
+        },
     }
     if len(image_layers) > 0 and "_position" in image_layers[0]:
         combined_json["position"] = image_layers[0]["_position"]
