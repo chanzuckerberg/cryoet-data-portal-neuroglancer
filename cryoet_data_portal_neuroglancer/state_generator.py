@@ -44,7 +44,6 @@ def generate_point_layer(
     scale: float | tuple[float, float, float] = (1.0, 1.0, 1.0),
     is_visible: bool = True,
     is_instance_segmentation: bool = False,
-    enable_color_sync: bool = True,
 ) -> dict[str, Any]:
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     _validate_color(color)
@@ -56,7 +55,6 @@ def generate_point_layer(
         scale=scale,
         is_visible=is_visible,
         is_instance_segmentation=is_instance_segmentation,
-        enable_color_sync=enable_color_sync,
     ).to_json()
 
 
@@ -70,7 +68,6 @@ def generate_oriented_point_layer(
     scale: float | tuple[float, float, float] = (1.0, 1.0, 1.0),
     is_visible: bool = True,
     is_instance_segmentation: bool = False,
-    enable_color_sync: bool = True,
 ) -> dict[str, Any]:
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     _validate_color(color)
@@ -83,7 +80,6 @@ def generate_oriented_point_layer(
         scale=scale,
         is_visible=is_visible,
         is_instance_segmentation=is_instance_segmentation,
-        enable_color_sync=enable_color_sync,
     ).to_json()
 
 
@@ -100,7 +96,6 @@ def generate_segmentation_mask_layer(
     mesh_render_scale: float = 2.0,
     visible_segments: tuple[int, ...] = (1,),
     enable_pick: bool = False,
-    enable_color_sync: bool = True,
 ) -> dict[str, Any]:
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     _validate_color(color)
@@ -116,7 +111,6 @@ def generate_segmentation_mask_layer(
         mesh_render_scale=mesh_render_scale,
         visible_segments=visible_segments,
         enable_pick=enable_pick,
-        enable_color_sync=enable_color_sync,
     ).to_json()
 
 
@@ -258,6 +252,7 @@ def combine_json_layers(
     projection_quaternion: list[float] | None = None,
     set_slices_visible_in_3d: bool | None = None,
     show_axis_lines: bool = True,
+    enable_layer_color_legend: bool = True,
 ) -> dict[str, Any]:
     """Note, if set_slices_visible_in_3d is not provided, it will be set to False if there are any image layers in the list with volume rendering."""
     image_layers = [layer for layer in layers if layer["type"] == "image"]
@@ -280,6 +275,7 @@ def combine_json_layers(
         "layout": "4panel",
         "showSlices": set_slices_visible_in_3d,
         "showAxisLines": show_axis_lines,
+        "enableLayerColorWidget": enable_layer_color_legend,
     }
     if len(image_layers) > 0 and "_position" in image_layers[0]:
         combined_json["position"] = image_layers[0]["_position"]
