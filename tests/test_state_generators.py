@@ -1,4 +1,8 @@
-from cryoet_data_portal_neuroglancer.state_generator import generate_image_layer, generate_segmentation_mask_layer
+from cryoet_data_portal_neuroglancer.state_generator import (
+    combine_json_layers,
+    generate_image_layer,
+    generate_segmentation_mask_layer,
+)
 
 
 def test__generate_image_layer_default_values():
@@ -14,3 +18,10 @@ def test__generate_segmentation_layer_default_values():
 
     assert "pick" in state
     assert state["pick"] is False
+
+
+def test__generate_color_legend():
+    state = combine_json_layers(layers=[{"type": "image", "volumeRendering": "OK", "name": "myname"}], scale=1.0)
+
+    assert "enableLayerColorWidget" in state
+    assert state["enableLayerColorWidget"] is True
