@@ -293,6 +293,17 @@ def combine_json_layers(
             "row": 2,
             "visible": False,
         },
+        "toolPalettes": {
+            "Dimensions": {
+                "side": "bottom",
+                "row": 1,
+                "tools": [
+                    {"type": "dimension", "dimension": "x"},
+                    {"type": "dimension", "dimension": "y"},
+                    {"type": "dimension", "dimension": "z"},
+                ],
+            },
+        },
     }
     if len(image_layers) > 0 and "_position" in image_layers[0]:
         combined_json["position"] = image_layers[0]["_position"]
