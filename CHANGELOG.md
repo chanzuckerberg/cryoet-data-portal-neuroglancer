@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.1.0...v1.2.0) (2025-01-15)
+
+
+### ✨ Features
+
+* Add default value to false for code editor display ([#29](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/29)) ([b058255](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/b058255e495365012e7de3733feff8f83d971f6a))
+* layout hidden panels properly. This is necessary because otherwise they pop up in odd places ([cd0d183](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/cd0d183d8eac070fb4c008d6819ff5aabf273654))
+* top left layer controls, bottom left layer list panel ([cf96b09](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/cf96b09afe3cda4fb79c9443ba123edfd0abd282))
+* update default layout of the main neuroglancer landing page ([#32](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/32)) ([8605849](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/86058495bf050fa7e6d83ad24008942e1705fa7b))
+
+
+### 🧹 Miscellaneous Chores
+
+* Updating poetry to 2.0.0 ([#31](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/31)) ([7dcc2b0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/7dcc2b0971e79b4764a808b061d5b8d09cd59849))
+
 ## [1.1.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.0.0...v1.1.0) (2024-12-06)
 
 
