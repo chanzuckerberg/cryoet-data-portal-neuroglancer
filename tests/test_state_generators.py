@@ -26,7 +26,7 @@ def test__generate_configuration_default_values():
     assert "toolPalettes" in state
     assert len(state["toolPalettes"]) == 1
 
-    palette = state["toolPalettes"]["Palette"]
+    palette = state["toolPalettes"]["Dimensions"]
     assert palette.get("side") == "bottom"
     assert palette.get("row") == 1
     assert palette.get("query") == "type:dimension"

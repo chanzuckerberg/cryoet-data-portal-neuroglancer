@@ -292,7 +292,7 @@ def combine_json_layers(
             "visible": False,
         },
         "toolPalettes": {
-            "Palette": {
+            "Dimensions": {
                 "side": "bottom",
                 "row": 1,
                 "size": 120,
