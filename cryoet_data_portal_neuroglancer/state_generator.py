@@ -252,7 +252,6 @@ def combine_json_layers(
     projection_quaternion: list[float] | None = None,
     set_slices_visible_in_3d: bool | None = None,
     show_axis_lines: bool = True,
-    enable_layer_color_legend: bool = True,
 ) -> dict[str, Any]:
     """Note, if set_slices_visible_in_3d is not provided, it will be set to False if there are any image layers in the list with volume rendering."""
     image_layers = [layer for layer in layers if layer["type"] == "image"]
@@ -276,7 +275,6 @@ def combine_json_layers(
         "layout": "4panel",
         "showSlices": set_slices_visible_in_3d,
         "showAxisLines": show_axis_lines,
-        "enableLayerColorWidget": enable_layer_color_legend,
         "layerListPanel": {
             "row": 1,
             "visible": True,
@@ -294,14 +292,12 @@ def combine_json_layers(
             "visible": False,
         },
         "toolPalettes": {
-            "Dimensions": {
+            "Palette": {
                 "side": "bottom",
                 "row": 1,
-                "tools": [
-                    {"type": "dimension", "dimension": "x"},
-                    {"type": "dimension", "dimension": "y"},
-                    {"type": "dimension", "dimension": "z"},
-                ],
+                "size": 120,
+                "query": "type:dimension",
+                "verticalStacking": False,
             },
         },
     }
