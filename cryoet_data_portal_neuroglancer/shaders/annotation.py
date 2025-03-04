@@ -28,7 +28,6 @@ class PointShaderBuilder(ShaderBuilder):
 class NonOrientedPointShaderBuilder(PointShaderBuilder):
     def __init__(self, point_size_multiplier: float = 1.0, is_instance_segmentation: bool = False):
         super().__init__(point_size_multiplier=point_size_multiplier, is_instance_segmentation=is_instance_segmentation)
-        print(self._get_color_setter())
         self._make_default_shader()
 
     def _make_default_shader(self):
