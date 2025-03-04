@@ -45,7 +45,7 @@ def np_is_close(array1, array2):
     return np.isclose(np.array(array1), np.array(array2)).all()
 
 
-def test__combine_json_layers():
+def test__combine_json_layers_default_values():
     image_json = generate_image_layer(
         source="mysource",
         scale=[1.5, 0.5, 2.5],
