@@ -68,6 +68,7 @@ def generate_oriented_point_layer(
     scale: float | tuple[float, float, float] = (1.0, 1.0, 1.0),
     is_visible: bool = True,
     is_instance_segmentation: bool = False,
+    is_code_editor_visible: bool = False,
 ) -> dict[str, Any]:
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     _validate_color(color)
@@ -80,6 +81,7 @@ def generate_oriented_point_layer(
         scale=scale,
         is_visible=is_visible,
         is_instance_segmentation=is_instance_segmentation,
+        is_code_editor_visible=is_code_editor_visible,
     ).to_json()
 
 
@@ -189,6 +191,7 @@ def generate_image_layer(
     can_hide_high_values_in_neuroglancer: bool | None = None,
     blend: str = "additive",
     opacity: float = 1.0,
+    is_code_editor_visible: bool = False,
 ) -> dict[str, Any]:
     """Generates JSON for an image layer with optional contrast limits.
 
@@ -217,6 +220,7 @@ def generate_image_layer(
         can_hide_high_values_in_neuroglancer=can_hide_high_values_in_neuroglancer,
         blend=blend,
         opacity=opacity,
+        is_code_editor_visible=is_code_editor_visible,
     ).to_json()
 
 
@@ -273,6 +277,7 @@ def combine_json_layers(
             "side": "left",
         },
         "crossSectionBackgroundColor": "#000000",
+        "hideCrossSectionBackgroundIn3D": True,
         "layout": "4panel",
         "showSlices": set_slices_visible_in_3d,
         "showAxisLines": show_axis_lines,

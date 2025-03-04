@@ -1,6 +1,8 @@
 from cryoet_data_portal_neuroglancer.state_generator import (
     combine_json_layers,
     generate_image_layer,
+    generate_oriented_point_layer,
+    generate_point_layer,
     generate_segmentation_mask_layer,
 )
 
@@ -11,6 +13,8 @@ def test__generate_image_layer_default_values():
     assert "blend" in state
     assert state["blend"] == "additive"
     assert state["opacity"] == 1.0
+    assert "codeVisible" in state
+    assert state["codeVisible"] is False
 
 
 def test__generate_segmentation_layer_default_values():
@@ -25,3 +29,17 @@ def test__generate_color_legend():
 
     assert "enableLayerColorWidget" in state
     assert state["enableLayerColorWidget"] is True
+
+
+def test__generate_oriented_point_layer_default_values():
+    state = generate_oriented_point_layer(source="mysource")
+
+    assert "codeVisible" in state
+    assert state["codeVisible"] is False
+
+
+def test__generate_point_layer_default_values():
+    state = generate_point_layer(source="mysource")
+
+    assert "codeVisible" in state
+    assert state["codeVisible"] is False
