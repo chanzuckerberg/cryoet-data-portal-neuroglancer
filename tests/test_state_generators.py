@@ -58,7 +58,6 @@ def test__combine_json_layers_default_values():
     expected_projection_orientation = [0.3826834, 0, 0, 0.9238796]
     expected_position = [250.0, 125.0, 88.0]
 
-    # Assertions
     assert combined_json["layers"][0] == image_json
     assert combined_json["dimensions"] == expected_dimensions
     assert np_is_close(
