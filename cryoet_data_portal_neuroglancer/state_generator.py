@@ -256,6 +256,7 @@ def combine_json_layers(
     projection_quaternion: list[float] | None = None,
     set_slices_visible_in_3d: bool | None = None,
     show_axis_lines: bool = True,
+    use_old_neuroglancer_layout: bool = True,
 ) -> dict[str, Any]:
     """Note, if set_slices_visible_in_3d is not provided, it will be set to False if there are any image layers in the list with volume rendering."""
     image_layers = [layer for layer in layers if layer["type"] == "image"]
@@ -265,6 +266,8 @@ def combine_json_layers(
     scale = get_scale(scale)
     if projection_quaternion is None:
         projection_quaternion = Rotation.from_euler(seq="xyz", angles=(45, 0, 0), degrees=True).as_quat()
+
+    layout = "4panel" if use_old_neuroglancer_layout else "4panel-alt"
     combined_json = {
         "dimensions": {dim: [res, units] for dim, res in zip("xyz", scale, strict=False)},
         "crossSectionScale": 1.8,
@@ -277,7 +280,7 @@ def combine_json_layers(
         },
         "crossSectionBackgroundColor": "#000000",
         "hideCrossSectionBackgroundIn3D": True,
-        "layout": "4panel",
+        "layout": layout,
         "showSlices": set_slices_visible_in_3d,
         "showAxisLines": show_axis_lines,
         "layerListPanel": {
