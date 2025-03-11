@@ -1,5 +1,41 @@
 # Changelog
 
+## [1.2.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.1.0...v1.2.0) (2025-03-11)
+
+
+### ✨ Features
+
+* Add default value to false for code editor display ([#29](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/29)) ([b058255](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/b058255e495365012e7de3733feff8f83d971f6a))
+* allow new panel type as optional param ([#39](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/39)) ([be2e1c7](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/be2e1c7e9a542314a22a85b0ef4aa27b06bf62ef))
+* bool flag to switch between 4panel (old - preferred) and 4panel-alt (new) ([1ee9b80](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/1ee9b80ba07a09e8731250c821aae439ff7369e7))
+* hide 3D cross section background setting ([0673c57](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/0673c57bed9229f3abcf2a2730463b861a7abb30))
+* hide 3D cross section background setting ([#36](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/36)) ([71c8aff](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/71c8aff8725210583304c51dee90a9f360a21142))
+* layout hidden panels properly. This is necessary because otherwise they pop up in odd places ([cd0d183](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/cd0d183d8eac070fb4c008d6819ff5aabf273654))
+* top left layer controls, bottom left layer list panel ([cf96b09](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/cf96b09afe3cda4fb79c9443ba123edfd0abd282))
+* update default layout of the main neuroglancer landing page ([#32](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/32)) ([8605849](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/86058495bf050fa7e6d83ad24008942e1705fa7b))
+
+
+### 🐞 Bug Fixes
+
+* Update runs-on labels in GitHub Actions workflows ([#37](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/37)) ([7c91df1](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/7c91df13c39bb9816c6000b46826c9891aa26500))
+* Update runs-on to use ARM64 or X64 ([3df2d70](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/3df2d70c7b432e594de7c90e2bb80a1635917e00))
+
+
+### 🧹 Miscellaneous Chores
+
+* Updating poetry to 2.0.0 ([#31](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/31)) ([7dcc2b0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/7dcc2b0971e79b4764a808b061d5b8d09cd59849))
+
+
+### ♻️ Code Refactoring
+
+* clarify test name ([0638c1f](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/0638c1fb1ab1c097a771aea0f1392a0b2d47c370))
+* remove accidental comment ([a699867](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/a699867acfb42136b89011aa1a486f9a53516cc8))
+
+
+### 🧪 Tests
+
+* add test for variable parts of the top level state generator ([463a289](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/463a2896af9d2d1161d06cb5799f8cfdd9b72a75))
+
 ## [1.1.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.0.0...v1.1.0) (2024-12-06)
 
 
