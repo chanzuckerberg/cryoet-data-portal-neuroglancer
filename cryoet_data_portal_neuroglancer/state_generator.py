@@ -183,7 +183,7 @@ def generate_image_layer(
     mean: float | None = None,
     rms: float | None = None,
     is_visible: bool = True,
-    has_volume_rendering_shader: bool = False,
+    has_volume_rendering_shader: bool | None = False,
     twodee_contrast_limits: tuple[float, float] | None = None,
     threedee_contrast_limits: tuple[float, float] | None = None,
     volume_rendering_is_visible: bool = False,
@@ -198,8 +198,7 @@ def generate_image_layer(
     Note, if twodee_contrast_limits are not provided, the contrast limits will be calculated using the mean and rms values. If threedee_contrast_limits are not provided, the contrast limits will be the same as the twodee_contrast_limits.
     """
     # If volume rendering is visible, set the flag to True for the relevant shader
-    if not has_volume_rendering_shader and volume_rendering_is_visible:
-        has_volume_rendering_shader = True
+    has_volume_rendering_shader = volume_rendering_is_visible or threedee_contrast_limits is not None
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     if can_hide_high_values_in_neuroglancer is None:
         can_hide_high_values_in_neuroglancer = has_volume_rendering_shader
