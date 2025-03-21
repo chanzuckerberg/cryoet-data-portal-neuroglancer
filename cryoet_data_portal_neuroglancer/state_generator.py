@@ -280,7 +280,7 @@ def combine_json_layers(
             "side": "left",
         },
         "crossSectionBackgroundColor": "#000000",
-        "hideCrossSectionBackgroundIn3D": True,
+        "hideCrossSectionBackground3D": True,
         "layout": layout,
         "showSlices": set_slices_visible_in_3d,
         "showAxisLines": show_axis_lines,
