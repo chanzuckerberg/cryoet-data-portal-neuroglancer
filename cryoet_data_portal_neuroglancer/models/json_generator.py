@@ -193,7 +193,6 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
         shader_builder = NonOrientedPointShaderBuilder(
             point_size_multiplier=self.point_size_multiplier,
             is_instance_segmentation=self.is_instance_segmentation,
-            color=self.color,
         )
         return shader_builder.build()
 
@@ -203,6 +202,7 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
             "name": f"{self.name}",
             "source": create_source(f"precomputed://{self.source}", self.scale, self.scale),
             "tab": "rendering",
+            "annotationColor": self.color,
             "visible": self.is_visible,
             "codeVisible": self.is_code_editor_visible,
             **self._get_shader(),
@@ -219,7 +219,6 @@ class OrientedPointAnnotationJSONGenerator(AnnotationJSONGenerator):
         shader_builder = OrientedPointShaderBuilder(
             point_size_multiplier=self.point_size_multiplier,
             is_instance_segmentation=self.is_instance_segmentation,
-            color=self.color,
             line_width=self.line_width,
         )
         return shader_builder.build()

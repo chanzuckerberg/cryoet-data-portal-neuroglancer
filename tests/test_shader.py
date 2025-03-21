@@ -1,3 +1,4 @@
+from cryoet_data_portal_neuroglancer.shaders.annotation import NonOrientedPointShaderBuilder, OrientedPointShaderBuilder
 from cryoet_data_portal_neuroglancer.shaders.image import ImageShaderBuilder, ImageWithVolumeRenderingShaderBuilder
 from cryoet_data_portal_neuroglancer.shaders.shader_builder import ShaderBuilder
 
@@ -111,3 +112,72 @@ void main() {
     )
     assert shader_components["shader"] == expected_shader.strip()
     assert shader_components["shaderControls"] == {}
+
+
+def test_oriented_point_shader_builder():
+    point_size_multiplier = 2.0
+    shader_builder = OrientedPointShaderBuilder(point_size_multiplier=point_size_multiplier)
+    shader = shader_builder.build()
+    expected_shader = """
+#uicontrol float pointScale slider(min=0.01, max=2.0, step=0.01)
+#uicontrol float lineWidth slider(min=0.01, max=4.0, step=0.01)
+#uicontrol float opacity slider(min=0.0, max=1.0, step=0.01)
+
+void main() {
+  if (opacity == 0.0) discard;
+  setLineWidth(lineWidth);
+  setLineColor(vec4(prop_line_color(), opacity));
+  setEndpointMarkerSize(pointScale * prop_diameter(), pointScale * 0.5 * prop_diameter());
+  setEndpointMarkerColor(vec4(defaultColor(), opacity));
+  setEndpointMarkerBorderWidth(0.1);
+  setEndpointMarkerBorderColor(vec4(0.0, 0.0, 0.0, opacity));
+}
+"""
+    assert shader["shader"] == expected_shader.strip()
+    shader_controls = shader["shaderControls"]
+    assert shader_controls["pointScale"] == 2.0
+    assert shader_controls["lineWidth"] == 1.0
+    assert shader_controls["opacity"] == 1.0
+
+
+def test_non_oriented_point_shader_builder():
+    shader_builder = NonOrientedPointShaderBuilder()
+    shader = shader_builder.build()
+    expected_shader = """
+#uicontrol float pointScale slider(min=0.01, max=2.0, step=0.01)
+#uicontrol float opacity slider(min=0.0, max=1.0, step=0.01)
+
+void main() {
+  if (opacity == 0.0) discard;
+  setColor(vec4(defaultColor(), opacity));
+  setPointMarkerSize(pointScale * prop_diameter());
+  setPointMarkerBorderWidth(0.1);
+  setPointMarkerBorderColor(vec4(0.0, 0.0, 0.0, opacity));
+}
+"""
+    assert shader["shader"] == expected_shader.strip()
+    shader_controls = shader["shaderControls"]
+    assert shader_controls["pointScale"] == 1.0
+    assert shader_controls["opacity"] == 1.0
+
+
+def test_non_oriented_point_shader_builder_instance_segmentation():
+    shader_builder = NonOrientedPointShaderBuilder(is_instance_segmentation=True)
+    shader = shader_builder.build()
+
+    expected_shader = """
+#uicontrol float pointScale slider(min=0.01, max=2.0, step=0.01)
+#uicontrol float opacity slider(min=0.0, max=1.0, step=0.01)
+
+void main() {
+  if (opacity == 0.0) discard;
+  setColor(vec4(prop_color(), opacity));
+  setPointMarkerSize(pointScale * prop_diameter());
+  setPointMarkerBorderWidth(0.1);
+  setPointMarkerBorderColor(vec4(0.0, 0.0, 0.0, opacity));
+}
+"""
+    assert shader["shader"] == expected_shader.strip()
+    shader_controls = shader["shaderControls"]
+    assert shader_controls["pointScale"] == 1.0
+    assert shader_controls["opacity"] == 1.0

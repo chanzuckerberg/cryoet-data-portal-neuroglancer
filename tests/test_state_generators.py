@@ -26,6 +26,13 @@ def test__generate_segmentation_layer_default_values():
     assert state["pick"] is False
 
 
+def test__generate_color_legend():
+    state = combine_json_layers(layers=[{"type": "image", "volumeRendering": "OK", "name": "myname"}], scale=1.0)
+
+    assert "enableLayerColorWidget" in state
+    assert state["enableLayerColorWidget"] is True
+
+
 def test__generate_oriented_point_layer_default_values():
     state = generate_oriented_point_layer(source="mysource")
 
