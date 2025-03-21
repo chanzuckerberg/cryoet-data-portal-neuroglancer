@@ -183,7 +183,7 @@ def generate_image_layer(
     mean: float | None = None,
     rms: float | None = None,
     is_visible: bool = True,
-    has_volume_rendering_shader: bool = False,
+    has_volume_rendering_shader: bool | None = None,
     twodee_contrast_limits: tuple[float, float] | None = None,
     threedee_contrast_limits: tuple[float, float] | None = None,
     volume_rendering_is_visible: bool = False,
@@ -198,8 +198,8 @@ def generate_image_layer(
     Note, if twodee_contrast_limits are not provided, the contrast limits will be calculated using the mean and rms values. If threedee_contrast_limits are not provided, the contrast limits will be the same as the twodee_contrast_limits.
     """
     # If volume rendering is visible, set the flag to True for the relevant shader
-    if not has_volume_rendering_shader and volume_rendering_is_visible:
-        has_volume_rendering_shader = True
+    if has_volume_rendering_shader is None:
+        has_volume_rendering_shader = volume_rendering_is_visible or threedee_contrast_limits is not None
     source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
     if can_hide_high_values_in_neuroglancer is None:
         can_hide_high_values_in_neuroglancer = has_volume_rendering_shader
@@ -257,6 +257,7 @@ def combine_json_layers(
     set_slices_visible_in_3d: bool | None = None,
     show_axis_lines: bool = True,
     enable_layer_color_legend: bool = True,
+    use_old_neuroglancer_layout: bool = True,
 ) -> dict[str, Any]:
     """Note, if set_slices_visible_in_3d is not provided, it will be set to False if there are any image layers in the list with volume rendering."""
     image_layers = [layer for layer in layers if layer["type"] == "image"]
@@ -266,6 +267,8 @@ def combine_json_layers(
     scale = get_scale(scale)
     if projection_quaternion is None:
         projection_quaternion = Rotation.from_euler(seq="xyz", angles=(45, 0, 0), degrees=True).as_quat()
+
+    layout = "4panel" if use_old_neuroglancer_layout else "4panel-alt"
     combined_json = {
         "dimensions": {dim: [res, units] for dim, res in zip("xyz", scale, strict=False)},
         "crossSectionScale": 1.8,
@@ -278,7 +281,7 @@ def combine_json_layers(
         },
         "crossSectionBackgroundColor": "#000000",
         "hideCrossSectionBackgroundIn3D": True,
-        "layout": "4panel",
+        "layout": layout,
         "showSlices": set_slices_visible_in_3d,
         "showAxisLines": show_axis_lines,
         "enableLayerColorWidget": enable_layer_color_legend,
