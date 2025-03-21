@@ -1,6 +1,6 @@
 [project]
 name = "cryoet-data-portal-neuroglancer"
-version = "1.2.0"
+version = "1.2.1"
 description = "Utility package for working with Neuroglancer data in the CZI Cryo-ET Data Portal"
 authors = [
     {name="CZI Imaging Team",  email="cryoetdataportal@chanzuckerberg.com"},

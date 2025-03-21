@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.1](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.2.0...v1.2.1) (2025-03-21)
+
+
+### 🐞 Bug Fixes
+
+* rename hide cross section to correct name ([9658a89](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/9658a895aeecaae83a43d6a9d0550307b832aed1))
+* rename hide cross section to correct name ([#41](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/41)) ([9f0f423](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/9f0f4239e3308b0dd0dd407d57fa1153cf945e72))
+
 ## [1.2.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.1.0...v1.2.0) (2025-03-21)
 
 
