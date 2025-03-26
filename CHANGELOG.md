@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.2](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.2.1...v1.2.2) (2025-03-26)
+
+
+### 🐞 Bug Fixes
+
+* correct bad copy paste of config path from docs ([c60c91f](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/c60c91fefead8530003dc881008074293dbc5524))
+* manually mark locations for release please to update ([e57d1f1](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/e57d1f14797eb40ac76c54cdf9242cb45fba9232))
+* manually mark locations for release please to update ([#44](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/44)) ([cfc1e0a](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/cfc1e0a0bd2f3c93896fc5399d3a972b388177f9))
+* remove {} around release please version instruction ([fe57987](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/fe5798712871896ecb44b2a1ac5b17014e6b5bfb))
+
+
+### 🧹 Miscellaneous Chores
+
+* change release please to use generic updater ([01b1bf1](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/01b1bf12de414048dda010096f2ef162bbb2b26f))
+* change release please to use generic updater ([#46](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/46)) ([ed601ea](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/ed601ea57f61edc8e8b8c9b4f02adac2fd6f8cdd))
+
 ## [1.2.1](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.2.0...v1.2.1) (2025-03-21)
 
 
