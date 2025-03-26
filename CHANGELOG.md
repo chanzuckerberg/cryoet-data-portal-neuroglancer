@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.3](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.2.2...v1.2.3) (2025-03-26)
+
+
+### 🐞 Bug Fixes
+
+* set pyproject package version more strictly ([14912fd](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/14912fdabaee8a91ccdd85ca35e9ac4588cd6280))
+* set pyproject package version more strictly ([#47](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/47)) ([9e55750](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/9e55750f30794adbfad4ee0af77458679ab956fa))
+
+
+### 🧹 Miscellaneous Chores
+
+* fix the kimimaro package version ([58daef2](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/58daef231102cb6b7e8c86458f43d81abf7c8668))
+
 ## [1.2.2](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.2.1...v1.2.2) (2025-03-26)
 
 
