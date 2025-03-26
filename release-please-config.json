@@ -16,7 +16,13 @@
   "packages": {
     ".": {
       "changelog-path": "CHANGELOG.md",
-      "release-type": "python"
+      "release-type": "python",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "path/to/file.yml"
+        }
+      ]
     }
   }
 }
