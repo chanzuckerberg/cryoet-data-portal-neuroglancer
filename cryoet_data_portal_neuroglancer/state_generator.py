@@ -258,6 +258,7 @@ def combine_json_layers(
     show_axis_lines: bool = True,
     enable_layer_color_legend: bool = True,
     use_old_neuroglancer_layout: bool = True,
+    gpu_memory_limit_gb: float = 1.5,
 ) -> dict[str, Any]:
     """Note, if set_slices_visible_in_3d is not provided, it will be set to False if there are any image layers in the list with volume rendering."""
     image_layers = [layer for layer in layers if layer["type"] == "image"]
@@ -301,6 +302,7 @@ def combine_json_layers(
             "row": 2,
             "visible": False,
         },
+        "gpuMemoryLimit": int(gpu_memory_limit_gb * 1e9),
     }
     if len(image_layers) > 0 and "_position" in image_layers[0]:
         combined_json["position"] = image_layers[0]["_position"]
