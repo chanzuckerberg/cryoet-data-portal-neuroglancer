@@ -74,3 +74,6 @@ def test__combine_json_layers_default_values():
     assert combined_json["layout"] == "4panel"
     assert combined_json["showSlices"]
     assert np_is_close(combined_json["position"], expected_position)
+
+    # Check memory setting
+    assert combined_json["gpuMemoryLimit"] == 1500000000
