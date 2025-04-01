@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.2.3...v1.3.0) (2025-04-01)
+
+
+### ✨ Features
+
+* set default GPU mem limit to 1.5GB with setting to change ([#50](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/50)) ([5e238d8](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/5e238d8cd534dcc105854f1f7214d758b804f6ba))
+* set default mem limit to 1.5GB with setting to change ([12e368b](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/12e368b6562897ec8d145982d930ba91f96fca44))
+
 ## [1.2.3](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.2.2...v1.2.3) (2025-03-26)
 
 
