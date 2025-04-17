@@ -479,7 +479,7 @@ def generate_mesh_from_lods(
     string_label : str | None, optional
         The string label to use, by default None - ie. not used
     """
-    concatenated_lods: list[trimesh.Trimesh] = cast(list[trimesh.Trimesh], [lod.dump(concatenate=True) for lod in lods])
+    concatenated_lods: list[trimesh.Trimesh] = cast(list[trimesh.Trimesh], [lod.to_geometry() for lod in lods])
     num_lod = len(concatenated_lods)
     first_lod = 0
     _, bb2 = concatenated_lods[first_lod].bounds
@@ -597,7 +597,7 @@ def generate_multilabel_multiresolution_mesh(
     labels = {}
     for k, v in label_dict.items():
         scene: trimesh.Scene = cast(trimesh.Scene, trimesh.load(v, force="scene")) if isinstance(v, (str, Path)) else v
-        mesh: trimesh.Trimesh = scene.dump(concatenate=True)  # type: ignore
+        mesh: trimesh.Trimesh = scene.to_geometry()  # type: ignore
         labels[k] = mesh
 
     mesh = next(iter(labels.values()))
