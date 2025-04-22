@@ -666,6 +666,7 @@ def generate_multiresolution_mesh_from_segmentation(
     min_mesh_chunk_dim: int = 16,
     max_simplification_error: int = 10,
     labels_dict: dict[int, str] | None = None,
+    fill_missing: bool = False,
 ) -> None:
     """Generates the meshes for a segmentation stored as a precomputed Neuroglancer format.
 
@@ -689,6 +690,10 @@ def generate_multiresolution_mesh_from_segmentation(
     labels_dict: dict[int, str] | None
         A dictionary of labels to string labels. This is used to generate the segment properties
         for the segmentation. If None, no segment properties are generated.
+    fill_missing: bool
+        Fills in empty volumes with a volume filled with the label 0.
+        By default, this is False. But can be set to True if the mesh bounds
+        are determined via fast bounding box calculation.
     """
     tq = LocalTaskQueue()
 
@@ -702,7 +707,7 @@ def generate_multiresolution_mesh_from_segmentation(
         shape=(256, 256, 256),
         mesh_dir=mesh_directory,
         sharded=True,
-        fill_missing=False,
+        fill_missing=fill_missing,
         max_simplification_error=max_simplification_error,
         simplification=simplification,
     )

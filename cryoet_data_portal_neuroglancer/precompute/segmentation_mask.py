@@ -312,6 +312,7 @@ def encode_segmentation(
     fast_bounding_box: bool = False,
     max_simplification_error_in_voxels: int = 2,
     labels_dict: dict[int, str] | None = None,
+    fill_missing: bool = False,
 ) -> None:
     """Convert the given OME-Zarr file to neuroglancer segmentation format with the given block size
 
@@ -373,6 +374,11 @@ def encode_segmentation(
         A dictionary mapping the integer labels in the segmentation to
         human-readable names, by default None
         This is useful for generating a legend in the viewer
+    fill_missing : bool, optional
+        Although the fast bounding box is not recommended for segmentations
+        with large empty regions, sometimes you may want to use it anyway.
+        In this case, you can set this parameter to True to fill the
+        missing regions with the value of the background (label 0).
     """
     LOGGER.info("Converting %s to neuroglancer compressed segmentation format", filename)
     output_path = Path(output_path)
@@ -430,6 +436,7 @@ def encode_segmentation(
             mesh_shape=mesh_shape,
             min_mesh_chunk_dim=min_mesh_chunk_dim,
             max_simplification_error=max_simplification_error,
+            fill_missing=fill_missing,
         )
         clean_mesh_folder(output_path, mesh_directory)
 
