@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.4.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.3.0...v1.4.0) (2025-05-01)
+
+
+### ✨ Features
+
+* allow control over empty seg blocks ([6105dc4](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/6105dc4c871f3ba67ee8b5499bd5f163ae169a3c))
+* allow control over empty seg blocks ([#54](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/54)) ([7dfb5f7](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/7dfb5f7e75b89a4d9ed04a1189a3e1f9a355ea96))
+
+
+### 🐞 Bug Fixes
+
+* use scene.to_geometry instead of scene.dump(concatenate=True) ([#51](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/51)) ([1b97260](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/1b97260c75bba080611eb2fd8cf044f65e4b58e2))
+
+
+### 📝 Documentation
+
+* add docstrings to public functions that are common ([2effc3f](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/2effc3f0c6d02d2e9a7996482ab9fdbe637db544))
+* add docstrings to public functions that are common ([#55](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/55)) ([a86bd80](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/a86bd807fad7bf553918c5865b78e80c07532ccd))
+
 ## [1.3.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.2.3...v1.3.0) (2025-04-01)
 
 
