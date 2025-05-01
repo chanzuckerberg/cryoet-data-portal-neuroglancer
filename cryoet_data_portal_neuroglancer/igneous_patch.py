@@ -109,7 +109,10 @@ def PatchedMeshTask_upload_batch(self, meshes, bbox):  # noqa
 
 
 def patched_locations_for_labels(cv: CloudVolume, labels: List[int]) -> Dict[int, List[str]]:
-
+    """
+    Patch reason:
+    Hooks into our patched file_locations_per_label_json function
+    """
     SPATIAL_EXT = re.compile(r"\.spatial$")  # noqa
     index_filenames = cv.mesh.spatial_index.file_locations_per_label(labels, allow_missing=True)
     resolution = cv.meta.resolution(cv.mesh.meta.mip)
@@ -123,6 +126,10 @@ def patched_locations_for_labels(cv: CloudVolume, labels: List[int]) -> Dict[int
 
 
 def patched_file_locations_per_label_json(self, labels, allow_missing=False):
+    """
+    Patch reason:
+    Allows to use floating point values for the resolution.
+    """
     locations = defaultdict(list)
     parser = simdjson.Parser()
 
@@ -157,6 +164,7 @@ def process_mesh_into_octree_submeshes(
     grid_shape: "Vec",
     grid_scale: "Vec",
 ):
+    """This is"""
     nx, ny, nz = np.eye(3)
     ox, oy, oz = grid_origin * np.eye(3)
     submeshes = []
@@ -231,7 +239,27 @@ def process_mesh_into_octree_submeshes(
 
 def retriangulate_mesh(mesh: trimesh.Trimesh, grid_origin: "Vec", grid_shape: "Vec", grid_scale: "Vec"):
     """
-    Retriangulate the input mesh to avoid any cases where the boundaries of a triangle are split across the boundaries of the submeshes
+    Retriangulate the input mesh to avoid any cases where the boundaries of a triangle are split across the boundaries of the submeshes.
+
+    This is performed by repeatedly slicing the mesh with planes aligned to the chunk grid.
+    Then all of the submeshes which each sit withing a chunk are concatenated together.
+
+    Parameters
+    ----------
+    mesh : trimesh.Trimesh
+        The input mesh to be retriangulated so that triangles in the
+        mesh don't cross chunk grid bounds.
+    grid_origin : Vec
+        The origin of the chunk grid (often 0, 0, 0).
+    grid_shape : Vec
+        The number of chunk in each dimension of the grid.
+    grid_scale : Vec
+        The size of each chunk in the grid.
+
+    Returns
+    -------
+    trimesh.Trimesh
+        The retriangulated mesh.
     """
     nx, ny, nz = np.eye(3)
     ox, oy, oz = grid_origin * np.eye(3)
@@ -297,16 +325,49 @@ def patched_create_octree_level_from_mesh(mesh, chunk_shape, lod, num_lods, grid
     by slicing them from x,y,z dimensions.
 
     This creates (2^lod)^3 submeshes.
+
+    Patch reason:
+    If not LOD 0 need to retriangulate the input mush to avoid any cases where
+    the boundaries of a triangle are split across the boundaries of the submeshes
+    at the higher level of the octree.
+
+    This avoids issues when then being used in neuroglancer, where the parts of the
+    low resolution mesh (those that are no longer needed because higher resolution data
+    at a finer grid scale is available) can't all correctly be hidden because parts of their triangles bleed over into chunks that are not yet loaded at the finer resolution.
+
+    The above problem results in a visual artifact where there is a kind of bouncing back
+    and forth between the low resolution and high resolution meshes at the boundaries of the chunks (and when you are at a zoom level where close to loading either).
+
+    Parameters
+    ----------
+    mesh : trimesh.Trimesh
+        The input mesh to be converted into a multilevel octree.
+    chunk_shape : Vec
+        The shape of the chunks in the octree at the lowest resolution level
+        (LOD 0).
+    lod : int
+        The current level of detail (LOD) being processed.
+    num_lods : int
+        The total number of LODs in the octree.
+    grid_origin : Vec
+        The origin of the chunk grid (often 0, 0, 0).
+    grid_length : Vec
+        The total length of the grid in each dimension.
+        The number of chunks in the grid is computed by dividing
+        the grid length by the chunk shape.
+
+    Returns
+    -------
+    List[Tuple[Mesh, Tuple[int, int, int]]]
+        A list of tuples, where each tuple contains a Mesh object
+        and its corresponding position in the octree grid.
+
     """
 
     grid_scale = Vec(*(np.array(chunk_shape) * (2**lod)))
     grid_shape = Vec(*(np.ceil(grid_length / grid_scale)), dtype=int)
-    # print(f"grid_origin: {grid_origin}, grid_scale: {grid_scale}, grid_shape: {grid_shape}")
     mesh = trimesh.Trimesh(vertices=mesh.vertices, faces=mesh.faces)
 
-    # If not LOD 0 need to retriangulate the input mush to avoid any cases where
-    # the boundaries of a triangle are split across the boundaries of the submeshes
-    # at the higher level of the octree
     if lod > 0:
         upper_grid_scale = Vec(*(np.array(chunk_shape) * (2 ** (lod - 1))))
         upper_grid_shape = Vec(*np.ceil(grid_length / upper_grid_scale), dtype=int)
@@ -325,6 +386,10 @@ def patched_process_mesh(
     min_chunk_size=(512, 512, 512),
     draco_compression_level: int = 7,
 ):
+    """
+    Patch reason:
+    Makes some change to hook into our pathced_create_octree_level_from_mesh function
+    """
     mesh.vertices /= cv.meta.resolution(cv.mesh.meta.mip)
     grid_origin = np.floor(np.min(mesh.vertices, axis=0))
     mesh_shape = (np.max(mesh.vertices, axis=0) - grid_origin).astype(int)
