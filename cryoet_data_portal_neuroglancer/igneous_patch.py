@@ -24,6 +24,10 @@ from cryoet_data_portal_neuroglancer.utils import determine_mesh_shape_from_lods
 
 
 def PatchedMeshTask_execute(self):  # noqa
+    """
+    Patch reason:
+    Allows to use floating point values for the mesh resolution.
+    """
     self._volume = CloudVolume(
         self.layer_path,
         self.options["mip"],
@@ -128,7 +132,7 @@ def patched_locations_for_labels(cv: CloudVolume, labels: List[int]) -> Dict[int
 def patched_file_locations_per_label_json(self, labels, allow_missing=False):
     """
     Patch reason:
-    Allows to use floating point values for the resolution.
+    Allows to use floating point values for the mesh resolution.
     """
     locations = defaultdict(list)
     parser = simdjson.Parser()
@@ -164,7 +168,29 @@ def process_mesh_into_octree_submeshes(
     grid_shape: "Vec",
     grid_scale: "Vec",
 ):
-    """This is"""
+    """Repeatedly slice the mesh with planes aligned to the chunk grid.
+
+    Then all of the submeshes which each sit withing a chunk are concatenated together.
+
+    Parameters
+    ----------
+    mesh : trimesh.Trimesh
+        The input mesh to be converted into a multilevel octree.
+    grid_origin : Vec
+        The origin of the chunk grid (often 0, 0, 0).
+    grid_shape : Vec
+        The total length of the grid in each dimension.
+        The number of chunks in the grid is computed by dividing
+        the grid length by the chunk shape.
+    grid_scale : Vec
+        The size of each chunk in the grid in physical units.
+
+    Returns
+    -------
+    List[Tuple[Mesh, Tuple[int, int, int]]]
+        The retriangulated meshes and their corresponding positions in the octree grid.
+
+    """
     nx, ny, nz = np.eye(3)
     ox, oy, oz = grid_origin * np.eye(3)
     submeshes = []
@@ -388,7 +414,7 @@ def patched_process_mesh(
 ):
     """
     Patch reason:
-    Makes some change to hook into our pathced_create_octree_level_from_mesh function
+    Makes some changes to hook into our pathced_create_octree_level_from_mesh function
     """
     mesh.vertices /= cv.meta.resolution(cv.mesh.meta.mip)
     grid_origin = np.floor(np.min(mesh.vertices, axis=0))
