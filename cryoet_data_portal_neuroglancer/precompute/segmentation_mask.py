@@ -455,4 +455,5 @@ def encode_segmentation(
         LOGGER.warning(
             "The segmentation was performed at an integer resolution of %s nm, actual resolution is %s. You must create the neuroglancer state for this data with a co-ordinate transform to account for this.",
             resolution,
+            initial_resolution,
         )
