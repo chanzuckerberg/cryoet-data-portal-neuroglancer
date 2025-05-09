@@ -252,13 +252,12 @@ def _generate_standalone_mesh_info(
     outfolder: str | Path,
     size: tuple[float, float, float] | float,
     mesh_dir: str = "mesh",
-    resolution: tuple[float, float, float] | float = (1.0, 1.0, 1.0),
     mesh_chunk_size: tuple[float, float, float] | float = (448, 448, 448),
     has_segment_properties: bool = False,
 ):
     outfolder = Path(outfolder)
     outfolder.mkdir(exist_ok=True, parents=True)
-    resolution_conv = resolution if isinstance(resolution, tuple) else (resolution,) * 3
+    resolution = (1.0, 1.0, 1.0)
     mesh_chunk_size_conv = mesh_chunk_size if isinstance(mesh_chunk_size, tuple) else (mesh_chunk_size,) * 3
     LOGGER.debug("Generating mesh info with chunk size %s", mesh_chunk_size_conv)
 
@@ -279,7 +278,7 @@ def _generate_standalone_mesh_info(
                 ],  # information required by neuroglancer but not used
                 "encoding": "compressed_segmentation",
                 "key": "data",
-                "resolution": resolution_conv,
+                "resolution": resolution,
                 "size": size,
             },
         ],
@@ -501,7 +500,6 @@ def generate_mesh_from_lods(
     _generate_standalone_mesh_info(
         outfolder,
         size=(size_x, size_y, size_z),
-        resolution=1.0,
         mesh_chunk_size=actual_chunk_shape,
         has_segment_properties=string_label is not None,
     )
@@ -635,7 +633,6 @@ def generate_multilabel_multiresolution_mesh(
     _generate_standalone_mesh_info(
         outfolder,
         size=(size_x, size_y, size_z),
-        resolution=1.0,
         mesh_chunk_size=actual_chunk_size,
         has_segment_properties=string_labels is not None,
     )
