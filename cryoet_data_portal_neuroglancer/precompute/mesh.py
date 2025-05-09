@@ -21,11 +21,10 @@ from cloudvolume.datasource.precomputed.mesh.multilod import (
 from cloudvolume.datasource.precomputed.sharding import ShardingSpecification
 from igneous.task_creation.common import compute_shard_params_for_hashed
 from igneous.task_creation.mesh import configure_multires_info
-from igneous.tasks.mesh.multires import create_mesh_shard, generate_lods
+from igneous.tasks.mesh.multires import create_mesh_shard, create_octree_level_from_mesh, generate_lods, process_mesh
 from taskqueue import LocalTaskQueue, queueable
 from tqdm import tqdm
 
-from cryoet_data_portal_neuroglancer.igneous_patch import patched_create_octree_level_from_mesh, patched_process_mesh
 from cryoet_data_portal_neuroglancer.precompute.segmentation_properties import write_segment_properties
 from cryoet_data_portal_neuroglancer.utils import determine_mesh_shape_from_lods
 
@@ -65,7 +64,7 @@ def _process_decimated_mesh(
     lods = [Mesh(lod.vertices, lod.faces) for lod in lods]
 
     lods = [
-        patched_create_octree_level_from_mesh(lods[lod], chunk_shape, lod, num_lods, grid_origin, mesh_shape)
+        create_octree_level_from_mesh(lods[lod], chunk_shape, lod, num_lods, grid_origin, mesh_shape)
         for lod in tqdm(range(num_lods), desc="Processing LODs into octree")
     ]
     fragment_positions = [nodes for submeshes, nodes in lods]
@@ -142,6 +141,7 @@ def MultiResShardedMeshFromGlbTask(  # noqa
         mesh_dir = cv.info["mesh"]
 
     if use_decimated_mesh:
+        original_process_mesh = process_mesh
         igneous.tasks.mesh.multires.process_mesh = _process_decimated_mesh
     fname, shard = create_mesh_shard(
         cv,
@@ -153,7 +153,7 @@ def MultiResShardedMeshFromGlbTask(  # noqa
         min_chunk_size,
     )
     if use_decimated_mesh:
-        igneous.tasks.mesh.multires.process_mesh = patched_process_mesh
+        igneous.tasks.mesh.multires.process_mesh = original_process_mesh
 
     if shard is None:
         return
@@ -252,13 +252,12 @@ def _generate_standalone_mesh_info(
     outfolder: str | Path,
     size: tuple[float, float, float] | float,
     mesh_dir: str = "mesh",
-    resolution: tuple[float, float, float] | float = (1.0, 1.0, 1.0),
     mesh_chunk_size: tuple[float, float, float] | float = (448, 448, 448),
     has_segment_properties: bool = False,
 ):
     outfolder = Path(outfolder)
     outfolder.mkdir(exist_ok=True, parents=True)
-    resolution_conv = resolution if isinstance(resolution, tuple) else (resolution,) * 3
+    resolution = (1.0, 1.0, 1.0)
     mesh_chunk_size_conv = mesh_chunk_size if isinstance(mesh_chunk_size, tuple) else (mesh_chunk_size,) * 3
     LOGGER.debug("Generating mesh info with chunk size %s", mesh_chunk_size_conv)
 
@@ -279,7 +278,7 @@ def _generate_standalone_mesh_info(
                 ],  # information required by neuroglancer but not used
                 "encoding": "compressed_segmentation",
                 "key": "data",
-                "resolution": resolution_conv,
+                "resolution": resolution,
                 "size": size,
             },
         ],
@@ -501,7 +500,6 @@ def generate_mesh_from_lods(
     _generate_standalone_mesh_info(
         outfolder,
         size=(size_x, size_y, size_z),
-        resolution=1.0,
         mesh_chunk_size=actual_chunk_shape,
         has_segment_properties=string_label is not None,
     )
@@ -635,7 +633,6 @@ def generate_multilabel_multiresolution_mesh(
     _generate_standalone_mesh_info(
         outfolder,
         size=(size_x, size_y, size_z),
-        resolution=1.0,
         mesh_chunk_size=actual_chunk_size,
         has_segment_properties=string_labels is not None,
     )
