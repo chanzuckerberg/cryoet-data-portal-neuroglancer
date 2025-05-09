@@ -410,7 +410,7 @@ def encode_segmentation(
 
     # Round resolution to the nearest integer for mesh conversion
     initial_resolution = resolution
-    resolution = [int(round(r)) for r in resolution]
+    resolution = [max(int(round(r)), 1) for r in resolution]
 
     metadata = _create_metadata(
         dask_data.chunksize,  # type: ignore
