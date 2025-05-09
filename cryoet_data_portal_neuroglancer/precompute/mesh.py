@@ -21,11 +21,10 @@ from cloudvolume.datasource.precomputed.mesh.multilod import (
 from cloudvolume.datasource.precomputed.sharding import ShardingSpecification
 from igneous.task_creation.common import compute_shard_params_for_hashed
 from igneous.task_creation.mesh import configure_multires_info
-from igneous.tasks.mesh.multires import create_mesh_shard, generate_lods
+from igneous.tasks.mesh.multires import create_mesh_shard, create_octree_level_from_mesh, generate_lods, process_mesh
 from taskqueue import LocalTaskQueue, queueable
 from tqdm import tqdm
 
-from cryoet_data_portal_neuroglancer.igneous_patch import patched_create_octree_level_from_mesh, patched_process_mesh
 from cryoet_data_portal_neuroglancer.precompute.segmentation_properties import write_segment_properties
 from cryoet_data_portal_neuroglancer.utils import determine_mesh_shape_from_lods
 
@@ -65,7 +64,7 @@ def _process_decimated_mesh(
     lods = [Mesh(lod.vertices, lod.faces) for lod in lods]
 
     lods = [
-        patched_create_octree_level_from_mesh(lods[lod], chunk_shape, lod, num_lods, grid_origin, mesh_shape)
+        create_octree_level_from_mesh(lods[lod], chunk_shape, lod, num_lods, grid_origin, mesh_shape)
         for lod in tqdm(range(num_lods), desc="Processing LODs into octree")
     ]
     fragment_positions = [nodes for submeshes, nodes in lods]
@@ -142,6 +141,7 @@ def MultiResShardedMeshFromGlbTask(  # noqa
         mesh_dir = cv.info["mesh"]
 
     if use_decimated_mesh:
+        original_process_mesh = process_mesh
         igneous.tasks.mesh.multires.process_mesh = _process_decimated_mesh
     fname, shard = create_mesh_shard(
         cv,
@@ -153,7 +153,7 @@ def MultiResShardedMeshFromGlbTask(  # noqa
         min_chunk_size,
     )
     if use_decimated_mesh:
-        igneous.tasks.mesh.multires.process_mesh = patched_process_mesh
+        igneous.tasks.mesh.multires.process_mesh = original_process_mesh
 
     if shard is None:
         return
