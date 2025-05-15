@@ -1,6 +1,6 @@
 [project]
 name = "cryoet-data-portal-neuroglancer"
-version = "1.4.0" # x-release-please-version
+version = "1.4.1" # x-release-please-version
 description = "Utility package for working with Neuroglancer data in the CZI Cryo-ET Data Portal"
 authors = [
     {name="CZI Imaging Team",  email="cryoetdataportal@chanzuckerberg.com"},
@@ -27,7 +27,7 @@ repository = "https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer"
 
 [tool.poetry]
 name = "cryoet-data-portal-neuroglancer"
-version = "1.4.0" # x-release-please-version
+version = "1.4.1" # x-release-please-version
 description = "Utility package for working with Neuroglancer data in the CZI Cryo-ET Data Portal"
 authors = [
     "CZI Imaging Team <cryoetdataportal@chanzuckerberg.com>",
