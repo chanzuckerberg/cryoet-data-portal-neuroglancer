@@ -446,12 +446,7 @@ def encode_segmentation(
 
     LOGGER.info("Wrote segmentation to %s", output_path)
 
-    resolutions_equal = (
-        resolution[0] == initial_resolution[0]
-        and resolution[1] == initial_resolution[1]
-        and resolution[2] == initial_resolution[2]
-    )
-    if not resolutions_equal:
+    if resolution != initial_resolution:
         LOGGER.warning(
             "The segmentation was performed at an integer resolution of %s nm, actual resolution is %s. You must create the neuroglancer state for this data with a co-ordinate transform to account for this.",
             resolution,
