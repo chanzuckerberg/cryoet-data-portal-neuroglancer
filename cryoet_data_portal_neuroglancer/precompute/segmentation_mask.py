@@ -408,6 +408,10 @@ def encode_segmentation(
     if len(dask_data.chunksize) != 3:
         raise ValueError(f"Expected 3 chunk dimensions, got {len(dask_data.chunksize)}")
 
+    # Round resolution to the nearest integer for mesh conversion
+    initial_resolution = resolution
+    resolution = [max(int(round(r)), 1) for r in resolution]
+
     metadata = _create_metadata(
         dask_data.chunksize,  # type: ignore
         block_size,
@@ -428,7 +432,7 @@ def encode_segmentation(
     if include_mesh:
         LOGGER.info("Converting %s to neuroglancer mesh format", filename)
         mesh_shape = dask_data.shape[::-1] if fast_bounding_box else determine_size_of_non_zero_bounding_box(dask_data)
-        max_simplification_error = max_simplification_error_in_voxels * max(1, int(max(resolution)))
+        max_simplification_error = max_simplification_error_in_voxels * max(1, max(resolution))
         generate_multiresolution_mesh_from_segmentation(
             output_path,
             mesh_directory,
@@ -441,3 +445,10 @@ def encode_segmentation(
         clean_mesh_folder(output_path, mesh_directory)
 
     LOGGER.info("Wrote segmentation to %s", output_path)
+
+    if resolution != initial_resolution:
+        LOGGER.warning(
+            "The segmentation was performed at an integer resolution of %s nm, actual resolution is %s. You must create the neuroglancer state for this data with a co-ordinate transform to account for this.",
+            resolution,
+            initial_resolution,
+        )
