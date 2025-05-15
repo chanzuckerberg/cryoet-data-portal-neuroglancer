@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.4.1](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.4.0...v1.4.1) (2025-05-15)
+
+
+### 🧹 Miscellaneous Chores
+
+* Update LICENSE ([83a850d](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/83a850d2e475a2ef820b5ced6d77dd9fc377532c))
+* Update LICENSE ([#58](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/58)) ([ab7ff22](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/ab7ff22885cc99c4e8edf07ce53f531610af82b7))
+
+
+### ♻️ Code Refactoring
+
+* clean up resolution comparison ([2fe890f](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/2fe890f5e3bef8343d22782194c936b09a062764))
+
 ## [1.4.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.3.0...v1.4.0) (2025-05-01)
 
 
