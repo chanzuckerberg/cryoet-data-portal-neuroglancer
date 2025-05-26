@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.2](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.4.1...v1.4.2) (2025-05-26)
+
+
+### 🐞 Bug Fixes
+
+* compare resolutions with numpy to avoid warnings with 1 != 1.0 ([d586407](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/d58640760e83bf1dc9af119c596e58c064021219))
+* compare resolutions with numpy to avoid warnings with 1 != 1.0 ([#60](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/60)) ([8e1eee4](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/8e1eee45190684081f738638ce0a2a6e27a5d8df))
+
 ## [1.4.1](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.4.0...v1.4.1) (2025-05-15)
 
 
