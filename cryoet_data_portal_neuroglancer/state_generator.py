@@ -645,6 +645,7 @@ def combine_json_layers(
     enable_layer_color_legend: bool = True,
     use_old_neuroglancer_layout: bool = True,
     gpu_memory_limit_gb: float = 1.5,
+    voxel_size_scale: float = 1.0,
 ) -> dict[str, Any]:
     """Take a list of JSON layers and combine them into a neuroglancer state.
 
@@ -733,8 +734,8 @@ def combine_json_layers(
         "gpuMemoryLimit": int(gpu_memory_limit_gb * 1e9),
     }
     if len(image_layers) > 0 and "_position" in image_layers[0]:
-        combined_json["position"] = image_layers[0]["_position"]
-        combined_json["crossSectionScale"] = image_layers[0]["_crossSectionScale"]
-        combined_json["projectionScale"] = image_layers[0]["_projectionScale"]
+        combined_json["position"] = [x * voxel_size_scale for x in image_layers[0]["_position"]]
+        combined_json["crossSectionScale"] = voxel_size_scale * image_layers[0]["_crossSectionScale"]
+        combined_json["projectionScale"] = voxel_size_scale * image_layers[0]["_projectionScale"]
 
     return combined_json
