@@ -87,7 +87,6 @@ class RenderingJSONGenerator:
     def __post_init__(self):
         if self.output_scale is None:
             self.output_scale = self.scale
-        print(f"Creating rendering JSON for {self.name} with source {self.source} and scale {self.scale}")
 
     def create_source(self, source_prefix: str) -> dict[str, Any]:
         """Creates the source dictionary for Neuroglancer."""
