@@ -21,6 +21,7 @@ def _setup_creation(
     url: str | None = None,
     zarr_path: str | None = None,
     scale: tuple[float, float, float] | list[float] | float = 1.0,
+    output_scale: tuple[float, float, float] | list[float] | float | None = None,
 ) -> tuple[str, str, str, str, tuple[float, float, float]]:
     """Starting point for generating JSON for a layer.
 
@@ -53,8 +54,9 @@ def _setup_creation(
     url = url if url is not None else ""
     zarr_path = zarr_path if zarr_path is not None else source
     scale = get_scale(scale)
+    output_scale = get_scale(output_scale) if output_scale is not None else scale
     source = urljoin(url, source.strip("/")) if url else source
-    return source, name, url, zarr_path, scale
+    return source, name, url, zarr_path, scale, output_scale
 
 
 def _validate_color(color: str | None):
@@ -71,6 +73,7 @@ def generate_point_layer(
     scale: float | tuple[float, float, float] = (1.0, 1.0, 1.0),
     is_visible: bool = True,
     is_instance_segmentation: bool = False,
+    output_scale: float | tuple[float, float, float] | None = None,
 ) -> dict[str, Any]:
     """Generate neuroglancer JSON state for a single point annotation layer.
 
@@ -96,6 +99,9 @@ def generate_point_layer(
         An instance segmentation layer is a layer where each point is assigned to a specific instance.
         This is useful for layers where you want to assign different colors to different instances.
         Default is False, which means each point is assigned the same color.
+    output_scale: float | tuple[float, float, float], optional
+        The scale/resolution of the data in metres for the output vis.
+        If None, the scale will be used instead.
 
     Returns
     -------
@@ -107,7 +113,13 @@ def generate_point_layer(
     ValueError
         If the color is not a valid hex string.
     """
-    source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
+    source, name, url, _, scale, output_scale = _setup_creation(
+        source,
+        name,
+        url,
+        scale=scale,
+        output_scale=output_scale,
+    )
     _validate_color(color)
     return AnnotationJSONGenerator(
         source=source,
@@ -115,6 +127,7 @@ def generate_point_layer(
         color=color,
         point_size_multiplier=point_size_multiplier,
         scale=scale,
+        output_scale=output_scale,
         is_visible=is_visible,
         is_instance_segmentation=is_instance_segmentation,
     ).to_json()
@@ -131,6 +144,7 @@ def generate_oriented_point_layer(
     is_visible: bool = True,
     is_instance_segmentation: bool = False,
     is_code_editor_visible: bool = False,
+    output_scale: float | tuple[float, float, float] | None = None,
 ) -> dict[str, Any]:
     """Generate neuroglancer JSON state for a single oriented point annotation layer.
 
@@ -163,6 +177,9 @@ def generate_oriented_point_layer(
         Default is False, which means each point is assigned the same color.
     is_code_editor_visible: bool, optional
         Whether the code editor should be visible in the layer settings. Default is False.
+    output_scale: float | tuple[float, float, float], optional
+        The scale/resolution of the data in metres for the output vis.
+        If None, the scale will be used instead.
 
     Returns
     -------
@@ -174,7 +191,13 @@ def generate_oriented_point_layer(
     ValueError
         If the color is not a valid hex string.
     """
-    source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
+    source, name, url, _, scale, output_scale = _setup_creation(
+        source,
+        name,
+        url,
+        scale=scale,
+        output_scale=output_scale,
+    )
     _validate_color(color)
     return OrientedPointAnnotationJSONGenerator(
         source=source,
@@ -183,6 +206,7 @@ def generate_oriented_point_layer(
         point_size_multiplier=point_size_multiplier,
         line_width=line_width,
         scale=scale,
+        output_scale=output_scale,
         is_visible=is_visible,
         is_instance_segmentation=is_instance_segmentation,
         is_code_editor_visible=is_code_editor_visible,
@@ -202,6 +226,7 @@ def generate_segmentation_mask_layer(
     mesh_render_scale: float = 2.0,
     visible_segments: tuple[int, ...] = (1,),
     enable_pick: bool = False,
+    output_scale: float | tuple[float, float, float] | None = None,
 ) -> dict[str, Any]:
     """Generate neuroglancer JSON state for a single segmentation layer.
 
@@ -242,6 +267,9 @@ def generate_segmentation_mask_layer(
         double clicking the segmentation mask does not turn off the
         segmentation mask in the viewer.
         Default is False.
+    output_scale: float | tuple[float, float, float], optional
+        The scale/resolution of the data in metres for the output vis.
+        If None, the scale will be used instead.
 
     Returns
     -------
@@ -253,13 +281,20 @@ def generate_segmentation_mask_layer(
     ValueError
         If the color is not a valid hex string.
     """
-    source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
+    source, name, url, _, scale, output_scale = _setup_creation(
+        source,
+        name,
+        url,
+        scale=scale,
+        output_scale=output_scale,
+    )
     _validate_color(color)
     return SegmentationJSONGenerator(
         source=source,
         name=name,
         color=color,
         scale=scale,
+        output_scale=output_scale,
         is_visible=is_visible,
         display_bounding_box=display_bounding_box,
         display_mesh=display_mesh,
@@ -282,6 +317,7 @@ def generate_mesh_layer(
     highlight_on_hover: bool = False,
     mesh_render_scale: float = 2.0,
     visible_segments: tuple[int, ...] = (1,),
+    output_scale: float | tuple[float, float, float] | None = None,
 ) -> dict[str, Any]:
     """Generate neuroglancer JSON state for a single mesh.
 
@@ -319,6 +355,9 @@ def generate_mesh_layer(
         The labels segments that should be visible in the viewer. Default is (1,).
         Many of the segmentation masks have only one segment, which is
         labeled as 1. So (1,) - the default, shows just that segment.
+    output_scale: float | tuple[float, float, float], optional
+        The scale/resolution of the data in metres for the output vis.
+        If None, the scale will be used instead.
 
     Returns
     -------
@@ -330,13 +369,20 @@ def generate_mesh_layer(
     ValueError
         If the color is not a valid hex string.
     """
-    source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
+    source, name, url, _, scale, output_scale = _setup_creation(
+        source,
+        name,
+        url,
+        scale=scale,
+        output_scale=output_scale,
+    )
     _validate_color(color)
     return MeshJSONGenerator(
         source=source,
         name=name,
         color=color,
         scale=scale,
+        output_scale=output_scale,
         is_visible=is_visible,
         display_bounding_box=display_bounding_box,
         display_mesh=display_mesh,
@@ -358,6 +404,7 @@ def generate_oriented_point_mesh_layer(
     highlight_on_hover: bool = False,
     mesh_render_scale: float = 4.0,
     visible_segments: tuple[int, ...] = (1,),
+    output_scale: float | tuple[float, float, float] | None = None,
 ) -> dict[str, Any]:
     """Generate neuroglancer JSON state for a multiple instanced oriented meshes.
 
@@ -395,6 +442,9 @@ def generate_oriented_point_mesh_layer(
         The labels segments that should be visible in the viewer. Default is (1,).
         Many of the segmentation masks have only one segment, which is
         labeled as 1. So (1,) - the default, shows just that segment.
+    output_scale: float | tuple[float, float, float], optional
+        The scale/resolution of the data in metres for the output vis.
+        If None, the scale will be used instead.
 
     Returns
     -------
@@ -412,6 +462,7 @@ def generate_oriented_point_mesh_layer(
         url=url,
         color=color,
         scale=scale,
+        output_scale=output_scale,
         is_visible=is_visible,
         display_bounding_box=display_bounding_box,
         display_mesh=display_mesh,
@@ -440,6 +491,7 @@ def generate_image_layer(
     blend: str = "additive",
     opacity: float = 1.0,
     is_code_editor_visible: bool = False,
+    output_scale: float | tuple[float, float, float] | None = None,
 ) -> dict[str, Any]:
     """Generate neuroglancer JSON state for a tomogram (image) layer.
 
@@ -510,6 +562,9 @@ def generate_image_layer(
     is_code_editor_visible: bool, optional
         Whether the code editor should be visible in the layer settings.
         Default is False.
+    output_scale: float | tuple[float, float, float] | None, optional
+        The scale/resolution of the data in metres for the output vis.
+        If None, the scale will be used instead.
 
     Returns
     -------
@@ -519,13 +574,20 @@ def generate_image_layer(
     # If volume rendering is visible, set the flag to True for the relevant shader
     if has_volume_rendering_shader is None:
         has_volume_rendering_shader = volume_rendering_is_visible or threedee_contrast_limits is not None
-    source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
+    source, name, url, _, scale, output_scale = _setup_creation(
+        source,
+        name,
+        url,
+        scale=scale,
+        output_scale=output_scale,
+    )
     if can_hide_high_values_in_neuroglancer is None:
         can_hide_high_values_in_neuroglancer = has_volume_rendering_shader
     return ImageJSONGenerator(
         source=source,
         name=name,
         scale=scale,
+        output_scale=output_scale,
         size=size,
         start=start,
         mean=mean,
@@ -583,6 +645,7 @@ def combine_json_layers(
     enable_layer_color_legend: bool = True,
     use_old_neuroglancer_layout: bool = True,
     gpu_memory_limit_gb: float = 1.5,
+    voxel_size_scale: float = 1.0,
 ) -> dict[str, Any]:
     """Take a list of JSON layers and combine them into a neuroglancer state.
 
@@ -671,8 +734,8 @@ def combine_json_layers(
         "gpuMemoryLimit": int(gpu_memory_limit_gb * 1e9),
     }
     if len(image_layers) > 0 and "_position" in image_layers[0]:
-        combined_json["position"] = image_layers[0]["_position"]
-        combined_json["crossSectionScale"] = image_layers[0]["_crossSectionScale"]
-        combined_json["projectionScale"] = image_layers[0]["_projectionScale"]
+        combined_json["position"] = [x * voxel_size_scale for x in image_layers[0]["_position"]]
+        combined_json["crossSectionScale"] = voxel_size_scale * image_layers[0]["_crossSectionScale"]
+        combined_json["projectionScale"] = voxel_size_scale * image_layers[0]["_projectionScale"]
 
     return combined_json
