@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.5.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.4.2...v1.5.0) (2025-06-11)
+
+
+### ✨ Features
+
+* support different output dim to input dim ([b0a35f8](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/b0a35f8224b43bedd75bff5ad874a5c5f0b4e50e))
+* support different output dim to input dim ([#62](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/62)) ([306707a](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/306707a7cda75cf0904cade50809962191b840bd))
+* support scaling output neuroglancer starting state ([1fce87f](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/1fce87f2970296b1598d81de208a3ad0cec1cb5d))
+
+
+### 🐞 Bug Fixes
+
+* remove accidental pritn ([3d01b4f](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/3d01b4f8b39a5a70c3e498e242c986a879faf08c))
+
 ## [1.4.2](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.4.1...v1.4.2) (2025-05-26)
 
 
