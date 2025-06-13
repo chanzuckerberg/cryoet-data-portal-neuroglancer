@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.5.0...v1.6.0) (2025-06-13)
+
+
+### ✨ Features
+
+* Add dimension selector tool palette at bottom of screen ([#35](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/35)) ([92347f0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/92347f052b565b629f30d72e366afa0bf70b19c1))
+* update state gen for dim widget to match ts ([dd205ce](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/dd205ce33aa3547c96d687f3f64b1b33fba6ebce))
+
 ## [1.5.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.4.2...v1.5.0) (2025-06-11)
 
 
