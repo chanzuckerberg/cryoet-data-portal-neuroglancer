@@ -642,7 +642,6 @@ def combine_json_layers(
     projection_quaternion: list[float] | None = None,
     set_slices_visible_in_3d: bool | None = None,
     show_axis_lines: bool = True,
-    enable_layer_color_legend: bool = True,
     use_old_neuroglancer_layout: bool = True,
     gpu_memory_limit_gb: float = 1.5,
     voxel_size_scale: float = 1.0,
@@ -714,7 +713,6 @@ def combine_json_layers(
         "layout": layout,
         "showSlices": set_slices_visible_in_3d,
         "showAxisLines": show_axis_lines,
-        "enableLayerColorWidget": enable_layer_color_legend,
         "layerListPanel": {
             "row": 1,
             "visible": True,
@@ -730,6 +728,16 @@ def combine_json_layers(
         "selection": {
             "row": 2,
             "visible": False,
+        },
+        "toolPalettes": {
+            "Dimensions": {
+                "side": "bottom",
+                "row": 1,
+                "size": 100,
+                "visible": True,
+                "query": "type:dimension",
+                "verticalStacking": False,
+            },
         },
         "gpuMemoryLimit": int(gpu_memory_limit_gb * 1e9),
     }

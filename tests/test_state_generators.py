@@ -26,11 +26,19 @@ def test__generate_segmentation_layer_default_values():
     assert state["pick"] is False
 
 
-def test__generate_color_legend():
+def test__generate_configuration_default_values():
     state = combine_json_layers(layers=[{"type": "image", "volumeRendering": "OK", "name": "myname"}], scale=1.0)
 
-    assert "enableLayerColorWidget" in state
-    assert state["enableLayerColorWidget"] is True
+    assert "toolPalettes" in state
+    assert len(state["toolPalettes"]) == 1
+
+    palette = state["toolPalettes"]["Dimensions"]
+    assert palette.get("side") == "bottom"
+    assert palette.get("row") == 1
+    assert palette.get("query") == "type:dimension"
+    assert palette.get("size") == 100
+    assert palette.get("visible")
+    assert not palette.get("verticalStacking")
 
 
 def test__generate_oriented_point_layer_default_values():
