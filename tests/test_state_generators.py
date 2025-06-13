@@ -30,5 +30,6 @@ def test__generate_configuration_default_values():
     assert palette.get("side") == "bottom"
     assert palette.get("row") == 1
     assert palette.get("query") == "type:dimension"
-    assert palette.get("size") == 120
+    assert palette.get("size") == 100
+    assert palette.get("visible")
     assert not palette.get("verticalStacking")

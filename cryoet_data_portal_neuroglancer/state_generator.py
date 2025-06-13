@@ -295,7 +295,8 @@ def combine_json_layers(
             "Dimensions": {
                 "side": "bottom",
                 "row": 1,
-                "size": 120,
+                "size": 100,
+                "visible": True,
                 "query": "type:dimension",
                 "verticalStacking": False,
             },
