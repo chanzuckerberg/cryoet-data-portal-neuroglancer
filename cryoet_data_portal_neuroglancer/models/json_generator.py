@@ -82,6 +82,19 @@ class RenderingJSONGenerator:
     source: str
     name: str
     scale: tuple[float, float, float]
+    output_scale: tuple[float, float, float] | None
+
+    def __post_init__(self):
+        if self.output_scale is None:
+            self.output_scale = self.scale
+
+    def create_source(self, source_prefix: str) -> dict[str, Any]:
+        """Creates the source dictionary for Neuroglancer."""
+        return create_source(
+            f"{source_prefix}://{self.source}",
+            self.scale,
+            self.output_scale,
+        )
 
     @property
     def layer_type(self) -> str:
@@ -118,8 +131,10 @@ class ImageJSONGenerator(RenderingJSONGenerator):
     can_hide_high_values_in_neuroglancer: bool = False
     blend: str = "additive"
     opacity: float = 1.0
+    is_code_editor_visible: bool = False
 
     def __post_init__(self):
+        super().__post_init__()
         self._type = RenderingTypes.IMAGE
 
     def _compute_contrast_limits(self) -> tuple[float, float]:
@@ -161,13 +176,14 @@ class ImageJSONGenerator(RenderingJSONGenerator):
         config = {
             "type": self.layer_type,
             "name": self.name,
-            "source": create_source(f"zarr://{self.source}", self.scale, self.scale),
+            "source": self.create_source("zarr"),
             "opacity": self.opacity,
             "blend": self.blend,
             "tab": "rendering",
             "visible": self.is_visible,
             "volumeRendering": "on" if self.volume_rendering_is_visible else "off",
             "volumeRenderingGain": self.volume_rendering_gain,
+            "codeVisible": self.is_code_editor_visible,
         }
         if self.has_volume_rendering_shader:
             config["volumeRenderingDepthSamples"] = self.volume_rendering_depth_samples
@@ -182,15 +198,16 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
     point_size_multiplier: float = 1.0
     is_instance_segmentation: bool = False
     is_visible: bool = True
+    is_code_editor_visible: bool = False
 
     def __post_init__(self):
+        super().__post_init__()
         self._type = RenderingTypes.ANNOTATION
 
     def _get_shader(self):
         shader_builder = NonOrientedPointShaderBuilder(
             point_size_multiplier=self.point_size_multiplier,
             is_instance_segmentation=self.is_instance_segmentation,
-            color=self.color,
         )
         return shader_builder.build()
 
@@ -198,9 +215,11 @@ class AnnotationJSONGenerator(RenderingJSONGenerator):
         return {
             "type": self.layer_type,
             "name": f"{self.name}",
-            "source": create_source(f"precomputed://{self.source}", self.scale, self.scale),
+            "source": self.create_source("precomputed"),
             "tab": "rendering",
+            "annotationColor": self.color,
             "visible": self.is_visible,
+            "codeVisible": self.is_code_editor_visible,
             **self._get_shader(),
         }
 
@@ -215,7 +234,6 @@ class OrientedPointAnnotationJSONGenerator(AnnotationJSONGenerator):
         shader_builder = OrientedPointShaderBuilder(
             point_size_multiplier=self.point_size_multiplier,
             is_instance_segmentation=self.is_instance_segmentation,
-            color=self.color,
             line_width=self.line_width,
         )
         return shader_builder.build()
@@ -235,6 +253,7 @@ class SegmentationJSONGenerator(RenderingJSONGenerator):
     enable_pick: bool = False
 
     def __post_init__(self):
+        super().__post_init__()
         self._type = RenderingTypes.SEGMENTATION
 
     def generate_json(self) -> dict:
@@ -242,7 +261,7 @@ class SegmentationJSONGenerator(RenderingJSONGenerator):
             "type": self.layer_type,
             "name": f"{self.name}",
             "source": {
-                **create_source(f"precomputed://{self.source}", self.scale, self.scale),
+                **self.create_source("precomputed"),
                 "subsources": {
                     "default": True,
                     "mesh": self.display_mesh,
@@ -278,6 +297,7 @@ class ImageVolumeJSONGenerator(RenderingJSONGenerator):
     opacity: float = 1.0
 
     def __post_init__(self):
+        super().__post_init__()
         self._type = RenderingTypes.IMAGE
 
     def _get_shader(self) -> dict[str, Any]:
@@ -297,7 +317,7 @@ class ImageVolumeJSONGenerator(RenderingJSONGenerator):
         return {
             "type": self.layer_type,
             "name": f"{self.name}",
-            "source": create_source(f"zarr://{self.source}", self.scale, self.scale),
+            "source": self.create_source("zarr"),
             "tab": "rendering",
             "blend": self.blend,
             "opacity": self.opacity,

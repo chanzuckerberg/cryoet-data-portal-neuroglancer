@@ -1,5 +1,147 @@
 # Changelog
 
+## [1.5.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.4.2...v1.5.0) (2025-06-11)
+
+
+### ✨ Features
+
+* support different output dim to input dim ([b0a35f8](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/b0a35f8224b43bedd75bff5ad874a5c5f0b4e50e))
+* support different output dim to input dim ([#62](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/62)) ([306707a](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/306707a7cda75cf0904cade50809962191b840bd))
+* support scaling output neuroglancer starting state ([1fce87f](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/1fce87f2970296b1598d81de208a3ad0cec1cb5d))
+
+
+### 🐞 Bug Fixes
+
+* remove accidental pritn ([3d01b4f](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/3d01b4f8b39a5a70c3e498e242c986a879faf08c))
+
+## [1.4.2](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.4.1...v1.4.2) (2025-05-26)
+
+
+### 🐞 Bug Fixes
+
+* compare resolutions with numpy to avoid warnings with 1 != 1.0 ([d586407](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/d58640760e83bf1dc9af119c596e58c064021219))
+* compare resolutions with numpy to avoid warnings with 1 != 1.0 ([#60](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/60)) ([8e1eee4](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/8e1eee45190684081f738638ce0a2a6e27a5d8df))
+
+## [1.4.1](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.4.0...v1.4.1) (2025-05-15)
+
+
+### 🧹 Miscellaneous Chores
+
+* Update LICENSE ([83a850d](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/83a850d2e475a2ef820b5ced6d77dd9fc377532c))
+* Update LICENSE ([#58](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/58)) ([ab7ff22](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/ab7ff22885cc99c4e8edf07ce53f531610af82b7))
+
+
+### ♻️ Code Refactoring
+
+* clean up resolution comparison ([2fe890f](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/2fe890f5e3bef8343d22782194c936b09a062764))
+
+## [1.4.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.3.0...v1.4.0) (2025-05-01)
+
+
+### ✨ Features
+
+* allow control over empty seg blocks ([6105dc4](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/6105dc4c871f3ba67ee8b5499bd5f163ae169a3c))
+* allow control over empty seg blocks ([#54](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/54)) ([7dfb5f7](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/7dfb5f7e75b89a4d9ed04a1189a3e1f9a355ea96))
+
+
+### 🐞 Bug Fixes
+
+* use scene.to_geometry instead of scene.dump(concatenate=True) ([#51](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/51)) ([1b97260](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/1b97260c75bba080611eb2fd8cf044f65e4b58e2))
+
+
+### 📝 Documentation
+
+* add docstrings to public functions that are common ([2effc3f](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/2effc3f0c6d02d2e9a7996482ab9fdbe637db544))
+* add docstrings to public functions that are common ([#55](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/55)) ([a86bd80](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/a86bd807fad7bf553918c5865b78e80c07532ccd))
+
+## [1.3.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.2.3...v1.3.0) (2025-04-01)
+
+
+### ✨ Features
+
+* set default GPU mem limit to 1.5GB with setting to change ([#50](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/50)) ([5e238d8](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/5e238d8cd534dcc105854f1f7214d758b804f6ba))
+* set default mem limit to 1.5GB with setting to change ([12e368b](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/12e368b6562897ec8d145982d930ba91f96fca44))
+
+## [1.2.3](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.2.2...v1.2.3) (2025-03-26)
+
+
+### 🐞 Bug Fixes
+
+* set pyproject package version more strictly ([14912fd](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/14912fdabaee8a91ccdd85ca35e9ac4588cd6280))
+* set pyproject package version more strictly ([#47](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/47)) ([9e55750](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/9e55750f30794adbfad4ee0af77458679ab956fa))
+
+
+### 🧹 Miscellaneous Chores
+
+* fix the kimimaro package version ([58daef2](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/58daef231102cb6b7e8c86458f43d81abf7c8668))
+
+## [1.2.2](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.2.1...v1.2.2) (2025-03-26)
+
+
+### 🐞 Bug Fixes
+
+* correct bad copy paste of config path from docs ([c60c91f](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/c60c91fefead8530003dc881008074293dbc5524))
+* manually mark locations for release please to update ([e57d1f1](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/e57d1f14797eb40ac76c54cdf9242cb45fba9232))
+* manually mark locations for release please to update ([#44](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/44)) ([cfc1e0a](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/cfc1e0a0bd2f3c93896fc5399d3a972b388177f9))
+* remove {} around release please version instruction ([fe57987](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/fe5798712871896ecb44b2a1ac5b17014e6b5bfb))
+
+
+### 🧹 Miscellaneous Chores
+
+* change release please to use generic updater ([01b1bf1](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/01b1bf12de414048dda010096f2ef162bbb2b26f))
+* change release please to use generic updater ([#46](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/46)) ([ed601ea](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/ed601ea57f61edc8e8b8c9b4f02adac2fd6f8cdd))
+
+## [1.2.1](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.2.0...v1.2.1) (2025-03-21)
+
+
+### 🐞 Bug Fixes
+
+* rename hide cross section to correct name ([9658a89](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/9658a895aeecaae83a43d6a9d0550307b832aed1))
+* rename hide cross section to correct name ([#41](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/41)) ([9f0f423](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/9f0f4239e3308b0dd0dd407d57fa1153cf945e72))
+
+## [1.2.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.1.0...v1.2.0) (2025-03-21)
+
+
+### ✨ Features
+
+* Add default value to false for code editor display ([#29](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/29)) ([b058255](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/b058255e495365012e7de3733feff8f83d971f6a))
+* Add layer color sync activation option ([#34](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/34)) ([8d5277d](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/8d5277dd88e689852e880ab9225c3eb49dc2f2e5))
+* allow new panel type as optional param ([#39](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/39)) ([be2e1c7](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/be2e1c7e9a542314a22a85b0ef4aa27b06bf62ef))
+* bool flag to switch between 4panel (old - preferred) and 4panel-alt (new) ([1ee9b80](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/1ee9b80ba07a09e8731250c821aae439ff7369e7))
+* Change the default value to activate auto-mode for the volume ([3b92523](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/3b92523ff7c6cf07e69147b01ac3de2baf22b7d8))
+* Change the way the has volume shadder rendering condition is computed for Image state generation ([#40](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/40)) ([70fd159](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/70fd159b3dd2e571535c59d1759f66317e827185))
+* Enable color legend by default ([41b2f0b](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/41b2f0bee99be344d2f55c1c5121e8f0ea81d8e8))
+* hide 3D cross section background setting ([0673c57](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/0673c57bed9229f3abcf2a2730463b861a7abb30))
+* hide 3D cross section background setting ([#36](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/36)) ([71c8aff](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/71c8aff8725210583304c51dee90a9f360a21142))
+* layout hidden panels properly. This is necessary because otherwise they pop up in odd places ([cd0d183](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/cd0d183d8eac070fb4c008d6819ff5aabf273654))
+* move annotation color to defaultColor ([f9b883f](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/f9b883f2478da3233e6c6ef693bab5f54c571581))
+* top left layer controls, bottom left layer list panel ([cf96b09](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/cf96b09afe3cda4fb79c9443ba123edfd0abd282))
+* update default layout of the main neuroglancer landing page ([#32](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/32)) ([8605849](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/86058495bf050fa7e6d83ad24008942e1705fa7b))
+
+
+### 🐞 Bug Fixes
+
+* Change the way the has volume shadder rendering condition is ([9bff4eb](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/9bff4eb6149dbb82619b41cde6e4c7da16cb4d4f))
+* remove accidental print ([3a34dab](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/3a34dab2b53e4e06a9aabc7800d3a1a17b9dccd7))
+* Update runs-on labels in GitHub Actions workflows ([#37](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/37)) ([7c91df1](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/7c91df13c39bb9816c6000b46826c9891aa26500))
+* Update runs-on to use ARM64 or X64 ([3df2d70](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/3df2d70c7b432e594de7c90e2bb80a1635917e00))
+
+
+### 🧹 Miscellaneous Chores
+
+* Updating poetry to 2.0.0 ([#31](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/31)) ([7dcc2b0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/7dcc2b0971e79b4764a808b061d5b8d09cd59849))
+
+
+### ♻️ Code Refactoring
+
+* clarify test name ([0638c1f](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/0638c1fb1ab1c097a771aea0f1392a0b2d47c370))
+* remove accidental comment ([a699867](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/a699867acfb42136b89011aa1a486f9a53516cc8))
+
+
+### 🧪 Tests
+
+* add test for variable parts of the top level state generator ([463a289](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/463a2896af9d2d1161d06cb5799f8cfdd9b72a75))
+
 ## [1.1.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.0.0...v1.1.0) (2024-12-06)
 
 

@@ -312,6 +312,7 @@ def encode_segmentation(
     fast_bounding_box: bool = False,
     max_simplification_error_in_voxels: int = 2,
     labels_dict: dict[int, str] | None = None,
+    fill_missing: bool = False,
 ) -> None:
     """Convert the given OME-Zarr file to neuroglancer segmentation format with the given block size
 
@@ -373,6 +374,11 @@ def encode_segmentation(
         A dictionary mapping the integer labels in the segmentation to
         human-readable names, by default None
         This is useful for generating a legend in the viewer
+    fill_missing : bool, optional
+        Although the fast bounding box is not recommended for segmentations
+        with large empty regions, sometimes you may want to use it anyway.
+        In this case, you can set this parameter to True to fill the
+        missing regions with the value of the background (label 0).
     """
     LOGGER.info("Converting %s to neuroglancer compressed segmentation format", filename)
     output_path = Path(output_path)
@@ -402,6 +408,10 @@ def encode_segmentation(
     if len(dask_data.chunksize) != 3:
         raise ValueError(f"Expected 3 chunk dimensions, got {len(dask_data.chunksize)}")
 
+    # Round resolution to the nearest integer for mesh conversion
+    initial_resolution = resolution
+    resolution = [max(int(round(r)), 1) for r in resolution]
+
     metadata = _create_metadata(
         dask_data.chunksize,  # type: ignore
         block_size,
@@ -422,7 +432,7 @@ def encode_segmentation(
     if include_mesh:
         LOGGER.info("Converting %s to neuroglancer mesh format", filename)
         mesh_shape = dask_data.shape[::-1] if fast_bounding_box else determine_size_of_non_zero_bounding_box(dask_data)
-        max_simplification_error = max_simplification_error_in_voxels * max(1, int(max(resolution)))
+        max_simplification_error = max_simplification_error_in_voxels * max(1, max(resolution))
         generate_multiresolution_mesh_from_segmentation(
             output_path,
             mesh_directory,
@@ -430,7 +440,16 @@ def encode_segmentation(
             mesh_shape=mesh_shape,
             min_mesh_chunk_dim=min_mesh_chunk_dim,
             max_simplification_error=max_simplification_error,
+            fill_missing=fill_missing,
         )
         clean_mesh_folder(output_path, mesh_directory)
 
     LOGGER.info("Wrote segmentation to %s", output_path)
+
+    resolution_equals = np.array_equal(resolution, initial_resolution)
+    if not resolution_equals:
+        LOGGER.warning(
+            "The segmentation was performed at an integer resolution of %s nm, actual resolution is %s. You must create the neuroglancer state for this data with a co-ordinate transform to account for this.",
+            resolution,
+            initial_resolution,
+        )
