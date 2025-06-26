@@ -23,11 +23,10 @@ tomogram_path = "jsa2010-01-02-30.zarr"
 zarr_path = "membrain_seg_prediction-1.0_segmentationmask.zarr"
 output_path = "jsa2010-01-02-30-membrane-1.0_segmentationmask_encoded"
 resolution = 1.564  # Non 1.0 is a harder test
-# You could serve the tomogram locally instead, but the mesh has to be in
-# a remote source like s3 or gs
+port = 8000
 SOURCE_MAP = (
-    "s3://UPLOADED_TOMOGRAM_LOCATION",
-    "s3://UPLOADED_ANNOTATION_LOCATION",
+    f"http://localhost:{port}/{tomogram_path}",
+    f"http://localhost:{port}/{output_path}",
     (resolution * 1e-10, resolution * 1e-10, resolution * 1e-10),
 )
 
@@ -123,6 +122,8 @@ def main():
     grab_annotation()
     make_precomputed_segmentation()
     create_state(run_contrast_limit_calculations_from_api(tomogram_path), Path(os.getcwd()))
+    print(f"Run npx http-server {os.getcwd()} -p {port} --cors=authorization to serve the data.")
+    print(f"Then open https://neuroglancer-demo.appspot.com/#!http://localhost:{port}/state.json to view the state.")
 
 
 if __name__ == "__main__":
