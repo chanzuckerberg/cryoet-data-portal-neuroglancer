@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.6.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.5.0...v1.6.0) (2025-06-26)
+
+
+### ✨ Features
+
+* Add dimension selector tool palette at bottom of screen ([#35](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/35)) ([92347f0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/92347f052b565b629f30d72e366afa0bf70b19c1))
+* update igneous to not rely on custom patch ([#65](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/65)) ([cee5aa7](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/cee5aa70782877a4cd069e876b7b459d1fefaee3))
+* update state gen for dim widget to match ts ([dd205ce](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/dd205ce33aa3547c96d687f3f64b1b33fba6ebce))
+
+
+### 📝 Documentation
+
+* update examples with http-server for meshes ([60590e8](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/60590e80d3f6936f9e449caf054b667d8cfdd7bd))
+
+
+### 🧹 Miscellaneous Chores
+
+* don't depend on custom igneous patch anymore ([742048b](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/742048be07cc1de55b671b3b431eae90156553bb))
+
 ## [1.5.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.4.2...v1.5.0) (2025-06-11)
 
 
