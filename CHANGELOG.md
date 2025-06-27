@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.6.1](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.6.0...v1.6.1) (2025-06-27)
+
+
+### 🐞 Bug Fixes
+
+* match name to portal name of tool palette ([61747a6](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/61747a6c77fdda2d8357a090d9877b643e0da634))
+* match name to portal name of tool palette ([#66](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/66)) ([35e1d14](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/35e1d1465b1e704d3c92594c0659ad81a85069cf))
+* **test:** also update name in test ([8f327f7](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/8f327f7fb888f6af66cb0cc1090d6fdf6288e4df))
+
 ## [1.6.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.5.0...v1.6.0) (2025-06-26)
 
 
