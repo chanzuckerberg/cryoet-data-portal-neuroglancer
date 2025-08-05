@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.2](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.6.1...v1.6.2) (2025-08-05)
+
+
+### 🧹 Miscellaneous Chores
+
+* CCIE-4984 conform to open sourcing guidelines ([8e957a7](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/8e957a7c112748499479bd0deb5521c90b360e1a))
+* CCIE-4984 conform to open sourcing guidelines ([#68](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/68)) ([399d97a](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/399d97aa81f5ef4ed23788e19fb6b45d4310d223))
+
 ## [1.6.1](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.6.0...v1.6.1) (2025-06-27)
 
 
