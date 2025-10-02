@@ -387,7 +387,7 @@ def encode_segmentation(
 
     # Data can be floating point, convert to integer for segmentation
     if not np.issubdtype(dask_data.dtype, np.integer):
-        if not np.all(np.mod(dask_data, 1) == 0):
+        if not da.all(da.mod(dask_data, 1) == 0).compute():
             raise ValueError("Data must be integer values")
         dask_data = dask_data.astype(np.uint32)
 
