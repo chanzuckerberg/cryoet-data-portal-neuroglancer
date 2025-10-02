@@ -384,6 +384,13 @@ def encode_segmentation(
     output_path = Path(output_path)
 
     dask_data = load_omezarr_data(filename)
+
+    # Data can be floating point, convert to integer for segmentation
+    if not np.issubdtype(dask_data.dtype, np.integer):
+        if not np.all(np.mod(dask_data, 1) == 0):
+            raise ValueError("Data must be integer values")
+        dask_data = dask_data.astype(np.uint32)
+
     if delete_existing and output_path.exists():
         contents = list(output_path.iterdir())
         content_names = {c.name for c in contents}
