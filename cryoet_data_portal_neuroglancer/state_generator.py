@@ -239,7 +239,7 @@ def generate_segmentation_mask_layer(
     url: str | None, optional
         The base URL for the data. If None, the source must be a direct URL.
     color: str | dict[int, str] | None, optional
-        The color of the points in hex format. Default is white (#FFFFFF).
+        The color of the segmentation in hex format. Default is white (#FFFFFF).
         If a dictionary is provided, the keys are the segment labels (int)
         and the values are the colors in hex format (str) for that segment.
         If None, the default colors will be used, which are randomly generated
