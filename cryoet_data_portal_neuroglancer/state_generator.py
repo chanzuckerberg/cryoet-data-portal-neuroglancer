@@ -217,7 +217,7 @@ def generate_segmentation_mask_layer(
     source: str,
     name: str | None = None,
     url: str | None = None,
-    color: str | None = "#FFFFFF",
+    color: str | dict[int, str] | None = "#FFFFFF",
     scale: float | tuple[float, float, float] = (1.0, 1.0, 1.0),
     is_visible: bool = True,
     display_bounding_box: bool = False,
@@ -238,8 +238,12 @@ def generate_segmentation_mask_layer(
         The name of the layer. If None, the name will be derived from the source.
     url: str | None, optional
         The base URL for the data. If None, the source must be a direct URL.
-    color: str, optional
+    color: str | dict[int, str] | None, optional
         The color of the points in hex format. Default is white (#FFFFFF).
+        If a dictionary is provided, the keys are the segment labels (int)
+        and the values are the colors in hex format (str) for that segment.
+        If None, the default colors will be used, which are randomly generated
+        colors by neuroglancer.
     scale: float | tuple[float, float, float], optional
         The scale/resolution of the data in metres. Ordering is XYZ.
         If a single float is provided, it will be used for all three axes.
@@ -288,7 +292,12 @@ def generate_segmentation_mask_layer(
         scale=scale,
         output_scale=output_scale,
     )
-    _validate_color(color)
+    if isinstance(color, str):
+        _validate_color(color)
+    elif color is not None:
+        for col in color.values():
+            _validate_color(col)
+
     return SegmentationJSONGenerator(
         source=source,
         name=name,
