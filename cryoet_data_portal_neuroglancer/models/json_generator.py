@@ -243,7 +243,7 @@ class OrientedPointAnnotationJSONGenerator(AnnotationJSONGenerator):
 class SegmentationJSONGenerator(RenderingJSONGenerator):
     """Generates JSON Neuroglancer config for segmentation mask."""
 
-    color: str | None = None
+    color: str | dict[int, str] | None = None
     is_visible: bool = True
     display_mesh: bool = True
     display_bounding_box: bool = False
@@ -276,10 +276,12 @@ class SegmentationJSONGenerator(RenderingJSONGenerator):
             "meshRenderScale": self.mesh_render_scale,
             "pick": self.enable_pick,
         }
-        # self.color === None means that the color will be random
-        # This is useful for multiple segmentations
         if self.color is not None:
-            state["segmentDefaultColor"] = self.color
+            if isinstance(self.color, str):
+                state["segmentDefaultColor"] = self.color
+            else:
+                state["segmentColors"] = {str(k): v for k, v in self.color.items()}
+
         return state
 
 
