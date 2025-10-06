@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.7.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.6.1...v1.7.0) (2025-10-06)
+
+
+### ✨ Features
+
+* allow colors to be dict of seg label to color str in seg mask gen ([1a21dc4](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/1a21dc41e64f379ecf3d65cce96f54d327eff0f4))
+* allow colors to be dict of seg label to color str in seg mask gen ([#71](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/71)) ([bf64fdb](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/bf64fdbbc31a067739950ebf2093f52ab340ea4e))
+* replace floating point error checking with option to round ([457f42c](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/457f42c5a387ab9b65a6ed7918bbb9365f7d725d))
+
+
+### 🐞 Bug Fixes
+
+* ensure segmentation data is always int ([ee6c732](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/ee6c732c9dea04b6a675721678f4115c8765c089))
+* ensure segmentation data is always int ([#70](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/70)) ([3fe087e](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/3fe087e96ae0c4afd53932456254fdf8886affb5))
+
+
+### 🧹 Miscellaneous Chores
+
+* CCIE-4984 conform to open sourcing guidelines ([8e957a7](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/8e957a7c112748499479bd0deb5521c90b360e1a))
+* CCIE-4984 conform to open sourcing guidelines ([#68](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/68)) ([399d97a](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/399d97aa81f5ef4ed23788e19fb6b45d4310d223))
+* fix docstring ([b654d5a](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/b654d5a2b2f06be01f9644024849010000c27517))
+* fix linting issue ([181af5f](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/181af5f1da601f469e74d19e220c333a5dc56f73))
+
+
+### ♻️ Code Refactoring
+
+* clearer check for float data ([60302b4](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/60302b4a06095d857fcc4785860c86cc192ca39d))
+* use da equivalent of np fns for efficiency ([3ec4fa8](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/3ec4fa86d1bdd42cc3759cc005155939745a6f13))
+
 ## [1.6.1](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.6.0...v1.6.1) (2025-06-27)
 
 
