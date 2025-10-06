@@ -313,8 +313,14 @@ def encode_segmentation(
     max_simplification_error_in_voxels: int = 2,
     labels_dict: dict[int, str] | None = None,
     fill_missing: bool = False,
+    round_before_cast: bool = False,
 ) -> None:
     """Convert the given OME-Zarr file to neuroglancer segmentation format with the given block size
+
+    If the input data is not of type uint32, it will be converted to uint32.
+    This means that for floating point data, the values will be truncated
+    to integers. An optional parameter allows rounding before casting,
+    in which case rounding is performed before truncation.
 
     Parameters
     ----------
@@ -379,11 +385,18 @@ def encode_segmentation(
         with large empty regions, sometimes you may want to use it anyway.
         In this case, you can set this parameter to True to fill the
         missing regions with the value of the background (label 0).
+    round_before_cast : bool, optional
+        If the input data is floating point, whether to round the values
+        before casting to uint32, by default False. If False, values will be
+        truncated.
     """
     LOGGER.info("Converting %s to neuroglancer compressed segmentation format", filename)
     output_path = Path(output_path)
 
     dask_data = load_omezarr_data(filename)
+    dask_data = da.rint(dask_data) if round_before_cast else dask_data
+    dask_data = dask_data.astype(np.uint32)
+
     if delete_existing and output_path.exists():
         contents = list(output_path.iterdir())
         content_names = {c.name for c in contents}
