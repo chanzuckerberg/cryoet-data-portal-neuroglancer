@@ -18,6 +18,7 @@ def encode_oriented_mesh(
     max_lod: int = 2,
     max_faces_for_first_lod: int = 5_000_000,
     decimation_aggressiveness: float = 4.5,
+    scale: float = 1.0,
 ) -> list[trimesh.Scene]:
     """Turn a mesh into an oriented mesh with a list of orientations and translations
 
@@ -38,7 +39,14 @@ def encode_oriented_mesh(
         and the maximum faces is 5 million, then LOD 1 is used as the first LOD.
         The remaining LODs are then generated starting from LOD 1
     decimation_aggressiveness : float, optional
-        The aggressiveness of the decimation algorithm, by default 4.5
+        The aggressiveness of the decimation algorithm, by default 4.5.
+        This aggressiveness is used on the nanometer scaled mesh.
+        This means that passing a different angstrom_scale does not require changing this value.
+    scale: float, optional
+        If the data is not one-to-one scale with angstrom, this allows to scale it appropriately, by default 1.0
+        A scale of 2.0 means that 1 unit in the mesh is 2 angstroms, or 0.2 nm
+        An important note is that the final output mesh is always assumed to be in nanometers,
+        the scaling here is only to adjust for a potential difference between the mesh units and angstroms.
 
     Returns
     -------
@@ -77,6 +85,10 @@ def encode_oriented_mesh(
     results = []
     for mesh in tqdm(decimated_meshes[first_lod:], desc="Processing meshes into LODs and positions"):  # type: ignore
         new_scene = trimesh.Scene()
+        if scale != 1.0:
+            original_bounds = mesh.bounds
+            mesh = mesh.copy().apply_scale(scale)
+            LOGGER.info("Scaling mesh from bounds %s to %s", original_bounds, mesh.bounds)
         for index, point in enumerate(data):
             translation = np.array([point["location"][k] for k in ("x", "y", "z")])
             rotation = np.array(point["xyz_rotation_matrix"])
