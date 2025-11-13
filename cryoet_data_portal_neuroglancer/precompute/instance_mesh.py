@@ -18,7 +18,7 @@ def encode_oriented_mesh(
     max_lod: int = 2,
     max_faces_for_first_lod: int = 5_000_000,
     decimation_aggressiveness: float = 4.5,
-    scale: float = 1.0,
+    data_scale_in_nm: float = 1.0,
 ) -> list[trimesh.Scene]:
     """Turn a mesh into an oriented mesh with a list of orientations and translations
 
@@ -45,12 +45,10 @@ def encode_oriented_mesh(
         consistent independent of the scale parameter passed to encode_mesh.
         Note that scaling the mesh before passing it to encode_mesh will change the decimation results, only the scale parameter of encode_mesh is setup to
         be consistent in the number of produced faces.
-    scale: float, optional
-        If the data (the list of translations, not the geometry) is not in 1nm per unit, this allows to scale the mesh from being in 1nm unit to the same unit as the data. By default 1.0.
-        A scale of 2.0 means that 1 unit in the original angstrom mesh becomes 2 angstrom.
-        When the mesh is converted to nanometers for neuroglancer, 1 unit in the converted mesh is 2 nanometers.
-        An important note is that the final output mesh is always assumed to be in nanometers,
-        the scaling here is only to adjust for a potential difference between the mesh units and angstroms.
+    data_scale_in_nm: float, optional
+        The scale of the data (list of translations, not geometry) in nanometers, by default 1.0.
+        With this parameter, we scale the mesh to match the data unit, putting both in the same co-ordinate space.
+        An important note is that the final output mesh is always assumed to be 1nm scale, and is scaled to the correct unit inside of neuroglancer itself.
 
     Returns
     -------
@@ -89,9 +87,9 @@ def encode_oriented_mesh(
     results = []
     for mesh in tqdm(decimated_meshes[first_lod:], desc="Processing meshes into LODs and positions"):  # type: ignore
         new_scene = trimesh.Scene()
-        if scale != 1.0:
+        if data_scale_in_nm != 1.0:
             original_bounds = mesh.bounds
-            mesh = mesh.copy().apply_scale(scale)
+            mesh = mesh.copy().apply_scale(1.0 / data_scale_in_nm)
             LOGGER.info("Scaling mesh from bounds %s to %s", original_bounds, mesh.bounds)
         for index, point in enumerate(data):
             translation = np.array([point["location"][k] for k in ("x", "y", "z")])
