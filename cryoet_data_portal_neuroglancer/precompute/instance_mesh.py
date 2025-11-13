@@ -18,6 +18,7 @@ def encode_oriented_mesh(
     max_lod: int = 2,
     max_faces_for_first_lod: int = 5_000_000,
     decimation_aggressiveness: float = 4.5,
+    data_scale_in_nm: float = 1.0,
 ) -> list[trimesh.Scene]:
     """Turn a mesh into an oriented mesh with a list of orientations and translations
 
@@ -38,7 +39,16 @@ def encode_oriented_mesh(
         and the maximum faces is 5 million, then LOD 1 is used as the first LOD.
         The remaining LODs are then generated starting from LOD 1
     decimation_aggressiveness : float, optional
-        The aggressiveness of the decimation algorithm, by default 4.5
+        The aggressiveness of the decimation algorithm, by default 4.5.
+        This aggressiveness is used on the nanometer mesh.
+        This means that passing a different scale to encode_mesh does not require changing the aggressiveness value, the number of faces at each LOD will be
+        consistent independent of the scale parameter passed to encode_mesh.
+        Note that scaling the mesh before passing it to encode_mesh will change the decimation results, only the scale parameter of encode_mesh is setup to
+        be consistent in the number of produced faces.
+    data_scale_in_nm: float, optional
+        The scale of the data (list of translations, not geometry) in nanometers, by default 1.0.
+        With this parameter, we scale the mesh to match the data unit, putting both in the same co-ordinate space.
+        An important note is that the final output mesh is always assumed to be 1nm scale, and is scaled to the correct unit inside of neuroglancer itself.
 
     Returns
     -------
@@ -77,6 +87,10 @@ def encode_oriented_mesh(
     results = []
     for mesh in tqdm(decimated_meshes[first_lod:], desc="Processing meshes into LODs and positions"):  # type: ignore
         new_scene = trimesh.Scene()
+        if data_scale_in_nm != 1.0:
+            original_bounds = mesh.bounds
+            mesh = mesh.copy().apply_scale(1.0 / data_scale_in_nm)
+            LOGGER.info("Scaling mesh from bounds %s to %s", original_bounds, mesh.bounds)
         for index, point in enumerate(data):
             translation = np.array([point["location"][k] for k in ("x", "y", "z")])
             rotation = np.array(point["xyz_rotation_matrix"])
