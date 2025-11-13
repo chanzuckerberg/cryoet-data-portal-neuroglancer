@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.1](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.7.0...v1.7.1) (2025-11-13)
+
+
+### 🐞 Bug Fixes
+
+* allow scaling oriented point meshes to same space as data units ([#73](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/73)) ([0ec3d86](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/0ec3d868fb9aa215660d1db3ae119a3fd904bb24))
+
 ## [1.7.0](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.6.1...v1.7.0) (2025-10-06)
 
 
