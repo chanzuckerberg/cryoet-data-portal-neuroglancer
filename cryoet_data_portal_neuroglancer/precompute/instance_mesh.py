@@ -40,11 +40,15 @@ def encode_oriented_mesh(
         The remaining LODs are then generated starting from LOD 1
     decimation_aggressiveness : float, optional
         The aggressiveness of the decimation algorithm, by default 4.5.
-        This aggressiveness is used on the nanometer scaled mesh.
-        This means that passing a different angstrom_scale does not require changing this value.
+        This aggressiveness is used on the nanometer mesh.
+        This means that passing a different scale to encode_mesh does not require changing the aggressiveness value, the number of faces at each LOD will be
+        consistent independent of the scale parameter passed to encode_mesh.
+        Note that scaling the mesh before passing it to encode_mesh will change the decimation results, only the scale parameter of encode_mesh is setup to
+        be consistent in the number of produced faces.
     scale: float, optional
-        If the data is not one-to-one scale with angstrom, this allows to scale it appropriately, by default 1.0
-        A scale of 2.0 means that 1 unit in the mesh is 2 angstroms, or 0.2 nm
+        If the data (the list of translations, not the geometry) is not in 1nm per unit, this allows to scale the mesh from being in 1nm unit to the same unit as the data. By default 1.0.
+        A scale of 2.0 means that 1 unit in the original angstrom mesh becomes 2 angstrom.
+        When the mesh is converted to nanometers for neuroglancer, 1 unit in the converted mesh is 2 nanometers.
         An important note is that the final output mesh is always assumed to be in nanometers,
         the scaling here is only to adjust for a potential difference between the mesh units and angstroms.
 
