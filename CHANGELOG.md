@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.2](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.7.1...v1.7.2) (2026-10-30)
+
+
+### 🐞 Bug Fixes
+
+* **deps:** consolidate dependabot updates and fix security advisories ([#75](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/75)) ([c8fd4f4](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/c8fd4f483b1a86b24239d81769b9212d14313d79))
+
 ## [1.7.1](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.7.0...v1.7.1) (2025-11-13)
 
 
