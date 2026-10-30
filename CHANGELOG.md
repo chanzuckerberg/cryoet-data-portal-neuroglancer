@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.3](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.7.2...v1.7.3) (2026-10-30)
+
+
+### 🧹 Miscellaneous Chores
+
+* **deps:** bump fsspec from 2025.3.0 to 2026.6.0 ([#77](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/issues/77)) ([e49ac58](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/commit/e49ac588c41e4590f2061e18d3c62c444239cfc5))
+
 ## [1.7.2](https://github.com/chanzuckerberg/cryoet-data-portal-neuroglancer/compare/v1.7.1...v1.7.2) (2026-10-30)
 
 
