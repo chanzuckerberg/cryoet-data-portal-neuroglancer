@@ -14,25 +14,49 @@ from cryoet_data_portal_neuroglancer.shaders.image import (
     ImageWithVolumeRenderingShaderBuilder,
 )
 
+# Non-spatial OME axes a source may have in front of z, y, x (e.g. the 5-D [t, c, z, y, x] volumes of the cryoET
+# profile): (name of the source dimension in Neuroglancer, name of the output dimension, [scale, unit]).
+# Neuroglancer names OME channel axes "c'" (a local dimension). The time axis is mapped to the local dimension
+# "t'", so the global coordinate space stays x, y, z.
+EXTRA_AXES: dict[str, tuple[str, str, list[Any]]] = {
+    "t": ("t", "t'", [1, "s"]),
+    "c": ("c'", "c'", [1, ""]),
+}
+
 
 def create_source(
     url: str,
     input_dimension: tuple[float, float, float],
     output_dimension: tuple[float, float, float],
+    extra_axes: tuple[str, ...] = (),
 ) -> dict[str, Any]:
+    """Source with a transform that maps x, y, z of the data to x, y, z of the viewer (scales in metres).
+
+    ``extra_axes`` names the non-spatial axes of the data ("t", "c"). Neuroglancer matches the transform's input
+    dimensions to the source's by name and requires them to have the rank of the output dimensions, so every
+    axis of the source is listed; the extra axes are mapped to local (layer) dimensions.
+    """
+    output_dims: dict[str, list[Any]] = {
+        "x": [output_dimension[0], "m"],
+        "y": [output_dimension[1], "m"],
+        "z": [output_dimension[2], "m"],
+    }
+    input_dims: dict[str, list[Any]] = {
+        "x": [input_dimension[0], "m"],
+        "y": [input_dimension[1], "m"],
+        "z": [input_dimension[2], "m"],
+    }
+    for axis in extra_axes:
+        if axis not in EXTRA_AXES:
+            raise ValueError(f"Unsupported extra axis {axis!r}; expected one of {sorted(EXTRA_AXES)}")
+        input_name, output_name, scale_unit = EXTRA_AXES[axis]
+        input_dims[input_name] = list(scale_unit)
+        output_dims[output_name] = list(scale_unit)
     return {
         "url": url,
         "transform": {
-            "outputDimensions": {
-                "x": [output_dimension[0], "m"],
-                "y": [output_dimension[1], "m"],
-                "z": [output_dimension[2], "m"],
-            },
-            "inputDimensions": {
-                "x": [input_dimension[0], "m"],
-                "y": [input_dimension[1], "m"],
-                "z": [input_dimension[2], "m"],
-            },
+            "outputDimensions": output_dims,
+            "inputDimensions": input_dims,
         },
     }
 
@@ -132,10 +156,20 @@ class ImageJSONGenerator(RenderingJSONGenerator):
     blend: str = "additive"
     opacity: float = 1.0
     is_code_editor_visible: bool = False
+    source_prefix: str = "zarr"
+    extra_axes: tuple[str, ...] = ()
 
     def __post_init__(self):
         super().__post_init__()
         self._type = RenderingTypes.IMAGE
+
+    def create_source(self, source_prefix: str) -> dict[str, Any]:
+        return create_source(
+            f"{source_prefix}://{self.source}",
+            self.scale,
+            self.output_scale,  # type: ignore[arg-type]
+            extra_axes=self.extra_axes,
+        )
 
     def _compute_contrast_limits(self) -> tuple[float, float]:
         if self.mean is None or self.rms is None:
@@ -176,7 +210,7 @@ class ImageJSONGenerator(RenderingJSONGenerator):
         config = {
             "type": self.layer_type,
             "name": self.name,
-            "source": self.create_source("zarr"),
+            "source": self.create_source(self.source_prefix),
             "opacity": self.opacity,
             "blend": self.blend,
             "tab": "rendering",
@@ -297,6 +331,7 @@ class ImageVolumeJSONGenerator(RenderingJSONGenerator):
     rendering_depth: int
     blend: str = "additive"
     opacity: float = 1.0
+    is_visible: bool = True
 
     def __post_init__(self):
         super().__post_init__()

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urljoin
 
 from scipy.spatial.transform import Rotation
@@ -501,6 +501,8 @@ def generate_image_layer(
     opacity: float = 1.0,
     is_code_editor_visible: bool = False,
     output_scale: float | tuple[float, float, float] | None = None,
+    zarr_version: Literal[2, 3] | None = None,
+    extra_axes: tuple[str, ...] | list[str] = (),
 ) -> dict[str, Any]:
     """Generate neuroglancer JSON state for a tomogram (image) layer.
 
@@ -574,6 +576,17 @@ def generate_image_layer(
     output_scale: float | tuple[float, float, float] | None, optional
         The scale/resolution of the data in metres for the output vis.
         If None, the scale will be used instead.
+    zarr_version: 2 | 3 | None, optional
+        Zarr format of the source. None (default) emits ``zarr://``, which Neuroglancer resolves for
+        both versions (the source must not hold v2 and v3 metadata at once); 2 and 3 emit ``zarr2://``
+        and ``zarr3://``.
+    extra_axes: tuple[str, ...], optional
+        Non-spatial axes of the source in front of z, y, x, e.g. ("t", "c") for the 5-D
+        [t, c, z, y, x] volumes of the cryoET profile. They are mapped to local layer dimensions
+        (``t'``, ``c'``), so the viewer's global dimensions stay x, y, z. Default is ().
+        For sources stored as integer codes with ``scale_factor``/``add_offset`` (CF), Neuroglancer
+        shows the stored codes: give contrast limits, mean and rms in code units (see
+        ``precompute.contrast_limits.physical_to_code``).
 
     Returns
     -------
@@ -611,6 +624,8 @@ def generate_image_layer(
         blend=blend,
         opacity=opacity,
         is_code_editor_visible=is_code_editor_visible,
+        source_prefix="zarr" if zarr_version is None else f"zarr{zarr_version}",
+        extra_axes=tuple(extra_axes),
     ).to_json()
 
 
@@ -630,13 +645,14 @@ def generate_image_volume_layer(
 
     It was originally used to visualize segmentations via volume rendering.
     """
-    source, name, url, _, scale = _setup_creation(source, name, url, scale=scale)
+    source, name, url, _, scale, output_scale = _setup_creation(source, name, url, scale=scale)
     _validate_color(color)
     return ImageVolumeJSONGenerator(
         source=source,
         name=name,
         color=color,
         scale=scale,
+        output_scale=output_scale,
         is_visible=is_visible,
         rendering_depth=rendering_depth,
         blend=blend,

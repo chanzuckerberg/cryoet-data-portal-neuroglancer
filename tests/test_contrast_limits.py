@@ -2,8 +2,32 @@ import numpy as np
 
 from cryoet_data_portal_neuroglancer.precompute.contrast_limits import (
     PercentileContrastLimitCalculator,
+    code_to_physical,
     compute_contrast_limits,
+    contrast_limits_from_statistics,
+    physical_to_code,
 )
+
+
+def test_physical_to_code_round_trip():
+    sf, ao = 2.039e-10, -8.319e-08
+    for v in (-6.763e-06, 0.0, 3.128e-06):
+        assert np.isclose(code_to_physical(physical_to_code(v, sf, ao), sf, ao), v, rtol=1e-12, atol=0)
+    assert physical_to_code(ao, sf, ao) == 0.0
+    assert physical_to_code(5.0, None, None) == 5.0
+
+
+def test_contrast_limits_from_statistics():
+    stats = {"p1": -6210.0, "p5": -4352.0, "p95": 4296.0, "p99": 6180.0, "mean": 0.4, "std": 2647.0}
+    assert contrast_limits_from_statistics(stats) == (0.4 - 3 * 2647.0, 0.4 + 3 * 2647.0)
+    assert contrast_limits_from_statistics(stats, method="percentile") == (-6210.0, 6180.0)
+    assert contrast_limits_from_statistics(stats, method="percentile", percentiles=("p5", "p95")) == (-4352.0, 4296.0)
+
+
+def test_compute_contrast_limits_squeezes_5d():
+    rng = np.random.default_rng(0)
+    volume = rng.normal(size=(40, 32, 32)).astype(np.float32)
+    assert compute_contrast_limits(volume[None, None], method="cdf") == compute_contrast_limits(volume, method="cdf")
 
 
 def test_percentile_contrast_limits():
