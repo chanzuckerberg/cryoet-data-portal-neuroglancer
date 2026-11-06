@@ -224,6 +224,8 @@ def create_segmentation_chunk(
         if block.shape != block_size:
             block = pad_block(block, block_size)
         unique_values, encoded_values = np.unique(block, return_inverse=True)
+        # numpy >= 2 returns the inverse in the shape of the input; the encoding packs it in C order
+        encoded_values = encoded_values.reshape(-1)
 
         lookup_table_offset, encoded_bits = _create_lookup_table(buffer, stored_lookup_tables, unique_values)
         encoded_values_offset = _create_encoded_values(buffer, encoded_values, encoded_bits)
