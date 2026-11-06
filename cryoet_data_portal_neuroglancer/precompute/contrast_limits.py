@@ -16,6 +16,40 @@ from cryoet_data_portal_neuroglancer.utils import ParameterOptimizer
 LOGGER = logging.getLogger(__name__)
 
 
+def physical_to_code(value: float, scale_factor: float | None, add_offset: float | None) -> float:
+    """Convert a value to the units of data stored as codes with netCDF/CF attributes,
+    ``value = add_offset + scale_factor * code``. Neuroglancer displays the stored codes, so shader
+    contrast limits for such data must be given in code units."""
+    sf = 1.0 if scale_factor is None else scale_factor
+    ao = 0.0 if add_offset is None else add_offset
+    return (value - ao) / sf
+
+
+def code_to_physical(code: float, scale_factor: float | None, add_offset: float | None) -> float:
+    """Inverse of :func:`physical_to_code`."""
+    sf = 1.0 if scale_factor is None else scale_factor
+    ao = 0.0 if add_offset is None else add_offset
+    return ao + sf * code
+
+
+def contrast_limits_from_statistics(
+    stats: dict[str, float],
+    method: Literal["std", "percentile"] = "std",
+    n_std: float = 3.0,
+    percentiles: tuple[str, str] = ("p1", "p99"),
+) -> tuple[float, float]:
+    """Contrast limits from precomputed image statistics, in the units of the statistics.
+
+    ``stats`` is an intensity-statistics object as stored in ``dca.normalization_statistics``
+    (``mean``, ``std``, ``p1``, ``p5``, ``p95``, ``p99``, ...). With ``method="std"`` the limits are
+    ``mean ± n_std * std``; with ``method="percentile"`` they are the two named percentiles.
+    """
+    if method == "std":
+        return (stats["mean"] - n_std * stats["std"], stats["mean"] + n_std * stats["std"])
+    lo, hi = percentiles
+    return (stats[lo], stats[hi])
+
+
 def compute_contrast_limits(
     data: da.Array | np.ndarray,
     method: Literal["gmm", "cdf"] = "gmm",
@@ -27,7 +61,10 @@ def compute_contrast_limits(
     Parameters
     ----------
     data: da.Array or np.ndarray
-        The input data for calculating contrast limits. Must be 3D.
+        The input data for calculating contrast limits. Must be 3D, or have leading axes of size 1
+        (e.g. 5-D [t, c, z, y, x] volumes), which are dropped. The limits are in the units of the
+        data: for volumes stored as integer codes, pass the codes to get limits in code units, which
+        is what Neuroglancer displays.
     method: str, optional.
         The method to use for calculating contrast limits.
         By default "gmm". Other option is "cdf".
@@ -49,6 +86,9 @@ def compute_contrast_limits(
     tuple[float, float]
         The calculated contrast limits.
     """
+    # 5-D [t, c, z, y, x] volumes with a single timepoint and channel
+    while data.ndim > 3 and data.shape[0] == 1:
+        data = data[0]
     calculator_class: ContrastLimitCalculator = (
         GMMContrastLimitCalculator if method == "gmm" else CDFContrastLimitCalculator
     )

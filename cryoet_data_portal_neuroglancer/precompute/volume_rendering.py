@@ -45,6 +45,13 @@ def volume_render(
     if num_workers is None:
         num_workers = mp.cpu_count()
 
+    # The workers read the volume as float32 from shared memory; accept any dtype (e.g. int16 codes)
+    # and drop leading axes of size 1 (5-D [t, c, z, y, x] volumes).
+    volume = np.asarray(volume)
+    while volume.ndim > 3 and volume.shape[0] == 1:
+        volume = volume[0]
+    volume = np.ascontiguousarray(volume, dtype=np.float32)
+
     volume_shape = volume.shape
     volume_rendered_image_shape = (volume.shape[1], volume.shape[2], 4)
 

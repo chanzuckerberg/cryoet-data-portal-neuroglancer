@@ -4,10 +4,7 @@ import cloudvolume
 import numpy as np
 import pytest
 import trimesh
-import zarr
 from cloudvolume import CloudVolume
-from ome_zarr.io import parse_url
-from ome_zarr.writer import write_image
 
 from cryoet_data_portal_neuroglancer.precompute.mesh import (
     decimate_mesh,
@@ -17,6 +14,7 @@ from cryoet_data_portal_neuroglancer.precompute.mesh import (
     generate_multiresolution_mesh,
 )
 from cryoet_data_portal_neuroglancer.precompute.segmentation_mask import encode_segmentation
+from tests.conftest import write_ome_zarr
 
 
 @pytest.mark.parametrize(
@@ -94,11 +92,12 @@ def test_generate_multilabel_multiresolution_mesh(tmp_path):
     generic_mesh_checks(tmp_path)
 
 
+@pytest.mark.parametrize("version", ["0.4", "0.5"])
 @pytest.mark.parametrize(
     "segmentation_shape",
     [(128, 128, 128), (120, 53, 12), (40, 20, 25)],
 )
-def test_mesh_from_segmentation(segmentation_shape, tmp_path):
+def test_mesh_from_segmentation(segmentation_shape, version, tmp_path):
     zarr_path = tmp_path / "segmentation.zarr"
     output_path = tmp_path / "converted"
 
@@ -108,11 +107,9 @@ def test_mesh_from_segmentation(segmentation_shape, tmp_path):
     data[:, :10, :] = 1
     data[:, :, :10] = 2
 
-    # write the image data
+    # write the image data (Zarr v2 / OME-NGFF 0.4 or Zarr v3 / OME-NGFF 0.5)
     if not zarr_path.exists():
-        store = parse_url(zarr_path, mode="w").store
-        root = zarr.group(store=store)
-        write_image(image=data, group=root, axes="zyx")
+        write_ome_zarr(zarr_path, data, version=version, levels=3)
 
     encode_segmentation(
         zarr_path,
@@ -137,4 +134,4 @@ def test_mesh_from_segmentation(segmentation_shape, tmp_path):
 if __name__ == "__main__":
     from pathlib import Path
 
-    test_mesh_from_segmentation((120, 53, 12), Path("./tmp"))
+    test_mesh_from_segmentation((120, 53, 12), "0.5", Path("./tmp"))

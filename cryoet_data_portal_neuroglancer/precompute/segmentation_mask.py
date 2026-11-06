@@ -224,6 +224,8 @@ def create_segmentation_chunk(
         if block.shape != block_size:
             block = pad_block(block, block_size)
         unique_values, encoded_values = np.unique(block, return_inverse=True)
+        # numpy >= 2 returns the inverse in the shape of the input; the encoding packs it in C order
+        encoded_values = encoded_values.reshape(-1)
 
         lookup_table_offset, encoded_bits = _create_lookup_table(buffer, stored_lookup_tables, unique_values)
         encoded_values_offset = _create_encoded_values(buffer, encoded_values, encoded_bits)
@@ -314,6 +316,7 @@ def encode_segmentation(
     labels_dict: dict[int, str] | None = None,
     fill_missing: bool = False,
     round_before_cast: bool = False,
+    storage_options: dict[str, Any] | None = None,
 ) -> None:
     """Convert the given OME-Zarr file to neuroglancer segmentation format with the given block size
 
@@ -325,7 +328,7 @@ def encode_segmentation(
     Parameters
     ----------
     filename : str
-        The path to the OME-Zarr file
+        The path or URL of the OME-Zarr image (Zarr v2 / OME-NGFF 0.4 or Zarr v3 / OME-NGFF 0.5)
     output_path : Path | str
         The path to the output directory
     resolution : tuple[float, float, float]
@@ -389,11 +392,13 @@ def encode_segmentation(
         If the input data is floating point, whether to round the values
         before casting to uint32, by default False. If False, values will be
         truncated.
+    storage_options : dict | None, optional
+        Options for fsspec when ``filename`` is a remote URL, by default None
     """
     LOGGER.info("Converting %s to neuroglancer compressed segmentation format", filename)
     output_path = Path(output_path)
 
-    dask_data = load_omezarr_data(filename)
+    dask_data = load_omezarr_data(filename, storage_options=storage_options)
     dask_data = da.rint(dask_data) if round_before_cast else dask_data
     dask_data = dask_data.astype(np.uint32)
 
